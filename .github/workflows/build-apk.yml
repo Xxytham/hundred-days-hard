@@ -1,0 +1,48 @@
+# Builds the signed APK and publishes it as a GitHub Release whenever android/VERSION changes on main.
+# Needs the repository secret KEYSTORE_B64 (the signing key, base64-encoded).
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths: [android/VERSION]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::KEYSTORE_B64 secret is missing"; exit 1; fi
+          mkdir -p android/keystore
+          echo "$KEYSTORE_B64" | base64 -d > android/keystore/hundred-days-hard.jks
+
+      - name: Build
+        run: ANDROID_SDK="$RUNNER_TEMP/android-sdk" android/build.sh
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NAME=$(sed -n 's/^name=//p' android/VERSION)
+          # Release notes: this version's section of CHANGELOG.md
+          awk -v v="## v$NAME" '$0==v{on=1;next} /^## v/{on=0} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "100 Days Hard v$NAME" > notes.md
+          if gh release view "v$NAME" >/dev/null 2>&1; then
+            gh release upload "v$NAME" "android/100-days-hard-v$NAME.apk" --clobber
+          else
+            gh release create "v$NAME" "android/100-days-hard-v$NAME.apk" --title "100 Days Hard v$NAME" --notes-file notes.md
+          fi
