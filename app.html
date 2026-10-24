@@ -133,6 +133,18 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 .seg.sm button { padding: 4px 10px; font-size: 13px; }
 .sheet-foot { display: grid; gap: 8px; position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); background: var(--surface); padding-block: 10px 6px; }
 
+.three { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
+.three label { min-width: 0; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.form label > .seg { justify-self: start; }
+.suffix { position: relative; display: block; }
+.suffix .field { padding-right: 40px; }
+.suffix .u {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; font-weight: 700; color: var(--ink); background: var(--sunk); padding: 3px 7px; border-radius: 6px; pointer-events: none;
+}
+
 /* Strength tickers */
 .tickers { display: grid; }
 .tick {
@@ -805,19 +817,22 @@ body.setup .nav, body.setup .top { display: none; }
   const REPO = "Xxytham/hundred-days-hard";
   const APK_URL = "https://github.com/" + REPO + "/releases/latest/download/100-days-hard.apk";
   const SHARE_URL = "https://xxytham.github.io/hundred-days-hard/get/";
-  let update = null;
+  let update = null, updateChecked = false, lastUpdateCheck = 0;
   const newer = (a, b) => {
     const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
     return false;
   };
   async function checkForUpdate() {
-    if (!bridge || !bridge.appVersion) return;
+    if (!bridge || !bridge.appVersion || Date.now() - lastUpdateCheck < 10 * 60 * 1000) return;
+    lastUpdateCheck = Date.now();
     try {
       const r = await fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
       if (!r.ok) return;
       const v = String((await r.json()).tag_name || "").replace(/^v/, "");
-      if (v && newer(v, bridge.appVersion())) { update = v; render(); }
+      updateChecked = true;
+      update = v && newer(v, bridge.appVersion()) ? v : null;
+      render();
     } catch (e) { /* offline or repo not public */ }
   }
 
@@ -840,14 +855,25 @@ body.setup .nav, body.setup .top { display: none; }
     qrLib.then(() => { const b = document.getElementById("share-qr"); if (b) paint(); }, () => { box.hidden = true; });
   }
   function shareSection() {
-    const ver = bridge && bridge.appVersion ? bridge.appVersion() : "";
-    return '<section class="panel" aria-labelledby="h-share"><h2 id="h-share">Share with friends</h2>' +
-      '<p class="hint">Friends get their own fresh copy with a short setup. None of your goals, workouts or numbers go with it.</p>' +
+    return '<section class="panel" aria-labelledby="h-share"><h2 id="h-share">Share this app with your friends</h2>' +
+      '<p class="hint">Only the app is shared. Your tracker stays on your phone, and each friend sets up their own.</p>' +
       '<div class="share-row"><div class="share-qr" id="share-qr" aria-label="QR code for the download page"></div>' +
       '<div class="form" style="flex:1;min-width:0"><span class="share-link" id="share-link">' + SHARE_URL + "</span>" +
       '<div class="btn-row">' + (bridge && bridge.shareText ? '<button class="btn" data-action="share-app">Share link</button>' : "") + '<button class="btn secondary" data-action="copy-link">Copy link</button></div></div></div>' +
-      '<ol class="steps"><li><b>Android:</b> they open the link, download the app and install it.</li><li><b>iPhone:</b> they open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</li></ol>' +
-      (ver ? '<p class="hint">You have version ' + esc(ver) + ".</p>" : "") + "</section>";
+      '<p class="hint">Send the link, or let a friend scan the code. The page walks them through it:</p>' +
+      '<ol class="steps"><li><b>Android:</b> tap <b>Download for Android</b>, open the file, then tap <b>Install</b>.</li><li><b>iPhone:</b> open the link in Safari, tap <b>Open the app</b>, then <b>Share → Add to Home Screen</b>.</li></ol>' +
+      "</section>";
+  }
+
+  function updateSection() {
+    if (isWebApp) return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2><p class="hint">This app updates itself whenever you open it with an internet connection.</p></section>';
+    if (!bridge || !bridge.appVersion) return "";
+    const ver = bridge.appVersion();
+    const status = update ? "Version " + esc(update) + " is ready. You have " + esc(ver) + "." : updateChecked ? "You have the latest version (" + esc(ver) + ")." : "You have version " + esc(ver) + ".";
+    return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2>' +
+      '<div class="sync"><span class="dot ' + (update ? "" : updateChecked ? "ok" : "") + '"></span><span>' + status + "</span></div>" +
+      '<div class="btn-row"><button class="btn' + (update ? "" : " secondary") + '" data-action="get-update">' + (update ? "Download version " + esc(update) : "Download the latest version") + "</button></div>" +
+      '<p class="hint">This downloads the newest app file. Open it and tap <b>Update</b>. Your tracker stays as it is.</p></section>';
   }
 
   // ---------- first-time setup ----------
@@ -1253,6 +1279,7 @@ body.setup .nav, body.setup .top { display: none; }
     const s = S();
     return (
       backupSection() +
+      updateSection() +
       healthSection() +
       shareSection() +
       '<section class="panel" aria-labelledby="h-ch"><h2 id="h-ch">Challenge</h2><div class="form">' +
@@ -1386,9 +1413,10 @@ body.setup .nav, body.setup .top { display: none; }
       ? '<form class="form ex" id="wadd-form">' +
           '<label>Exercise<input class="field" id="wadd-name" list="wadd-names" placeholder="' + ({ push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "Exercise") + '" maxlength="60" autocomplete="off" required></label>' +
           '<datalist id="wadd-names">' + names.map((n) => '<option value="' + esc(n) + '"></option>').join("") + "</datalist>" +
-          '<div class="two"><label>Weight (<span id="wadd-unit">' + S().unit + '</span>)<input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0 = bodyweight"></label>' +
-          '<label>Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10"></label></div>' +
-          '<label>Sets<input class="field num" id="wadd-sets" type="number" inputmode="numeric" min="1" value="3"></label>' +
+          '<div class="three"><label for="wadd-weight">Weight<span class="suffix"><input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0"><span class="u" id="wadd-unit">' + S().unit + "</span></span></label>" +
+          '<label for="wadd-reps">Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10"></label>' +
+          '<label for="wadd-sets">Sets<input class="field num" id="wadd-sets" type="number" inputmode="numeric" min="1" value="3"></label></div>' +
+          '<p class="hint">Leave weight at 0 for bodyweight moves like dips.</p>' +
           '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
         "</form>"
       : "";
@@ -1427,7 +1455,7 @@ body.setup .nav, body.setup .top { display: none; }
       case "next-day": if (viewDate < todayISO()) viewDate = addDays(viewDate, 1); render(true); break;
       case "open-day": viewDate = el.dataset.date; view = "today"; render(true); window.scrollTo(0, 0); break;
       case "toggle-habit": { const d = day(); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; save(viewDate); render(true); break; }
-      case "open-settings": view = "settings"; render(true); window.scrollTo(0, 0); break;
+      case "open-settings": view = "settings"; render(true); window.scrollTo(0, 0); checkForUpdate(); break;
       case "get-update": if (bridge && bridge.openUrl) bridge.openUrl(APK_URL); break;
       case "share-app": if (bridge && bridge.shareText) bridge.shareText("I'm tracking my 100-day gym challenge with this app. Get it here: " + SHARE_URL); break;
       case "copy-link": {

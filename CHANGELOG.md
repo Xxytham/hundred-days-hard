@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.1
+- Adding an exercise: Weight, Reps and Sets sit in one row, with a small lb/kg badge in the weight box.
+- Settings has an **App updates** section with a button that downloads the newest version.
+- The sharing section is worded for anyone who's sharing the app: "Share this app with your friends".
+
 ## v0.4
 - Streak counter on Today: days in a row with every daily task done, your last 7 days, and your best streak.
 - Backup dot next to the date: green when a copy was saved off the phone in the last week, yellow after a week, red after two.
