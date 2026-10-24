@@ -7,7 +7,7 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths: [android/VERSION]
+    paths: [android/VERSION, .github/workflows/build-apk.yml]
   workflow_dispatch:
 
 permissions:
@@ -43,12 +43,12 @@ jobs:
           # Release notes: this version's section of CHANGELOG.md
           awk -v v="## v$NAME" '$0==v{on=1;next} /^## v/{on=0} on' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "100 Days Hard v$NAME" > notes.md
-          cat >> notes.md <<'NOTES'
-
-**Install or update**
-- Android: download `100-days-hard.apk` below, open it, and tap Install (or Update). Your data stays.
-- iPhone: open https://xxytham.github.io/hundred-days-hard/get/ in Safari and follow the steps.
-NOTES
+          {
+            echo
+            echo "**Install or update**"
+            echo '- Android: download `100-days-hard.apk` below, open it, and tap Install (or Update). Your data stays.'
+            echo "- iPhone: open https://xxytham.github.io/hundred-days-hard/get/ in Safari and follow the steps."
+          } >> notes.md
           # Same file under a fixed name, so .../releases/latest/download/100-days-hard.apk always gets the newest
           cp "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk
           if gh release view "v$NAME" >/dev/null 2>&1; then
