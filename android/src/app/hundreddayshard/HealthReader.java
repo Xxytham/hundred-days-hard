@@ -8,6 +8,7 @@ import android.health.connect.ReadRecordsRequestUsingFilters;
 import android.health.connect.ReadRecordsResponse;
 import android.health.connect.TimeInstantRangeFilter;
 import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
+import android.health.connect.datatypes.DistanceRecord;
 import android.health.connect.datatypes.ExerciseSessionRecord;
 import android.health.connect.datatypes.ExerciseSessionType;
 import android.health.connect.datatypes.Metadata;
@@ -47,8 +48,9 @@ final class HealthReader {
     static final String EXERCISE = "android.permission.health.READ_EXERCISE";
     static final String ACTIVE_CAL = "android.permission.health.READ_ACTIVE_CALORIES_BURNED";
     static final String TOTAL_CAL = "android.permission.health.READ_TOTAL_CALORIES_BURNED";
-    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL};
-    private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned"};
+    static final String DISTANCE = "android.permission.health.READ_DISTANCE";
+    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE};
+    private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned", "distance"};
 
     private static final Map<Integer, String> TYPES = new HashMap<>();
     // Session types that are lifting rather than cardio. One of these on the same day as a workout saved
@@ -212,7 +214,8 @@ final class HealthReader {
                         }
                         readAll(c, hcm, EXERCISE, ExerciseSessionRecord.class, range, ex, sessions ->
                         readAll(c, hcm, ACTIVE_CAL, ActiveCaloriesBurnedRecord.class, range, ex, active ->
-                        readAll(c, hcm, TOTAL_CAL, TotalCaloriesBurnedRecord.class, range, ex, total -> {
+                        readAll(c, hcm, TOTAL_CAL, TotalCaloriesBurnedRecord.class, range, ex, total ->
+                        readAll(c, hcm, DISTANCE, DistanceRecord.class, range, ex, distances -> {
                             for (ExerciseSessionRecord w : sessions) {
                                 try {
                                     JSONObject o = new JSONObject();
@@ -225,13 +228,24 @@ final class HealthReader {
                                     if (kcal <= 0) kcal = totalDuring(total, w);
                                     if (kcal > 0) o.put("kcal", Math.round(kcal));
                                     o.put("auto", w.getMetadata().getRecordingMethod() == Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED);
+                                    if (type == ExerciseSessionType.EXERCISE_SESSION_TYPE_WALKING) {
+                                        // Walks only count as cardio from a mile up, so send their distance, and the
+                                        // steps taken during them as a fallback when no distance was recorded.
+                                        o.put("walk", true);
+                                        double m = 0;
+                                        for (DistanceRecord d : distances) if (inside(d.getStartTime(), d.getEndTime(), w)) m += d.getDistance().getInMeters();
+                                        if (m > 0) o.put("miles", Math.round(m / 1609.344 * 100) / 100.0);
+                                        long n = 0;
+                                        for (StepsRecord st : stepRecords) if (inside(st.getStartTime(), st.getEndTime(), w)) n += st.getCount();
+                                        if (n > 0) o.put("steps", n);
+                                    }
                                     String day = w.getStartTime().atZone(zone).toLocalDate().toString();
                                     String origin = w.getMetadata().getDataOrigin().getPackageName();
                                     workouts.computeIfAbsent(day, k -> new HashMap<>()).computeIfAbsent(origin == null ? "" : origin, k -> new JSONArray()).put(o);
                                 } catch (Exception ignored) { }
                             }
                             done.accept(toJson(food, weightKg, steps, sleep, workouts, fromIso));
-                        })));
+                        }))));
                     });
                 });
             });

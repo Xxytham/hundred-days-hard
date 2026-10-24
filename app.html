@@ -601,15 +601,18 @@ body.setup .nav, body.setup .top { display: none; }
   const workoutsTarget = () => Math.max(1, Math.round(+S().workoutsTarget) || 1);
   function workoutParts(day) {
     const ses = ((day && day.health && day.health.sessions) || []).filter((x) => x.min >= 10);
-    const strength = ses.filter((x) => x.strength), cardio = ses.filter((x) => !x.strength);
+    const strength = ses.filter((x) => x.strength), cardio = ses.filter((x) => !x.strength && walkCounts(x));
     const app = day && day.workout && day.workout.saved ? 1 : 0, t = workoutsTarget();
     const count = t === 1 ? Math.min(1, app + cardio.length) : app + Math.min(cardio.length, t - 1);
     return { count, ses, strength, cardio, app };
   }
+  // Walks count as cardio only from 1 mile. Without a recorded distance, about 2,000 steps make a mile.
+  const walkMiles = (x) => (x.miles != null ? x.miles : x.steps ? x.steps / 2000 : null);
+  const walkCounts = (x) => !x.walk || (walkMiles(x) || 0) >= 1;
   function workoutNames(day) {
     const p = workoutParts(day), names = [], t = workoutsTarget();
     if (p.app) names.push(typeName(day.workout.type) + " day" + (p.strength[0] ? " " + p.strength[0].min + " min" : ""));
-    p.cardio.forEach((x) => names.push(x.name + " " + x.min + " min"));
+    p.cardio.forEach((x) => names.push(x.name + " " + (x.walk ? (Math.round(walkMiles(x) * 10) / 10) + " mi" : x.min + " min")));
     if (t > 1 && p.count < t) {
       const cardioLeft = Math.max(0, t - 1 - p.cardio.length);
       const need = (p.app ? [] : ["Push, Pull or Legs"]).concat(cardioLeft ? [cardioLeft > 1 ? cardioLeft + " cardio" : "cardio"] : []);
@@ -620,7 +623,7 @@ body.setup .nav, body.setup .top { display: none; }
   const workoutRule = () => {
     const t = workoutsTarget();
     return t === 1 ? "Ticks itself when you save Push, Pull or Legs here, or Samsung Health records cardio."
-      : t + " workouts means one Push, Pull or Legs saved here plus " + (t - 1) + " cardio session" + (t > 2 ? "s" : "") + " from Samsung Health (runs, rides, swims, sports, hikes or walks).";
+      : t + " workouts means one Push, Pull or Legs saved here plus " + (t - 1) + " cardio session" + (t > 2 ? "s" : "") + " from Samsung Health (runs, rides, swims, sports, hikes, or walks of a mile or more).";
   };
   const METRICS = {
     steps: { label: (st) => (+st.stepsTarget).toLocaleString() + " steps", value: (d) => (d.health ? d.health.steps : null), target: (st) => st.stepsTarget, show: (v, st) => fmt(v) + " / " + fmt(st.stepsTarget) },
@@ -1200,7 +1203,7 @@ body.setup .nav, body.setup .top { display: none; }
     const unit = S().unit;
 
     const tasks = tasksFor(viewDate), missing = healthMissing();
-    const needsPerm = health !== "unavailable" && bridge && tasks.some((h) => (AUTO_IDS.includes(h.id) && missing.includes(h.id)) || (h.id === "workout" && missing.includes("workouts")));
+    const needsPerm = health !== "unavailable" && bridge && tasks.some((h) => (AUTO_IDS.includes(h.id) && missing.includes(h.id)) || (h.id === "workout" && (missing.includes("workouts") || missing.includes("distance"))));
     const habits = tasks.length
       ? '<div class="list">' + tasks.map((h) => {
           const on = !!(day.habits && day.habits[h.id]);
@@ -1326,7 +1329,7 @@ body.setup .nav, body.setup .top { display: none; }
   function workoutOfferHTML() {
     if (S().workoutOffered || !bridge || health === "unavailable" || !S().setupDone || !S().habits.some((h) => h.id === "workout")) return "";
     const n = woChoice || workoutsTarget();
-    return '<div class="notice"><b>Workouts from Samsung Health now count</b><span class="hint">Cardio from Samsung Health (runs, rides, swims, sports, hikes, walks) now counts toward your workout task, alongside the Push, Pull or Legs you save here. With 2 a day, you need one of each. How many workouts a day?</span>' +
+    return '<div class="notice"><b>Workouts from Samsung Health now count</b><span class="hint">Cardio from Samsung Health (runs, rides, swims, sports, hikes, walks of a mile or more) now counts toward your workout task, alongside the Push, Pull or Legs you save here. With 2 a day, you need one of each. How many workouts a day?</span>' +
       '<div class="pick">' + [1, 2, 3].map((v) => '<button data-action="wo-n" data-v="' + v + '" aria-pressed="' + (n === v) + '">' + v + " a day</button>").join("") + "</div>" +
       '<div class="btn-row"><button class="btn" data-action="wo-on">Turn on</button><button class="btn secondary" data-action="wo-skip">No thanks</button></div></div>';
   }

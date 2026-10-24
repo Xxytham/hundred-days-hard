@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.2
+- Walks only count as cardio from 1 mile up, using the distance Samsung Health recorded, or about 2,000 steps per mile if it didn't record one. Counted walks show their distance, like "Walking 1.4 mi".
+
 ## v0.7.1
 - "2 workouts" now means one Push, Pull or Legs saved in the app plus one cardio session from Samsung Health. "Other workout" and other lifting sessions in Samsung Health don't count on their own; their minutes show next to the workout you saved.
 - The task row says what's still missing, like "1 / 2 · Push day 62 min, still need cardio".

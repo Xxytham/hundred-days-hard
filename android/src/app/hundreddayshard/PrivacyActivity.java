@@ -15,7 +15,7 @@ public class PrivacyActivity extends Activity {
         t.setPadding(pad, pad, pad, pad);
         t.setTextSize(16);
         t.setText("How 100 Days Hard uses your health data\n\n"
-                + "The app reads your daily nutrition (calories and protein), body weight, steps, sleep and workouts (with the calories burned during them) "
+                + "The app reads your daily nutrition (calories and protein), body weight, steps, sleep and workouts (with the calories burned and distance covered during them) "
                 + "from Health Connect, so you don't have to type in what Samsung Health already knows, "
                 + "and so your daily tasks can tick themselves.\n\n"
                 + "It only reads. It never writes to Health Connect. The numbers stay on this phone, in the app and in "
