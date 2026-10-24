@@ -28,7 +28,7 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 | `android/assets/fonts*` | Bundled Google Fonts so the APK works offline. `assets/index.html` is generated, not committed. |
 | `tools/wrap_page.py` | Wraps `app.html` into a full document with bundled fonts. Used by both builds; `--pwa` adds the home-screen tags and service worker. |
 | `web/` | iPhone web app pieces: `manifest.webmanifest`, `sw.js` (offline cache), `icons/`, `get/index.html` (download page for friends), `build.sh` (outputs `dist/web`). |
-| `.github/workflows/build-apk.yml` | On VERSION change: `build` job signs the APK and makes a Release (assets `100-days-hard-v<name>.apk` and a fixed-name `100-days-hard.apk`, so `releases/latest/download/100-days-hard.apk` is always newest), and the `web` job deploys `dist/web` to GitHub Pages. |
+| `.github/workflows/build-apk.yml` | On a change to VERSION, the workflow or `web/`: `build` job signs the APK and makes a Release (assets `100-days-hard-v<name>.apk` and a fixed-name `100-days-hard.apk`, so `releases/latest/download/100-days-hard.apk` is always newest), and the `web` job deploys `dist/web` to GitHub Pages. |
 
 ## How the app works
 
