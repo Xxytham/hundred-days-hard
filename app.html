@@ -193,6 +193,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .bk-dot.warn::before { background: var(--yellow); }
 .bk-dot.bad::before { background: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 25%, transparent); }
 
+.suggest { display: grid; gap: 4px; background: var(--surface); border-radius: 12px; padding: 14px; box-shadow: inset 0 0 0 2px var(--green); }
+.suggest b { font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.05; }
+
 /* Tasks with live numbers */
 .habit-text { display: grid; gap: 1px; min-width: 0; }
 .habit-sub { font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -486,7 +489,6 @@ body.setup .nav, body.setup .top { display: none; }
     calorieGoal: 2500,
     proteinGoal: 150,
     totalDays: 100,
-    waterTarget: 3,
     stepsTarget: 10000,
     sleepTarget: 9,
     unit: "lb",
@@ -553,12 +555,11 @@ body.setup .nav, body.setup .top { display: none; }
   // Tasks Samsung Health can tick by itself. Names follow the targets in Settings.
   const fmtSleep = (min) => Math.floor(min / 60) + " h " + String(Math.round(min % 60)).padStart(2, "0") + " m";
   const METRICS = {
-    water: { label: (st) => "Drink " + st.waterTarget + " L of water", value: (h) => h.waterL, target: (st) => st.waterTarget, show: (v, st) => (Math.round(v * 10) / 10) + " / " + st.waterTarget + " L" },
     steps: { label: (st) => (+st.stepsTarget).toLocaleString() + " steps", value: (h) => h.steps, target: (st) => st.stepsTarget, show: (v, st) => fmt(v) + " / " + fmt(st.stepsTarget) },
     sleep: { label: (st) => "Get " + st.sleepTarget + " hours of sleep", value: (h) => (h.sleepMin != null ? h.sleepMin / 60 : null), target: (st) => st.sleepTarget, show: (v) => fmtSleep(v * 60) + " last night" },
   };
   const taskName = (h) => (METRICS[h.id] ? METRICS[h.id].label(S()) : h.name);
-  const AUTO_IDS = ["water", "steps", "sleep"];
+  const AUTO_IDS = ["steps", "sleep"];
   const isLogged = (day) => !!day && (day.kcal != null || day.protein != null || !!day.workout || !!day.weight || Object.values(day.habits || {}).some(Boolean));
   const hasAnyData = () => Object.values(state.days).some(isLogged) || state.goals.updatedAt > 0;
   const docBody = (id) => (id === "settings" ? state.settings : id === "goals" ? state.goals : state.days[id]);
@@ -760,7 +761,7 @@ body.setup .nav, body.setup .top { display: none; }
       }
       const hv = { ...(day.health || {}) };
       let hc = false;
-      ["steps", "waterL", "sleepMin"].forEach((k) => { if (h[k] != null && h[k] !== hv[k]) { hv[k] = h[k]; hc = true; } });
+      ["steps", "sleepMin"].forEach((k) => { if (h[k] != null && h[k] !== hv[k]) { hv[k] = h[k]; hc = true; } });
       if (hc) { next.health = hv; changed = true; }
       if (autoMetricHabits(next, d)) changed = true;
       if (changed) { autoProteinHabit(next); state.days[d] = next; save(d); }
@@ -776,6 +777,7 @@ body.setup .nav, body.setup .top { display: none; }
   window.__onResume = function () {
     if (bridge && bridge.healthStatus) health = bridge.healthStatus();
     healthSync();
+    checkForUpdate();
     render();
   };
 
@@ -814,7 +816,7 @@ body.setup .nav, body.setup .top { display: none; }
     const a = document.activeElement;
     if (!force && a && main.contains(a) && (a.tagName === "INPUT" || a.tagName === "SELECT")) { deferred = true; return; }
     deferred = false;
-    const inSetup = !S().setupDone && setupReady;
+    const inSetup = (!S().setupDone && setupReady) || previewSetup;
     document.body.classList.toggle("setup", inSetup);
     if (inSetup) { main.innerHTML = renderSetup(); setupDayHint(); return; }
     const bk = backupState(), dotEl = document.getElementById("bk-dot");
@@ -879,23 +881,24 @@ body.setup .nav, body.setup .top { display: none; }
   const REPO = "Xxytham/hundred-days-hard";
   const APK_URL = "https://github.com/" + REPO + "/releases/latest/download/100-days-hard.apk";
   const SHARE_URL = "https://xxytham.github.io/hundred-days-hard/get/";
-  let update = null, updateChecked = false, lastUpdateCheck = 0;
+  let update = null, updateChecked = 0, updateFailed = false, lastUpdateCheck = 0;
   const newer = (a, b) => {
     const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
     return false;
   };
+  // Checked on launch, whenever the app comes back to the screen, and when Settings opens.
   async function checkForUpdate() {
-    if (!bridge || !bridge.appVersion || Date.now() - lastUpdateCheck < 10 * 60 * 1000) return;
+    if (!bridge || !bridge.appVersion || Date.now() - lastUpdateCheck < 60 * 1000) return;
     lastUpdateCheck = Date.now();
     try {
-      const r = await fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
-      if (!r.ok) return;
+      const r = await fetch("https://api.github.com/repos/" + REPO + "/releases/latest?t=" + Date.now(), { cache: "no-store", headers: { Accept: "application/vnd.github+json" } });
+      if (!r.ok) throw new Error("status " + r.status);
       const v = String((await r.json()).tag_name || "").replace(/^v/, "");
-      updateChecked = true;
+      updateChecked = Date.now(); updateFailed = false;
       update = v && newer(v, bridge.appVersion()) ? v : null;
-      render();
-    } catch (e) { /* offline or repo not public */ }
+    } catch (e) { updateFailed = true; }
+    render();
   }
 
   // ---------- share with friends ----------
@@ -927,11 +930,19 @@ body.setup .nav, body.setup .top { display: none; }
       "</section>";
   }
 
+  function testingSection() {
+    return '<section class="panel" aria-labelledby="h-test"><h2 id="h-test">Testing</h2><p class="hint">Walk through the first-time setup your friends see. Nothing you pick is saved.</p>' +
+      '<div class="btn-row"><button class="btn secondary" data-action="preview-setup">Preview first-time setup</button></div></section>';
+  }
+
   function updateSection() {
     if (isWebApp) return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2><p class="hint">This app updates itself whenever you open it with an internet connection.</p></section>';
     if (!bridge || !bridge.appVersion) return "";
     const ver = bridge.appVersion();
-    const status = update ? "Version " + esc(update) + " is ready. You have " + esc(ver) + "." : updateChecked ? "You have the latest version (" + esc(ver) + ")." : "You have version " + esc(ver) + ".";
+    const status = update ? "Version " + esc(update) + " is ready. You have " + esc(ver) + "."
+      : updateFailed ? "You have version " + esc(ver) + ". Couldn't check for a newer one just now."
+      : updateChecked ? "You have the latest version (" + esc(ver) + "). Checked " + fmtTime(updateChecked) + "."
+      : "You have version " + esc(ver) + ".";
     return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2>' +
       '<div class="sync"><span class="dot ' + (update ? "" : updateChecked ? "ok" : "") + '"></span><span>' + status + "</span></div>" +
       '<div class="btn-row"><button class="btn' + (update ? "" : " secondary") + '" data-action="get-update">' + (update ? "Download version " + esc(update) : "Download the latest version") + "</button></div>" +
@@ -940,7 +951,31 @@ body.setup .nav, body.setup .top { display: none; }
 
   // ---------- first-time setup ----------
   let setupStep = 0;
-  const draft = { len: 100, day: 1, kcal: 2500, protein: 150, unit: "lb", tasks: DEFAULT_HABITS.map((h) => h.id), custom: [] };
+  // TEMPORARY: lets the owner walk through setup from Settings without changing anything. Remove once setup is settled.
+  let previewSetup = false;
+  const freshDraft = () => ({ len: 100, day: 1, kcal: 2500, protein: 150, unit: "lb", tasks: DEFAULT_HABITS.map((h) => h.id), custom: [],
+    mode: "suggest", sex: "", age: "", heightFt: "", heightIn: "", heightCm: "", weight: "", activity: "", aim: "" });
+  const draft = freshDraft();
+  // Starting targets from Mifflin-St Jeor, an activity factor and the goal. Shown as a suggestion, always editable.
+  const ACTIVITY = { desk: ["Desk job", 1.4], feet: ["On my feet a lot", 1.55], physical: ["Physical job", 1.75] };
+  const AIMS = { lose: ["Lose fat", 0.8], maintain: ["Stay the same", 1], build: ["Build muscle", 1.1] };
+  function suggestTargets() {
+    const kg = draft.unit === "lb" ? +draft.weight / KG_TO_LB : +draft.weight;
+    const cm = draft.unit === "lb" ? ((+draft.heightFt || 0) * 12 + (+draft.heightIn || 0)) * 2.54 : +draft.heightCm;
+    const age = +draft.age;
+    if (!(kg >= 30 && kg <= 300 && cm >= 120 && cm <= 230 && age >= 13 && age <= 100 && draft.sex && ACTIVITY[draft.activity] && AIMS[draft.aim])) return null;
+    const bmr = 10 * kg + 6.25 * cm - 5 * age + (draft.sex === "f" ? -161 : 5);
+    const kcal = Math.round((bmr * ACTIVITY[draft.activity][1] * AIMS[draft.aim][1]) / 50) * 50;
+    const protein = Math.min(250, Math.round((kg * KG_TO_LB * (draft.aim === "maintain" ? 0.8 : 0.9)) / 5) * 5);
+    return { kcal, protein };
+  }
+  function suggestionHTML() {
+    const t = suggestTargets();
+    return t
+      ? '<div class="suggest"><span class="hint">Suggested for you</span><b class="num">' + fmt(t.kcal) + ' kcal</b><b class="num">' + t.protein + ' g protein</b>' +
+        '<span class="hint">A starting point. If your weight isn\'t moving the way you want after two weeks, change it in Settings.</span></div>'
+      : '<p class="hint">Fill in the boxes above to see your numbers.</p>';
+  }
   function setupSteps() { return ["welcome", "day", "goals", "tasks"].concat(bridge && health !== "unavailable" ? ["health"] : []).concat(["done"]); }
   function renderSetup() {
     const steps = setupSteps(), key = steps[Math.min(setupStep, steps.length - 1)];
@@ -951,7 +986,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (key === "welcome") {
       body = '<div class="setup-hero"><span class="plate" style="--p:1"><span class="plate-inner"><span class="plate-day num">1</span><span class="plate-of">/ 100</span></span></span>' +
         '<h1 class="setup-title">100 Days Hard</h1><p class="setup-lead">Track a gym challenge, 100 days or however long you choose: food, daily tasks, workouts, body weight and your goals. Setup takes about a minute.</p></div>' +
-        '<div class="setup-actions"><button class="btn wide" data-action="setup-next">Get started</button><button class="btn secondary wide" data-action="restore">I have a backup file</button></div>';
+        '<div class="setup-actions"><button class="btn wide" data-action="setup-next">Get started</button>' + (previewSetup ? "" : '<button class="btn secondary wide" data-action="restore">I have a backup file</button>') + "</div>";
     } else if (key === "day") {
       body = bar + '<h1 class="setup-title">Your challenge</h1><p class="setup-lead">How many days?</p>' +
         '<div class="pick">' + [30, 75, 100].map((v) => '<button data-action="su-len" data-v="' + v + '" aria-pressed="' + (draft.len === v) + '">' + v + " days</button>").join("") + "</div>" +
@@ -960,10 +995,26 @@ body.setup .nav, body.setup .top { display: none; }
         '<input class="big-field num" id="su-day" type="number" inputmode="numeric" min="1" max="' + draft.len + '" value="' + draft.day + '" aria-label="Challenge day">' +
         '<p class="hint" id="su-day-hint"></p>' + nav();
     } else if (key === "goals") {
-      body = bar + '<h1 class="setup-title">Daily targets</h1><p class="setup-lead">Your calorie and protein goals. Change them any time.</p>' +
-        '<div class="two"><label class="form"><span class="hint">Calories</span><input class="field num" id="su-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + draft.kcal + '"></label>' +
-        '<label class="form"><span class="hint">Protein (g)</span><input class="field num" id="su-protein" type="number" inputmode="numeric" min="0" step="5" value="' + draft.protein + '"></label></div>' +
-        '<div class="form"><span class="hint">Weigh yourself in</span><span class="seg" role="group"><button data-action="su-unit" data-unit="lb" aria-pressed="' + (draft.unit === "lb") + '">lb</button><button data-action="su-unit" data-unit="kg" aria-pressed="' + (draft.unit === "kg") + '">kg</button></span></div>' + nav();
+      const pick = (action, opts, cur) => '<div class="pick">' + Object.keys(opts).map((k) => '<button data-action="' + action + '" data-v="' + k + '" aria-pressed="' + (cur === k) + '">' + opts[k][0] + "</button>").join("") + "</div>";
+      const unitSeg = '<div class="form"><span class="hint">Units</span><span class="seg" role="group"><button data-action="su-unit" data-unit="lb" aria-pressed="' + (draft.unit === "lb") + '">lb / ft</button><button data-action="su-unit" data-unit="kg" aria-pressed="' + (draft.unit === "kg") + '">kg / cm</button></span></div>';
+      const modeSeg = '<span class="seg" role="group" aria-label="How to set targets"><button data-action="su-mode" data-v="suggest" aria-pressed="' + (draft.mode === "suggest") + '">Suggest for me</button><button data-action="su-mode" data-v="manual" aria-pressed="' + (draft.mode === "manual") + '">I know my numbers</button></span>';
+      let inner;
+      if (draft.mode === "suggest") {
+        const num = (id, label, val, attrs) => '<label class="form"><span class="hint">' + label + '</span><input class="field num" id="' + id + '" type="number" inputmode="decimal" value="' + esc(val) + '" ' + (attrs || "") + "></label>";
+        inner = unitSeg +
+          '<div class="form"><span class="hint">Body</span><span class="seg" role="group"><button data-action="su-sex" data-v="m" aria-pressed="' + (draft.sex === "m") + '">Male</button><button data-action="su-sex" data-v="f" aria-pressed="' + (draft.sex === "f") + '">Female</button></span></div>' +
+          '<div class="three">' + num("su-age", "Age", draft.age, 'min="13" max="100"') +
+          (draft.unit === "lb" ? num("su-hft", "Height (ft)", draft.heightFt, 'min="3" max="8"') + num("su-hin", "(in)", draft.heightIn, 'min="0" max="11"') : num("su-hcm", "Height (cm)", draft.heightCm, 'min="120" max="230"') + "<span></span>") + "</div>" +
+          '<div class="two">' + num("su-weight", "Weight (" + draft.unit + ")", draft.weight, 'min="30" max="700" step="0.1"') + "<span></span></div>" +
+          '<div class="form"><span class="hint">Day to day</span>' + pick("su-activity", ACTIVITY, draft.activity) + "</div>" +
+          '<div class="form"><span class="hint">Your goal</span>' + pick("su-aim", AIMS, draft.aim) + "</div>" +
+          '<div id="su-result">' + suggestionHTML() + "</div>";
+      } else {
+        inner = '<div class="two"><label class="form"><span class="hint">Calories per day</span><input class="field num" id="su-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + draft.kcal + '"></label>' +
+          '<label class="form"><span class="hint">Protein per day (g)</span><input class="field num" id="su-protein" type="number" inputmode="numeric" min="0" step="5" value="' + draft.protein + '"></label></div>' +
+          '<p class="hint">Not sure? Tap <b>Suggest for me</b> and answer a few questions.</p>' + unitSeg;
+      }
+      body = bar + '<h1 class="setup-title">Daily targets</h1><p class="setup-lead">How many calories and how much protein to aim for each day. You can change these any time.</p>' + modeSeg + inner + nav();
     } else if (key === "tasks") {
       const all = TASK_PRESETS.concat(draft.custom);
       const auto = (id) => id === "protein" || id === "workout" || (AUTO_IDS.includes(id) && bridge && health !== "unavailable");
@@ -973,19 +1024,22 @@ body.setup .nav, body.setup .top { display: none; }
         '<form class="inline" id="su-task-form"><input class="field" id="su-task-new" placeholder="Add your own task" maxlength="60" autocomplete="off"><button class="btn secondary" type="submit">Add</button></form>' + nav();
     } else if (key === "health") {
       const on = health === "granted";
-      body = bar + '<h1 class="setup-title">Samsung Health</h1><p class="setup-lead">Food, weight, steps, water and sleep from Samsung Health fill in here by themselves, and tick your tasks.</p>' +
-        (on ? '<div class="sync"><span class="dot ok"></span><span>Connected.</span></div>' : '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let it share <b>Nutrition</b>, <b>Weight</b>, <b>Steps</b>, <b>Hydration</b> and <b>Sleep</b>.</li><li>Then tap <b>Connect</b> below and allow them.</li></ol><button class="btn wide" data-action="health-connect">Connect Samsung Health</button>') +
+      body = bar + '<h1 class="setup-title">Samsung Health</h1><p class="setup-lead">Food, weight, steps and sleep from Samsung Health fill in here by themselves, and tick your tasks.</p>' +
+        (on ? '<div class="sync"><span class="dot ok"></span><span>Connected.</span></div>' : '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let it share <b>Nutrition</b>, <b>Weight</b>, <b>Steps</b> and <b>Sleep</b>.</li><li>Then tap <b>Connect</b> below and allow them.</li></ol><button class="btn wide" data-action="health-connect">Connect Samsung Health</button>') +
         nav(on ? "Next" : "Skip for now");
     } else {
       body = '<div class="setup-hero"><span class="plate" style="--p:' + Math.round((draft.day / draft.len) * 100) + '"><span class="plate-inner"><span class="plate-day num">' + draft.day + '</span><span class="plate-of">/ ' + draft.len + "</span></span></span>" +
-        '<h1 class="setup-title">You\'re set.</h1><p class="setup-lead">Tap the day counter in the corner any time for settings, backups and sharing.</p></div>' + nav("Start day " + draft.day);
+        '<h1 class="setup-title">You\'re set.</h1><p class="setup-lead">Aiming for <b>' + fmt(draft.kcal) + " kcal</b> and <b>" + draft.protein + ' g protein</b> a day, with ' + draft.tasks.length + " daily tasks. Tap the day counter in the corner any time for settings, backups and sharing.</p></div>" + nav("Start day " + draft.day);
     }
-    return '<div class="setup-wrap">' + body + "</div>";
+    const banner = previewSetup ? '<div class="update"><span>Preview. Nothing you pick here is saved.</span><button class="btn" data-action="preview-exit">Exit</button></div>' : "";
+    return '<div class="setup-wrap">' + banner + body + "</div>";
   }
   function finishSetup() {
+    if (previewSetup) { previewSetup = false; view = "settings"; render(true); window.scrollTo(0, 0); toast("Preview finished. Nothing was changed."); return; }
     const s = S();
     s.startDate = addDays(todayISO(), -(draft.day - 1));
     s.calorieGoal = draft.kcal; s.proteinGoal = draft.protein; s.unit = draft.unit; s.totalDays = draft.len;
+    if (draft.mode === "suggest" && +draft.weight > 0) { getDay(todayISO()).weight = Math.round(+draft.weight * 10) / 10; save(todayISO()); }
     s.autoOffered = true;
     s.habits = TASK_PRESETS.concat(draft.custom).filter((t) => draft.tasks.includes(t.id)).map((t) => ({ id: t.id, name: t.name }));
     s.setupDone = true;
@@ -1039,7 +1093,7 @@ body.setup .nav, body.setup .top { display: none; }
     const unit = S().unit;
 
     const tasks = tasksFor(viewDate), missing = healthMissing();
-    const needsPerm = health !== "unavailable" && bridge && tasks.some((h) => (h.id === "steps" && missing.includes("steps")) || (h.id === "water" && missing.includes("water")) || (h.id === "sleep" && missing.includes("sleep")));
+    const needsPerm = health !== "unavailable" && bridge && tasks.some((h) => AUTO_IDS.includes(h.id) && missing.includes(h.id));
     const habits = tasks.length
       ? '<div class="list">' + tasks.map((h) => {
           const on = !!(day.habits && day.habits[h.id]);
@@ -1048,7 +1102,7 @@ body.setup .nav, body.setup .top { display: none; }
           return '<button class="habit' + (on ? " done" : "") + '" data-action="toggle-habit" data-id="' + h.id + '" aria-pressed="' + on + '">' +
             '<span class="check" aria-hidden="true">' + (on ? "✓" : "") + '</span><span class="habit-text"><span class="habit-name">' + esc(taskName(h)) + "</span>" + sub + "</span></button>";
         }).join("") + "</div>" +
-        (needsPerm ? '<button class="linkbtn" data-action="health-connect">Let Samsung Health tick steps, water and sleep</button>' : "")
+        (needsPerm ? '<button class="linkbtn" data-action="health-connect">Let Samsung Health tick steps and sleep</button>' : "")
       : '<p class="empty">No daily tasks yet. Add them in Settings.</p>';
 
     const prevW = lastWeightBefore(viewDate);
@@ -1316,7 +1370,6 @@ body.setup .nav, body.setup .top { display: none; }
     kcal: { name: "Calories", val: (d) => d.kcal, goal: (st) => st.calorieGoal, step: 500, fmtv: (v) => fmt(v), unit: "kcal", overIsBad: true },
     sleep: { name: "Sleep", val: (d) => (d.health && d.health.sleepMin != null ? d.health.sleepMin / 60 : null), goal: (st) => st.sleepTarget, step: 2, fmtv: (v) => (Math.round(v * 10) / 10).toString(), unit: "h" },
     steps: { name: "Steps", val: (d) => (d.health ? d.health.steps : null), goal: (st) => st.stepsTarget, step: 2000, fmtv: (v) => fmt(v), unit: "steps" },
-    water: { name: "Water", val: (d) => (d.health ? d.health.waterL : null), goal: (st) => st.waterTarget, step: 1, fmtv: (v) => (Math.round(v * 10) / 10).toString(), unit: "L" },
   };
   let trendKey = "kcal";
   function trendsPanel(t) {
@@ -1418,11 +1471,11 @@ body.setup .nav, body.setup .top { display: none; }
     const on = health === "granted", missing = healthMissing();
     return '<section class="panel" aria-labelledby="h-sh"><h2 id="h-sh">Samsung Health</h2>' +
       '<div class="sync"><span class="dot ' + (on ? "ok" : "") + '"></span><span>' +
-      (on ? "Connected. Food, weight, steps, water and sleep fill in by themselves each time you open the app." : "Not connected. Connect to fill in food, weight, steps, water and sleep automatically.") + "</span></div>" +
+      (on ? "Connected. Food, weight, steps and sleep fill in by themselves each time you open the app." : "Not connected. Connect to fill in food, weight, steps and sleep automatically.") + "</span></div>" +
       (on && missing.length ? '<p class="hint">Not shared yet: ' + missing.join(", ") + ".</p>" : "") +
       '<div class="btn-row">' + (on && !missing.length ? '<button class="btn secondary" data-action="health-sync">Check now</button>' : '<button class="btn" data-action="health-connect">' + (on ? "Allow the rest" : "Connect Samsung Health") + "</button>") +
       '<button class="btn secondary" data-action="health-settings">Health Connect settings</button></div>' +
-      '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let Samsung Health share <b>Nutrition</b>, <b>Weight</b>, <b>Steps</b>, <b>Hydration</b> and <b>Sleep</b>.</li><li>Here, tap <b>Connect</b> and allow them.</li><li>Numbers you type in yourself always win over synced ones.</li></ol></section>';
+      '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let Samsung Health share <b>Nutrition</b>, <b>Weight</b>, <b>Steps</b> and <b>Sleep</b>.</li><li>Here, tap <b>Connect</b> and allow them.</li><li>Numbers you type in yourself always win over synced ones.</li></ol></section>';
   }
 
   function renderSettings() {
@@ -1432,6 +1485,7 @@ body.setup .nav, body.setup .top { display: none; }
       updateSection() +
       healthSection() +
       shareSection() +
+      testingSection() +
       '<section class="panel" aria-labelledby="h-ch"><h2 id="h-ch">Challenge</h2><div class="form">' +
         '<div class="two"><label>Length (days)<input class="field num" id="set-len" type="number" inputmode="numeric" min="1" max="1000" value="' + TOTAL() + '"></label>' +
         '<label>Today is day<input class="field num" id="set-day" type="number" inputmode="numeric" min="1" max="' + TOTAL() + '" value="' + Math.min(dayNum(todayISO()), TOTAL()) + '"></label></div>' +
@@ -1441,9 +1495,8 @@ body.setup .nav, body.setup .top { display: none; }
       '<section class="panel" aria-labelledby="h-go"><h2 id="h-go">Goals</h2><div class="form">' +
         '<div class="two"><label>Calories per day<input class="field num" id="set-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + s.calorieGoal + '"></label>' +
         '<label>Protein per day (g)<input class="field num" id="set-protein" type="number" inputmode="numeric" min="0" step="5" value="' + s.proteinGoal + '"></label></div>' +
-        '<div class="three"><label>Water (L)<input class="field num" id="set-water" type="number" inputmode="decimal" min="0" step="0.5" value="' + s.waterTarget + '"></label>' +
-        '<label>Steps<input class="field num" id="set-steps" type="number" inputmode="numeric" min="0" step="500" value="' + s.stepsTarget + '"></label>' +
-        '<label>Sleep (h)<input class="field num" id="set-sleep" type="number" inputmode="decimal" min="0" step="0.5" value="' + s.sleepTarget + '"></label></div>' +
+        '<div class="two"><label>Steps<input class="field num" id="set-steps" type="number" inputmode="numeric" min="0" step="500" value="' + s.stepsTarget + '"></label>' +
+        '<label>Sleep (hours)<input class="field num" id="set-sleep" type="number" inputmode="decimal" min="0" step="0.5" value="' + s.sleepTarget + '"></label></div>' +
         '<label>Weight unit<span class="seg" role="group"><button data-action="unit" data-unit="lb" aria-pressed="' + (s.unit === "lb") + '">lb</button><button data-action="unit" data-unit="kg" aria-pressed="' + (s.unit === "kg") + '">kg</button></span></label>' +
       "</div></section>" +
       '<section class="panel" aria-labelledby="h-ht"><div class="panel-head"><h2 id="h-ht">Daily tasks</h2><span class="meta num">' + s.habits.length + "</span></div>" +
@@ -1629,13 +1682,25 @@ body.setup .nav, body.setup .top { display: none; }
       case "setup-next": {
         const key = setupSteps()[setupStep];
         if (key === "day") { const v = Math.round(+document.getElementById("su-day").value); draft.day = v >= 1 && v <= draft.len ? v : 1; }
-        if (key === "goals") { draft.kcal = Math.max(0, Math.round(+document.getElementById("su-kcal").value) || 2500); draft.protein = Math.max(0, Math.round(+document.getElementById("su-protein").value) || 150); }
+        if (key === "goals") {
+          if (draft.mode === "suggest") {
+            const t = suggestTargets();
+            if (!t) { toast("Fill in every box, or tap I know my numbers"); break; }
+            draft.kcal = t.kcal; draft.protein = t.protein;
+          } else { draft.kcal = Math.max(0, Math.round(+document.getElementById("su-kcal").value) || 2500); draft.protein = Math.max(0, Math.round(+document.getElementById("su-protein").value) || 150); }
+        }
         if (key === "done") { finishSetup(); break; }
         setupStep++; render(true); window.scrollTo(0, 0);
         break;
       }
       case "setup-back": setupStep = Math.max(0, setupStep - 1); render(true); break;
       case "su-unit": draft.unit = el.dataset.unit; render(true); break;
+      case "preview-setup": previewSetup = true; setupStep = 0; Object.assign(draft, freshDraft()); render(true); window.scrollTo(0, 0); break;
+      case "preview-exit": previewSetup = false; view = "settings"; render(true); window.scrollTo(0, 0); break;
+      case "su-mode": draft.mode = el.dataset.v; render(true); break;
+      case "su-sex": draft.sex = el.dataset.v; render(true); break;
+      case "su-activity": draft.activity = el.dataset.v; render(true); break;
+      case "su-aim": draft.aim = el.dataset.v; render(true); break;
       case "su-len": draft.len = +el.dataset.v; draft.day = Math.min(draft.day, draft.len); render(true); break;
       case "trend": trendKey = el.dataset.k; render(true); break;
       case "offer-add": {
@@ -1786,6 +1851,10 @@ body.setup .nav, body.setup .top { display: none; }
     else if (t.id === "su-len" && v >= 1 && v <= 1000) { draft.len = v; draft.day = Math.min(draft.day, v); document.getElementById("su-day").max = v; document.querySelectorAll("[data-action=su-len]").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.v === v))); setupDayHint(); }
     else if (t.id === "su-kcal" && v > 0) draft.kcal = v;
     else if (t.id === "su-protein" && v >= 0 && t.value !== "") draft.protein = v;
+    else if (["su-age", "su-hft", "su-hin", "su-hcm", "su-weight"].includes(t.id)) {
+      draft[{ "su-age": "age", "su-hft": "heightFt", "su-hin": "heightIn", "su-hcm": "heightCm", "su-weight": "weight" }[t.id]] = t.value;
+      const r = document.getElementById("su-result"); if (r) r.innerHTML = suggestionHTML();
+    }
   });
 
   // Live meter updates while typing totals; saved on change.
@@ -1835,8 +1904,8 @@ body.setup .nav, body.setup .top { display: none; }
     } else if (t.id === "set-len") {
       const n = Math.round(+t.value);
       if (n >= 1 && n <= 1000) { S().totalDays = n; save("settings"); toast("Challenge length: " + n + " days"); render(); }
-    } else if (t.id === "set-water" || t.id === "set-steps" || t.id === "set-sleep") {
-      const v = +t.value, key = { "set-water": "waterTarget", "set-steps": "stepsTarget", "set-sleep": "sleepTarget" }[t.id];
+    } else if (t.id === "set-steps" || t.id === "set-sleep") {
+      const v = +t.value, key = { "set-steps": "stepsTarget", "set-sleep": "sleepTarget" }[t.id];
       if (v > 0) { S()[key] = t.id === "set-steps" ? Math.round(v) : Math.round(v * 2) / 2; save("settings"); reTick(); render(); }
     } else if (t.id === "set-kcal") {
       const v = Math.round(+t.value); if (v > 0) { S().calorieGoal = v; save("settings"); }
@@ -1858,7 +1927,11 @@ body.setup .nav, body.setup .top { display: none; }
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
   window.__appBack = function () {
     if (!sheet.hidden) { closeSheet(); return true; }
-    if (!S().setupDone && setupReady) { if (setupStep > 0) { setupStep--; render(true); return true; } return false; }
+    if ((!S().setupDone && setupReady) || previewSetup) {
+      if (setupStep > 0) { setupStep--; render(true); return true; }
+      if (previewSetup) { previewSetup = false; view = "settings"; render(true); return true; }
+      return false;
+    }
     if (editingGoal) { editingGoal = confirmDelete = null; render(true); return true; }
     if (view !== "today" || viewDate !== todayISO()) { view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0); return true; }
     return false;

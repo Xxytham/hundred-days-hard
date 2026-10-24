@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.1
+- Setup's targets step has two modes: **Suggest for me** works out calories and protein from a few questions, or **I know my numbers** lets you type them in.
+- A temporary **Preview first-time setup** button in Settings → Testing, to walk through setup without changing anything.
+- The update check now runs every time the app comes back on screen, so it no longer says you're up to date when you aren't.
+- Water is no longer read from Samsung Health. "Drink 3 L of water" is a tick-it-yourself task again.
+
 ## v0.5
 - Tasks that tick themselves: water, steps and sleep, filled in from Samsung Health. Each shows today's number right in its row, like "7 h 35 m last night".
 - Set your targets in Settings (defaults: 3 L of water, 10,000 steps, 9 hours of sleep).

@@ -23,7 +23,7 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 | `app.html` | The app: CSS tokens at top, then markup, then one script. Written as an artifact page (no `<html>`/`<head>`; the artifact host and `build.sh` add them). |
 | `android/build.sh` | Builds the APK with plain SDK tools (aapt2, javac, d8, apksigner). No Gradle. Downloads the SDK via `setup-sdk.sh` if missing (needs `dl.google.com` allowed). |
 | `android/src/.../MainActivity.java` | WebView host, insets, back button, `AndroidBridge` (backup file, restore picker, Health Connect). |
-| `android/src/.../HealthReader.java` | Reads Nutrition, Weight, Steps, Hydration and Sleep records from Health Connect (Android 14+ framework API, no Jetpack), each only if its permission was granted. Prefers Samsung Health's records over other apps' to avoid double counting. Sleep counts on the day it ends, minus awake stages. |
+| `android/src/.../HealthReader.java` | Reads Nutrition, Weight, Steps and Sleep records from Health Connect (Android 14+ framework API, no Jetpack), each only if its permission was granted. Prefers Samsung Health's records over other apps' to avoid double counting. Sleep counts on the day it ends, minus awake stages. |
 | `android/src/.../PrivacyActivity.java` | Rationale screen Health Connect requires. |
 | `android/assets/fonts*` | Bundled Google Fonts so the APK works offline. `assets/index.html` is generated, not committed. |
 | `tools/wrap_page.py` | Wraps `app.html` into a full document with bundled fonts. Used by both builds; `--pwa` adds the home-screen tags and service worker. |
@@ -34,16 +34,17 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 
 Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter plate in the top corner.
 
-- **First-time setup:** shown while `settings.setupDone` is false (fresh installs only). Steps: welcome or restore → day → calorie/protein/unit → daily tasks (`TASK_PRESETS` plus custom) → Samsung Health (APK only) → done. Anyone with saved data from before v0.4 is marked `setupDone` on load.
+- **First-time setup:** shown while `settings.setupDone` is false (fresh installs only). Steps: welcome or restore → challenge length and day → targets → daily tasks (`TASK_PRESETS` plus custom) → Samsung Health (APK only) → done. The targets step has **Suggest for me** (Mifflin-St Jeor × activity × goal, plus protein of 0.8–0.9 g per lb, capped at 250 g; the weight entered becomes today's weigh-in) and **I know my numbers**. Anyone with saved data from before v0.4 is marked `setupDone` on load.
+- **TEMPORARY setup preview:** Settings → Testing → "Preview first-time setup" (`previewSetup`) runs setup without saving anything. Remove `testingSection()` and `previewSetup` once the owner says setup is settled.
 - **Streak:** `streakInfo()` counts consecutive days with every daily task done. Today counts once it's complete; until then the streak runs through yesterday. It's shown on Today with the last 7 days, and the Progress tab uses the same number.
 - **Backup dot:** next to the date. `backupState()` is green if `settings.lastExport` (last copy sent off the phone) is within 7 days, yellow within 14, and red otherwise or if there's never been one. It's always green in the Claude artifact once synced. Tapping it opens Settings.
-- **Updates:** the APK checks `api.github.com/repos/Xxytham/hundred-days-hard/releases/latest` on launch and shows an "Update" banner if the tag is newer than `AndroidBridge.appVersion()`. The web app updates itself (network-first page in `sw.js`, with the cache name bumped by version).
+- **Updates:** the APK checks `api.github.com/repos/Xxytham/hundred-days-hard/releases/latest` (uncached) on launch, every time the app resumes, and when Settings opens (at most once a minute). It shows an "Update" banner if the tag is newer than `AndroidBridge.appVersion()`. The web app updates itself (network-first page in `sw.js`, with the cache name bumped by version).
 - **Sharing:** Settings has "Share with friends": the link `https://xxytham.github.io/hundred-days-hard/get/`, a QR code (qrcode-generator from cdnjs, loaded on demand), plus share/copy buttons. Releases and Pages only work for friends while the repo is **public**.
 
 - **Challenge length:** `settings.totalDays` (default 100) drives the plate, the grid, "Day N of X" and the streak range. When the last day is done (or passed), Today shows a finish card with round stats. "Start another round" appends `{startDate, totalDays}` to `settings.rounds` and makes today day 1. History is never deleted.
-- **Tasks that tick themselves:** `METRICS` covers `water`, `steps` and `sleep` (task ids). Names come from `settings.waterTarget`/`stepsTarget`/`sleepTarget`. Synced values live in `day.health` and tick the task when they reach the target (never unticking). People who set up before v0.5 get a one-time "Add them" card (`settings.autoOffered`).
+- **Tasks that tick themselves:** `METRICS` covers `steps` and `sleep` (task ids). Names come from `settings.stepsTarget`/`sleepTarget`. Water used to be read too, but the owner found it unreliable, so it was dropped in v0.5.1; "Drink 3 L of water" is a manual task and old `day.health.waterL` values are ignored. Synced values live in `day.health` and tick the task when they reach the target (never unticking). People who set up before v0.5 get a one-time "Add them" card (`settings.autoOffered`).
 - **Tasks count from `addedOn`:** a task with `addedOn` only counts for days on or after it (`tasksFor(date)`), so adding a task never breaks past perfect days or a streak.
-- **Trends:** Progress has one 14-day bar chart (`TRENDS`: calories, sleep, steps, water) with chips, shown only for measures that have data.
+- **Trends:** Progress has one 14-day bar chart (`TRENDS`: calories, sleep, steps) with chips, shown only for measures that have data.
 - **Apple Health:** not possible from the iPhone web app. It would need a native iOS app and an Apple developer account.
 - **Day counter:** `settings.startDate` is day 1 of the current round.
 - **Food:** one daily total for calories and protein (the owner logs food in Samsung Health). In the APK these fill in from Health Connect on open/resume. A value the owner types sets `kcalSrc: "manual"`, and synced data never overwrites it.
@@ -56,12 +57,12 @@ Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter pl
 ### Data shape (localStorage key `hundred-days-hard.v1`, and one db doc per key)
 
 ```
-settings: { startDate, totalDays, calorieGoal, proteinGoal, waterTarget, stepsTarget, sleepTarget, unit: "lb"|"kg",
+settings: { startDate, totalDays, calorieGoal, proteinGoal, stepsTarget, sleepTarget, unit: "lb"|"kg",
             habits: [{id, name, addedOn?}], setupDone, autoOffered?, finishDismissed?, rounds?: [{startDate, totalDays}], lastExport?, updatedAt }
 goals:    { updatedAt, list: [{ id, name, focus, steps: [{ id, text, done, doneDay }] }] }
 days["YYYY-MM-DD"]: {
   kcal, protein, kcalSrc: null|"manual"|"health", weight, habits: {habitId: bool},
-  health: null | { steps, waterL, sleepMin },
+  health: null | { steps, sleepMin },   (older days may also hold an unused waterL)
   workout: null | { type: "push"|"pull"|"legs"|"other", saved, savedAt,
                     exercises: [{ id, name, weight, reps, sets, unit }] },
   updatedAt

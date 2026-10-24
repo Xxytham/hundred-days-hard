@@ -7,7 +7,6 @@ import android.health.connect.HealthConnectManager;
 import android.health.connect.ReadRecordsRequestUsingFilters;
 import android.health.connect.ReadRecordsResponse;
 import android.health.connect.TimeInstantRangeFilter;
-import android.health.connect.datatypes.HydrationRecord;
 import android.health.connect.datatypes.NutritionRecord;
 import android.health.connect.datatypes.Record;
 import android.health.connect.datatypes.SleepSessionRecord;
@@ -33,16 +32,15 @@ import java.util.function.Consumer;
 
 /**
  * Reads what Samsung Health shares through Health Connect (Android 14+): daily food totals,
- * body weight, steps, water and sleep. Each type is read only if its permission was granted.
+ * body weight, steps and sleep. Each type is read only if its permission was granted.
  */
 final class HealthReader {
     static final String NUTRITION = "android.permission.health.READ_NUTRITION";
     static final String WEIGHT = "android.permission.health.READ_WEIGHT";
     static final String STEPS = "android.permission.health.READ_STEPS";
-    static final String HYDRATION = "android.permission.health.READ_HYDRATION";
     static final String SLEEP = "android.permission.health.READ_SLEEP";
-    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, HYDRATION, SLEEP};
-    private static final String[] NAMES = {"food", "weight", "steps", "water", "sleep"};
+    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP};
+    private static final String[] NAMES = {"food", "weight", "steps", "sleep"};
     private static final String SAMSUNG_HEALTH = "com.sec.android.app.shealth";
 
     private HealthReader() { }
@@ -121,7 +119,6 @@ final class HealthReader {
         // day -> app that wrote it -> totals
         Map<String, Map<String, double[]>> food = new TreeMap<>();
         Map<String, Map<String, double[]>> steps = new TreeMap<>();
-        Map<String, Map<String, double[]>> water = new TreeMap<>();
         Map<String, Map<String, double[]>> sleep = new TreeMap<>();
         Map<String, Double> weightKg = new HashMap<>();
 
@@ -144,26 +141,21 @@ final class HealthReader {
                     for (StepsRecord s : stepRecords) {
                         slot(steps, s.getStartTime(), zone, s.getMetadata().getDataOrigin().getPackageName(), 1)[0] += s.getCount();
                     }
-                    readAll(c, hcm, HYDRATION, HydrationRecord.class, range, ex, drinks -> {
-                        for (HydrationRecord h : drinks) {
-                            slot(water, h.getStartTime(), zone, h.getMetadata().getDataOrigin().getPackageName(), 1)[0] += h.getVolume().getInLiters();
-                        }
-                        readAll(c, hcm, SLEEP, SleepSessionRecord.class, sleepRange, ex, nights -> {
-                            for (SleepSessionRecord n : nights) {
-                                // Count sleep on the morning it ends, minus time awake.
-                                double min = Duration.between(n.getStartTime(), n.getEndTime()).toMinutes();
-                                for (SleepSessionRecord.Stage st : n.getStages()) {
-                                    int type = st.getType();
-                                    if (type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE
-                                            || type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE_IN_BED
-                                            || type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE_OUT_OF_BED) {
-                                        min -= Duration.between(st.getStartTime(), st.getEndTime()).toMinutes();
-                                    }
+                    readAll(c, hcm, SLEEP, SleepSessionRecord.class, sleepRange, ex, nights -> {
+                        for (SleepSessionRecord n : nights) {
+                            // Count sleep on the morning it ends, minus time awake.
+                            double min = Duration.between(n.getStartTime(), n.getEndTime()).toMinutes();
+                            for (SleepSessionRecord.Stage st : n.getStages()) {
+                                int type = st.getType();
+                                if (type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE
+                                        || type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE_IN_BED
+                                        || type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE_OUT_OF_BED) {
+                                    min -= Duration.between(st.getStartTime(), st.getEndTime()).toMinutes();
                                 }
-                                slot(sleep, n.getEndTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 1)[0] += Math.max(0, min);
                             }
-                            done.accept(toJson(food, weightKg, steps, water, sleep, fromIso));
-                        });
+                            slot(sleep, n.getEndTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 1)[0] += Math.max(0, min);
+                        }
+                        done.accept(toJson(food, weightKg, steps, sleep, fromIso));
                     });
                 });
             });
@@ -190,8 +182,7 @@ final class HealthReader {
     }
 
     private static String toJson(Map<String, Map<String, double[]>> food, Map<String, Double> weightKg,
-                                 Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> water,
-                                 Map<String, Map<String, double[]>> sleep, String fromIso) {
+                                 Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> sleep, String fromIso) {
         try {
             JSONObject days = new JSONObject();
             for (Map.Entry<String, Map<String, double[]>> e : food.entrySet()) {
@@ -202,7 +193,6 @@ final class HealthReader {
             }
             for (Map.Entry<String, Double> e : weightKg.entrySet()) day(days, e.getKey()).put("weightKg", e.getValue());
             for (Map.Entry<String, Map<String, double[]>> e : steps.entrySet()) day(days, e.getKey()).put("steps", Math.round(pick(e.getValue(), 1)[0]));
-            for (Map.Entry<String, Map<String, double[]>> e : water.entrySet()) day(days, e.getKey()).put("waterL", Math.round(pick(e.getValue(), 1)[0] * 100) / 100.0);
             for (Map.Entry<String, Map<String, double[]>> e : sleep.entrySet()) {
                 if (e.getKey().compareTo(fromIso) >= 0) day(days, e.getKey()).put("sleepMin", Math.round(pick(e.getValue(), 1)[0]));
             }
