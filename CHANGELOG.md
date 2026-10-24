@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8
+- Log sets one at a time. Every exercise starts at Set 1; + moves to the next set (copying the weight and reps), and the −/+ on weight and reps change only that set. Tap a set chip to go back to it, or remove it. Works the same for new and preloaded exercises.
+- Next time, each exercise loads every set from last time, starting at set 1.
+- Only the first exercise of a workout shows an example name ("Cable row") in the box.
+- Settings puts Goals and Daily tasks first, and Backup last. The backup dot still jumps straight to it.
+- The setup preview button is gone.
+
 ## v0.7.2
 - Walks only count as cardio from 1 mile up, using the distance Samsung Health recorded, or about 2,000 steps per mile if it didn't record one. Counted walks show their distance, like "Walking 1.4 mi".
 

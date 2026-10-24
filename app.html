@@ -133,6 +133,14 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 .sval-wrap:has(.u) .sval { width: 5ch; text-align: right; }
 .ex-sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .seg.sm button { padding: 4px 10px; font-size: 13px; }
+.sval-wrap:has(.u) .set-now { display: block; width: auto; text-align: center; }
+.sval-wrap .u { white-space: nowrap; }
+.set-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.set-chips button[data-action="set-go"] { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 10px; font-size: 13px; font-weight: 600; }
+.set-chips button[data-action="set-go"] span { color: var(--muted); font-weight: 700; }
+.set-chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.set-chips button[aria-pressed="true"] span { color: var(--bg); opacity: 0.7; }
+.sbtn:disabled { opacity: 0.35; }
 .sheet-foot { display: grid; gap: 8px; position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); background: var(--surface); padding-block: 10px 6px; }
 
 .three { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
@@ -444,7 +452,7 @@ body.setup .nav, body.setup .top { display: none; }
 <div class="app">
   <header class="top">
     <div class="top-text">
-      <div class="eyebrow"><span id="hdr-date"></span><button class="bk-dot" id="bk-dot" data-action="open-settings" hidden></button></div>
+      <div class="eyebrow"><span id="hdr-date"></span><button class="bk-dot" id="bk-dot" data-action="open-settings" data-to="h-bk" hidden></button></div>
       <h1 id="hdr-title">Today</h1>
     </div>
     <button class="plate" id="plate" data-action="open-settings" aria-label="Challenge day. Open settings.">
@@ -552,6 +560,7 @@ body.setup .nav, body.setup .top { display: none; }
         exercises: d.exercises.map((e) => ({ id: e.id || uid(), name: e.name, weight: +e.weight || 0, reps: +e.reps || 0, sets: +e.sets || 1, unit: "lb" })) };
     }
     delete day.exercises;
+    if (day.workout && Array.isArray(day.workout.exercises)) day.workout.exercises.forEach(ensureSets);
     return day;
   }
 
@@ -896,7 +905,7 @@ body.setup .nav, body.setup .top { display: none; }
     const a = document.activeElement;
     if (!force && a && main.contains(a) && (a.tagName === "INPUT" || a.tagName === "SELECT")) { deferred = true; return; }
     deferred = false;
-    const inSetup = (!S().setupDone && setupReady) || previewSetup;
+    const inSetup = !S().setupDone && setupReady;
     document.body.classList.toggle("setup", inSetup);
     if (inSetup) { main.innerHTML = renderSetup(); setupDayHint(); return; }
     const bk = backupState(), dotEl = document.getElementById("bk-dot");
@@ -1019,11 +1028,6 @@ body.setup .nav, body.setup .top { display: none; }
       "</section>";
   }
 
-  function testingSection() {
-    return '<section class="panel" aria-labelledby="h-test"><h2 id="h-test">Testing</h2><p class="hint">Walk through the first-time setup your friends see. Nothing you pick is saved.</p>' +
-      '<div class="btn-row"><button class="btn secondary" data-action="preview-setup">Preview first-time setup</button></div></section>';
-  }
-
   function updateSection() {
     if (isWebApp) return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2><p class="hint">This app updates itself whenever you open it with an internet connection.</p></section>';
     if (!bridge || !bridge.appVersion) return "";
@@ -1040,8 +1044,6 @@ body.setup .nav, body.setup .top { display: none; }
 
   // ---------- first-time setup ----------
   let setupStep = 0;
-  // TEMPORARY: lets the owner walk through setup from Settings without changing anything. Remove once setup is settled.
-  let previewSetup = false;
   const freshDraft = () => ({ len: 100, day: 1, kcal: 2500, protein: 150, unit: "lb", tasks: DEFAULT_HABITS.map((h) => h.id), custom: [],
     mode: "suggest", sex: "", age: "", heightFt: "", heightIn: "", heightCm: "", weight: "", bodyFat: "unsure", activity: "", aim: "" });
   const draft = freshDraft();
@@ -1093,7 +1095,7 @@ body.setup .nav, body.setup .top { display: none; }
         '<h1 class="setup-title">Welcome to ' + inlineNum("su-len", draft.len, 1000, "Number of days") + " Days Hard</h1>" +
         '<p class="hint">Tap the number to pick how many days.</p>' +
         '<p class="setup-lead">Track your food, workouts, strength, body weight and daily tasks, one day at a time.</p></div>' +
-        '<div class="setup-actions"><button class="btn wide" data-action="setup-next">Get started</button>' + (previewSetup ? "" : '<button class="btn secondary wide" data-action="restore">I have a backup file</button>') + "</div>";
+        '<div class="setup-actions"><button class="btn wide" data-action="setup-next">Get started</button><button class="btn secondary wide" data-action="restore">I have a backup file</button></div>';
     } else if (key === "day") {
       body = bar + '<h1 class="setup-title">Today is day ' + inlineNum("su-day", draft.day, draft.len, "Today's challenge day") + "</h1>" +
         '<p class="hint">Starting today? Keep it at 1.</p>' +
@@ -1138,11 +1140,9 @@ body.setup .nav, body.setup .top { display: none; }
       body = '<div class="setup-hero"><span class="plate">' + gaugeSVG(draft.day, draft.len, false) + "</span>" +
         '<h1 class="setup-title">You\'re set.</h1><p class="setup-lead">Aiming for <b>' + calText(draft.aim, draft.kcal) + "</b> and <b>" + draft.protein + " g protein</b> a day, with " + draft.tasks.length + " daily tasks. Tap the day counter in the corner any time for settings, backups and sharing.</p></div>" + nav("Start day " + draft.day);
     }
-    const banner = previewSetup ? '<div class="update"><span>Preview. Nothing you pick here is saved.</span><button class="btn" data-action="preview-exit">Exit</button></div>' : "";
-    return '<div class="setup-wrap">' + banner + body + "</div>";
+    return '<div class="setup-wrap">' + body + "</div>";
   }
   function finishSetup() {
-    if (previewSetup) { previewSetup = false; view = "settings"; render(true); window.scrollTo(0, 0); toast("Preview finished. Nothing was changed."); return; }
     const s = S();
     s.startDate = addDays(todayISO(), -(draft.day - 1));
     s.calorieGoal = draft.kcal; s.calorieAim = draft.aim || "lose"; s.proteinGoal = draft.protein; s.unit = draft.unit; s.totalDays = draft.len;
@@ -1494,7 +1494,7 @@ body.setup .nav, body.setup .top { display: none; }
       return '<button class="tick" data-action="str-sel" data-k="' + esc(m.k) + '" aria-expanded="' + open + '">' +
         '<span class="tick-name">' + esc(m.name) + "<small>" + m.pts.length + " session" + (m.pts.length === 1 ? "" : "s") + "</small></span>" +
         sparkline(m.pts, cls) +
-        '<span class="tick-val num">' + (last.w > 0 ? fmtW(last.rawW) + " " + last.rawU : last.r + " reps") + "<small>" + (last.w > 0 ? "× " + last.r + " · " : "") + last.s + " sets</small></span>" +
+        '<span class="tick-val num">' + (last.w > 0 ? fmtW(last.rawW) + " " + last.rawU : last.r + " reps") + "<small>" + (last.w > 0 ? "× " + last.r + " · " : "") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
         '<span class="chg ' + cls + '">' + chgText(c) + "</span></button>" + (open ? strengthChart(m) : "");
     }).join("");
     const summary = avg == null ? "" : '<p class="hint">' + typeName(strType) + " strength is <b class=\"num\">" + (Math.abs(avg) < 0.05 ? "flat" : (avg > 0 ? "up " : "down ") + Math.abs(avg).toFixed(1) + "%") + "</b> since last " + typeName(strType).toLowerCase() + " day, across " + changes.length + " exercise" + (changes.length === 1 ? "" : "s") + ".</p>";
@@ -1628,17 +1628,6 @@ body.setup .nav, body.setup .top { display: none; }
   function renderSettings() {
     const s = S();
     return (
-      backupSection() +
-      updateSection() +
-      healthSection() +
-      shareSection() +
-      testingSection() +
-      '<section class="panel" aria-labelledby="h-ch"><h2 id="h-ch">Challenge</h2><div class="form">' +
-        '<div class="two"><label>Length (days)<input class="field num" id="set-len" type="number" inputmode="numeric" min="1" max="1000" value="' + TOTAL() + '"></label>' +
-        '<label>Today is day<input class="field num" id="set-day" type="number" inputmode="numeric" min="1" max="' + TOTAL() + '" value="' + Math.min(dayNum(todayISO()), TOTAL()) + '"></label></div>' +
-        '<p class="hint">Day 1 was ' + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day " + TOTAL() + " lands on " + fmtDate(addDays(s.startDate, TOTAL() - 1), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" +
-        '<button class="btn secondary" data-action="new-round">Start a new round</button>' +
-      "</div></section>" +
       '<section class="panel" aria-labelledby="h-go"><h2 id="h-go">Goals</h2><div class="form">' +
         '<label>Calorie goal<span class="seg" role="group"><button data-action="cal-aim" data-v="lose" aria-pressed="' + (calAim() === "lose") + '">Lose fat</button><button data-action="cal-aim" data-v="build" aria-pressed="' + (calAim() === "build") + '">Build muscle</button></span></label>' +
         '<div class="two"><label>' + (calAim() === "lose" ? "Calories (middle of range)" : "Calories (at least)") + '<input class="field num" id="set-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + s.calorieGoal + '"></label>' +
@@ -1654,7 +1643,17 @@ body.setup .nav, body.setup .top { display: none; }
         '<ul class="list">' + s.habits.map((h) => '<li class="row"><div class="row-main"><div class="row-title">' + esc(taskName(h)) + "</div>" + (h.id === "workout" ? '<div class="row-sub">' + (bridge && health !== "unavailable" ? esc(workoutRule()) : "Ticks itself when you save a workout") + "</div>" : METRICS[h.id] && bridge && health !== "unavailable" ? '<div class="row-sub">Ticks itself from Samsung Health</div>' : "") + '</div><button class="del" data-action="del-habit" data-id="' + h.id + '" aria-label="Remove ' + esc(taskName(h)) + '">×</button></li>').join("") + "</ul>" +
         '<form class="inline" id="habit-form"><input class="field" id="new-habit" placeholder="Add a task, e.g. 10k steps" maxlength="60" autocomplete="off"><button class="btn" type="submit">Add</button></form>' +
         '<p class="hint">"Hit protein goal" ticks itself at ' + fmt(s.proteinGoal) + ' g, and "Workout" when you save a workout. A new task counts from the day you add it.</p>' +
-      "</section>"
+      "</section>" +
+      '<section class="panel" aria-labelledby="h-ch"><h2 id="h-ch">Challenge</h2><div class="form">' +
+        '<div class="two"><label>Length (days)<input class="field num" id="set-len" type="number" inputmode="numeric" min="1" max="1000" value="' + TOTAL() + '"></label>' +
+        '<label>Today is day<input class="field num" id="set-day" type="number" inputmode="numeric" min="1" max="' + TOTAL() + '" value="' + Math.min(dayNum(todayISO()), TOTAL()) + '"></label></div>' +
+        '<p class="hint">Day 1 was ' + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day " + TOTAL() + " lands on " + fmtDate(addDays(s.startDate, TOTAL() - 1), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" +
+        '<button class="btn secondary" data-action="new-round">Start a new round</button>' +
+      "</div></section>" +
+      healthSection() +
+      updateSection() +
+      shareSection() +
+      backupSection()
     );
   }
 
@@ -1680,6 +1679,21 @@ body.setup .nav, body.setup .top { display: none; }
   // Estimated one-rep max (Epley). Lets 50 x 7 be compared fairly with 45 x 12.
   const e1rm = (w, r) => (w > 0 ? w * (1 + r / 30) : r);
 
+  // Every set is kept in setList. weight/reps/sets mirror the best set (and the count), so the strength
+  // chart, "last time" and summaries keep working. Older workouts get one entry per set they recorded.
+  function ensureSets(e) {
+    if (!Array.isArray(e.setList) || !e.setList.length) e.setList = Array.from({ length: Math.max(1, Math.round(+e.sets) || 1) }, () => ({ w: +e.weight || 0, r: +e.reps || 0 }));
+    return e.setList;
+  }
+  function syncEx(e) {
+    const l = ensureSets(e);
+    let best = l[0];
+    l.forEach((x) => { if (e1rm(x.w, x.r) > e1rm(best.w, best.r)) best = x; });
+    e.weight = best.w; e.reps = best.r; e.sets = l.length;
+  }
+  const setsText = (e) => { const l = ensureSets(e); return l.map((x) => (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r).join(", ") + (l.some((x) => x.w > 0) ? " " + e.unit : ""); };
+  const curSet = {}; // exercise id -> index of the set being edited (not saved)
+  const curIdx = (e) => Math.min(curSet[e.id] || 0, ensureSets(e).length - 1);
   function savedSessions(type, before) {
     return Object.keys(state.days).sort().filter((d) => (!before || d < before) && state.days[d].workout && state.days[d].workout.saved && (!type || state.days[d].workout.type === type));
   }
@@ -1707,7 +1721,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (w) {
       const list = w.exercises.length
         ? '<ul class="list">' + w.exercises.map((e) =>
-            '<li class="row"><div class="row-main"><div class="row-title">' + esc(e.name) + '</div><div class="row-sub num">' + e.sets + " sets × " + e.reps + " reps</div></div>" +
+            '<li class="row"><div class="row-main"><div class="row-title">' + esc(e.name) + '</div><div class="row-sub num">' + e.sets + (e.sets === 1 ? " set: " : " sets: ") + esc(setsText(e)) + "</div></div>" +
             '<div class="row-val num">' + (e.weight > 0 ? fmtW(e.weight) + " " + e.unit : "Bodyweight") + "</div></li>").join("") + "</ul>"
         : '<p class="empty">No exercises yet.</p>';
       body = list + '<button class="btn wide' + (w.saved ? " secondary" : "") + '" data-action="open-workout">' + (w.saved ? "Edit workout" : "Continue workout") + "</button>";
@@ -1726,7 +1740,7 @@ body.setup .nav, body.setup .top { display: none; }
     const d = getDay(viewDate);
     if (!d.workout) {
       const prev = lastSession(type, viewDate);
-      d.workout = { type, saved: false, savedAt: null, exercises: prev ? prev.workout.exercises.map((e) => ({ ...e, id: uid() })) : [] };
+      d.workout = { type, saved: false, savedAt: null, exercises: prev ? prev.workout.exercises.map((e) => ({ ...e, id: uid(), setList: ensureSets(e).map((x) => ({ ...x })) })) : [] };
       save(viewDate);
       render(true);
     }
@@ -1741,8 +1755,7 @@ body.setup .nav, body.setup .top { display: none; }
     sheet.scrollTop = 0;
     if (wAdding) setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) f.focus(); }, 60);
   }
-  function stepper(label, e, field, unitLabel) {
-    const v = field === "weight" ? fmtW(e.weight) : e[field];
+  function stepper(label, e, field, v, unitLabel) {
     return '<div class="stepper-group"><div class="stepper-label">' + label + '</div><div class="stepper">' +
       '<button class="sbtn" data-action="ex-step" data-id="' + e.id + '" data-f="' + field + '" data-d="-1" aria-label="Less ' + label.toLowerCase() + '">−</button>' +
       '<div class="sval-wrap"><input class="sval num" id="ex-' + field + "-" + e.id + '" data-id="' + e.id + '" data-f="' + field + '" type="number" inputmode="decimal" step="any" min="0" value="' + String(v).replace(/,/g, "") + '" aria-label="' + label + '">' + (unitLabel ? '<span class="u">' + unitLabel + "</span>" : "") + "</div>" +
@@ -1756,26 +1769,33 @@ body.setup .nav, body.setup .top { display: none; }
     const pm = {};
     if (prev) prev.workout.exercises.forEach((e) => (pm[exKey(e.name)] = e));
     const cards = w.exercises.map((e, i) => {
-      const p = pm[exKey(e.name)];
-      const conv = isCable(e.name) && e.weight > 0 ? "≈ " + fmtW(half(toUnit(e.weight, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
-      const lastTxt = p ? "Last time: " + (p.weight > 0 ? fmtW(p.weight) + " " + p.unit : "bodyweight") + " × " + p.reps + " · " + p.sets + " sets" : "";
+      const p = pm[exKey(e.name)], l = ensureSets(e), ci = curIdx(e), cs = l[ci];
+      const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
+      const lastTxt = p ? "Last time: " + setsText(p) : "";
+      const setStep = '<div class="stepper-group"><div class="stepper-label">Set</div><div class="stepper">' +
+        '<button class="sbtn" data-action="set-step" data-id="' + e.id + '" data-d="-1" aria-label="Previous set"' + (ci === 0 ? " disabled" : "") + ">−</button>" +
+        '<div class="sval-wrap"><span class="sval set-now num">' + (ci + 1) + '</span><span class="u">of ' + l.length + "</span></div>" +
+        '<button class="sbtn" data-action="set-step" data-id="' + e.id + '" data-d="1" aria-label="' + (ci === l.length - 1 ? "Add a set" : "Next set") + '">+</button></div></div>';
+      const chips = l.length > 1
+        ? '<div class="set-chips">' + l.map((x, k) => '<button data-action="set-go" data-id="' + e.id + '" data-k="' + k + '" aria-pressed="' + (k === ci) + '"><span>' + (k + 1) + "</span> " + (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r + "</button>").join("") +
+          '<button class="linkbtn" data-action="set-del" data-id="' + e.id + '">Remove set ' + (ci + 1) + "</button></div>"
+        : "";
       const tools = wEdit
         ? '<span class="ex-tools"><button class="iconbtn" data-action="ex-move" data-id="' + e.id + '" data-d="-1" aria-label="Move up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="iconbtn" data-action="ex-move" data-id="' + e.id + '" data-d="1" aria-label="Move down"' + (i === w.exercises.length - 1 ? " disabled" : "") + '>↓</button><button class="del" data-action="ex-del" data-id="' + e.id + '" aria-label="Remove ' + esc(e.name) + '">×</button></span>'
         : isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
       return '<div class="ex"><div class="ex-head"><span class="ex-name">' + esc(e.name) + "</span>" + tools + "</div>" +
-        (wEdit ? "" : stepper("Weight", e, "weight", e.unit) + '<div class="two">' + stepper("Reps", e, "reps") + stepper("Sets", e, "sets") + "</div>" +
+        (wEdit ? "" : stepper("Weight", e, "w", fmtW(cs.w), e.unit) + '<div class="two">' + stepper("Reps", e, "r", cs.r) + setStep + "</div>" + chips +
         (conv || lastTxt ? '<div class="ex-sub num">' + (conv ? "<span>" + conv + "</span>" : "") + (lastTxt ? "<span>" + lastTxt + "</span>" : "") + "</div>" : "")) +
       "</div>";
     }).join("");
     const names = allExerciseNames().filter((n) => !w.exercises.some((e) => exKey(e.name) === exKey(n)));
     const addForm = wAdding
       ? '<form class="form ex" id="wadd-form">' +
-          '<label>Exercise<input class="field" id="wadd-name" list="wadd-names" placeholder="' + ({ push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "Exercise") + '" maxlength="60" autocomplete="off" required></label>' +
+          '<label>Exercise<input class="field" id="wadd-name" list="wadd-names" placeholder="' + (w.exercises.length ? "" : { push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "") + '" maxlength="60" autocomplete="off" required></label>' +
           '<datalist id="wadd-names">' + names.map((n) => '<option value="' + esc(n) + '"></option>').join("") + "</datalist>" +
-          '<div class="three"><label for="wadd-weight">Weight<span class="suffix"><input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0"><span class="u" id="wadd-unit">' + S().unit + "</span></span></label>" +
-          '<label for="wadd-reps">Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10"></label>' +
-          '<label for="wadd-sets">Sets<input class="field num" id="wadd-sets" type="number" inputmode="numeric" min="1" value="3"></label></div>' +
-          '<p class="hint">Leave weight at 0 for bodyweight moves like dips.</p>' +
+          '<div class="two"><label for="wadd-weight">Weight<span class="suffix"><input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0"><span class="u" id="wadd-unit">' + S().unit + "</span></span></label>" +
+          '<label for="wadd-reps">Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10"></label></div>' +
+          '<p class="hint">This is set 1. After adding, tap + next to Set for each set after it. Leave weight at 0 for bodyweight moves like dips.</p>' +
           '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
         "</form>"
       : "";
@@ -1814,7 +1834,12 @@ body.setup .nav, body.setup .top { display: none; }
       case "next-day": if (viewDate < todayISO()) viewDate = addDays(viewDate, 1); render(true); break;
       case "open-day": viewDate = el.dataset.date; view = "today"; render(true); window.scrollTo(0, 0); break;
       case "toggle-habit": { const d = day(); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; d.autoTicks = { ...d.autoTicks, [el.dataset.id]: false }; save(viewDate); render(true); break; }
-      case "open-settings": view = "settings"; render(true); window.scrollTo(0, 0); checkForUpdate(); break;
+      case "open-settings": {
+        view = "settings"; render(true);
+        const to = el.dataset.to && document.getElementById(el.dataset.to);
+        if (to) to.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
+        checkForUpdate(); break;
+      }
       case "get-update": if (bridge && bridge.openUrl) bridge.openUrl(APK_URL); break;
       case "share-app": if (bridge && bridge.shareText) bridge.shareText("I'm tracking my 100-day gym challenge with this app. Get it here: " + SHARE_URL); break;
       case "copy-link": {
@@ -1853,8 +1878,6 @@ body.setup .nav, body.setup .top { display: none; }
       case "su-unit": draft.unit = el.dataset.unit || el.dataset.v; render(true); break;
       case "su-bf": draft.bodyFat = el.dataset.v; render(true); break;
       case "cal-aim": S().calorieAim = el.dataset.v; save("settings"); render(true); break;
-      case "preview-setup": previewSetup = true; setupStep = 0; Object.assign(draft, freshDraft()); render(true); window.scrollTo(0, 0); break;
-      case "preview-exit": previewSetup = false; view = "settings"; render(true); window.scrollTo(0, 0); break;
       case "su-mode": draft.mode = el.dataset.v; render(true); break;
       case "su-sex": draft.sex = el.dataset.v; render(true); break;
       case "su-activity": draft.activity = el.dataset.v; render(true); break;
@@ -1896,14 +1919,33 @@ body.setup .nav, body.setup .top { display: none; }
       case "ex-step": {
         const e = findEx(el.dataset.id), f = el.dataset.f, dir = +el.dataset.d;
         if (!e) break;
-        if (f === "weight") e.weight = Math.max(0, half(e.weight + dir * stepFor(e.unit)));
-        else e[f] = Math.max(f === "sets" ? 1 : 0, (+e[f] || 0) + dir);
-        save(viewDate); drawWorkout(); break;
+        const cs = ensureSets(e)[curIdx(e)];
+        if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
+        else cs.r = Math.max(0, (+cs.r || 0) + dir);
+        syncEx(e); save(viewDate); drawWorkout(); break;
+      }
+      case "set-step": {
+        // + moves to the next set, adding one (a copy of this set) after the last; − goes back a set.
+        const e = findEx(el.dataset.id), dir = +el.dataset.d;
+        if (!e) break;
+        const l = ensureSets(e), ci = curIdx(e);
+        if (dir > 0) { if (ci === l.length - 1) l.push({ ...l[ci] }); curSet[e.id] = ci + 1; }
+        else curSet[e.id] = Math.max(0, ci - 1);
+        syncEx(e); save(viewDate); drawWorkout(); break;
+      }
+      case "set-go": { const e = findEx(el.dataset.id); if (e) { curSet[e.id] = +el.dataset.k; drawWorkout(); } break; }
+      case "set-del": {
+        const e = findEx(el.dataset.id);
+        if (!e) break;
+        const l = ensureSets(e), ci = curIdx(e);
+        if (l.length > 1) { l.splice(ci, 1); curSet[e.id] = Math.max(0, ci - 1); syncEx(e); save(viewDate); drawWorkout(); }
+        break;
       }
       case "ex-unit": {
         const e = findEx(el.dataset.id), u = el.dataset.u;
         if (!e || e.unit === u) break;
-        e.weight = half(toUnit(e.weight, e.unit, u)); e.unit = u;
+        ensureSets(e).forEach((x) => (x.w = half(toUnit(x.w, e.unit, u))));
+        e.unit = u; syncEx(e);
         save(viewDate); drawWorkout(); break;
       }
       case "ex-move": {
@@ -1972,7 +2014,9 @@ body.setup .nav, body.setup .top { display: none; }
       const w = getDay(viewDate).workout;
       const known = lastExercise(name, viewDate);
       const unit = known ? known.e.unit : S().unit;
-      w.exercises.push({ id: uid(), name: known ? known.e.name : name, weight: half(+val("wadd-weight") || 0), reps: Math.max(0, Math.round(+val("wadd-reps") || 0)), sets: Math.max(1, Math.round(+val("wadd-sets") || 1)), unit });
+      const ne = { id: uid(), name: known ? known.e.name : name, unit, setList: [{ w: half(+val("wadd-weight") || 0), r: Math.max(0, Math.round(+val("wadd-reps") || 0)) }] };
+      syncEx(ne);
+      w.exercises.push(ne);
       save(viewDate); render();
       drawWorkout();
       const n = document.getElementById("wadd-name");
@@ -2053,7 +2097,6 @@ body.setup .nav, body.setup .top { display: none; }
     document.getElementById("wadd-weight").value = k.e.weight || "";
     document.getElementById("wadd-unit").textContent = k.e.unit;
     document.getElementById("wadd-reps").value = k.e.reps;
-    document.getElementById("wadd-sets").value = k.e.sets;
   });
 
   document.addEventListener("change", (ev) => {
@@ -2069,8 +2112,9 @@ body.setup .nav, body.setup .top { display: none; }
     } else if (t.classList.contains("sval")) {
       const e = findEx(t.dataset.id), f = t.dataset.f, v = parseFloat(t.value);
       if (!e || !(v >= 0)) { drawWorkout(); return; }
-      e[f] = f === "weight" ? half(v) : Math.max(f === "sets" ? 1 : 0, Math.round(v));
-      save(viewDate); drawWorkout();
+      const cs = ensureSets(e)[curIdx(e)];
+      if (f === "w") cs.w = half(v); else cs.r = Math.round(v);
+      syncEx(e); save(viewDate); drawWorkout();
     } else if (t.id.indexOf("focus-") === 0) {
       const g = findGoal(t.dataset.goal);
       if (g) { g.focus = t.value.trim(); save("goals"); }
@@ -2110,9 +2154,8 @@ body.setup .nav, body.setup .top { display: none; }
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
   window.__appBack = function () {
     if (!sheet.hidden) { closeSheet(); return true; }
-    if ((!S().setupDone && setupReady) || previewSetup) {
+    if (!S().setupDone && setupReady) {
       if (setupStep > 0) { setupStep--; render(true); return true; }
-      if (previewSetup) { previewSetup = false; view = "settings"; render(true); return true; }
       return false;
     }
     if (editingGoal || openGoal) { editingGoal = confirmDelete = openGoal = null; render(true); return true; }
