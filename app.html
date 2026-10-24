@@ -594,21 +594,34 @@ body.setup .nav, body.setup .top { display: none; }
   const fullOn = (date) => { const n = tasksFor(date).length; return n > 0 && doneOn(date) === n; };
   // Tasks Samsung Health can tick by itself. Names follow the targets in Settings.
   const fmtSleep = (min) => Math.floor(min / 60) + " h " + String(Math.round(min % 60)).padStart(2, "0") + " m";
-  // Workouts today: workouts saved here, plus Samsung Health sessions of 10+ minutes. A strength session logged in
-  // Samsung Health and a workout saved here on the same day are treated as the same workout.
+  // Workouts today. With a target of 1, either a Push/Pull/Legs saved here or a cardio session counts.
+  // With a target of N (2 or more) it takes one Push/Pull/Legs saved here plus N-1 cardio sessions from
+  // Samsung Health. Lifting sessions logged in Samsung Health ("Other workout" and the like) never count on
+  // their own; their minutes are shown next to the workout saved here.
   const workoutsTarget = () => Math.max(1, Math.round(+S().workoutsTarget) || 1);
   function workoutParts(day) {
     const ses = ((day && day.health && day.health.sessions) || []).filter((x) => x.min >= 10);
     const strength = ses.filter((x) => x.strength), cardio = ses.filter((x) => !x.strength);
-    const app = day && day.workout && day.workout.saved ? 1 : 0;
-    return { count: cardio.length + Math.max(app, strength.length), ses, strength, cardio, app };
+    const app = day && day.workout && day.workout.saved ? 1 : 0, t = workoutsTarget();
+    const count = t === 1 ? Math.min(1, app + cardio.length) : app + Math.min(cardio.length, t - 1);
+    return { count, ses, strength, cardio, app };
   }
   function workoutNames(day) {
-    const p = workoutParts(day), names = [], strength = p.strength.slice();
-    if (p.app) { const s0 = strength.shift(); names.push(typeName(day.workout.type) + " day" + (s0 ? " " + s0.min + " min" : "")); }
-    strength.concat(p.cardio).forEach((x) => names.push(x.name + " " + x.min + " min"));
+    const p = workoutParts(day), names = [], t = workoutsTarget();
+    if (p.app) names.push(typeName(day.workout.type) + " day" + (p.strength[0] ? " " + p.strength[0].min + " min" : ""));
+    p.cardio.forEach((x) => names.push(x.name + " " + x.min + " min"));
+    if (t > 1 && p.count < t) {
+      const cardioLeft = Math.max(0, t - 1 - p.cardio.length);
+      const need = (p.app ? [] : ["Push, Pull or Legs"]).concat(cardioLeft ? [cardioLeft > 1 ? cardioLeft + " cardio" : "cardio"] : []);
+      if (need.length) names.push("still need " + need.join(" + "));
+    }
     return names;
   }
+  const workoutRule = () => {
+    const t = workoutsTarget();
+    return t === 1 ? "Ticks itself when you save Push, Pull or Legs here, or Samsung Health records cardio."
+      : t + " workouts means one Push, Pull or Legs saved here plus " + (t - 1) + " cardio session" + (t > 2 ? "s" : "") + " from Samsung Health (runs, rides, swims, sports, hikes or walks).";
+  };
   const METRICS = {
     steps: { label: (st) => (+st.stepsTarget).toLocaleString() + " steps", value: (d) => (d.health ? d.health.steps : null), target: (st) => st.stepsTarget, show: (v, st) => fmt(v) + " / " + fmt(st.stepsTarget) },
     sleep: { label: (st) => "Get " + st.sleepTarget + " hours of sleep", value: (d) => (d.health && d.health.sleepMin != null ? d.health.sleepMin / 60 : null), target: (st) => st.sleepTarget, show: (v) => fmtSleep(v * 60) + " last night" },
@@ -1313,7 +1326,7 @@ body.setup .nav, body.setup .top { display: none; }
   function workoutOfferHTML() {
     if (S().workoutOffered || !bridge || health === "unavailable" || !S().setupDone || !S().habits.some((h) => h.id === "workout")) return "";
     const n = woChoice || workoutsTarget();
-    return '<div class="notice"><b>Workouts from Samsung Health now count</b><span class="hint">Runs, rides, swims, hikes, games and the workouts you log in Samsung Health tick your workout task, along with the ones you save here. How many workouts a day?</span>' +
+    return '<div class="notice"><b>Workouts from Samsung Health now count</b><span class="hint">Cardio from Samsung Health (runs, rides, swims, sports, hikes, walks) now counts toward your workout task, alongside the Push, Pull or Legs you save here. With 2 a day, you need one of each. How many workouts a day?</span>' +
       '<div class="pick">' + [1, 2, 3].map((v) => '<button data-action="wo-n" data-v="' + v + '" aria-pressed="' + (n === v) + '">' + v + " a day</button>").join("") + "</div>" +
       '<div class="btn-row"><button class="btn" data-action="wo-on">Turn on</button><button class="btn secondary" data-action="wo-skip">No thanks</button></div></div>';
   }
@@ -1631,10 +1644,11 @@ body.setup .nav, body.setup .top { display: none; }
         '<div class="three"><label>Workouts a day<input class="field num" id="set-workouts" type="number" inputmode="numeric" min="1" max="5" value="' + workoutsTarget() + '"></label>' +
         '<label>Steps<input class="field num" id="set-steps" type="number" inputmode="numeric" min="0" step="500" value="' + s.stepsTarget + '"></label>' +
         '<label>Sleep (hours)<input class="field num" id="set-sleep" type="number" inputmode="decimal" min="0" step="0.5" value="' + s.sleepTarget + '"></label></div>' +
+        (bridge && health !== "unavailable" ? '<p class="hint">' + esc(workoutRule()) + "</p>" : "") +
         '<label>Weight unit<span class="seg" role="group"><button data-action="unit" data-unit="lb" aria-pressed="' + (s.unit === "lb") + '">lb</button><button data-action="unit" data-unit="kg" aria-pressed="' + (s.unit === "kg") + '">kg</button></span></label>' +
       "</div></section>" +
       '<section class="panel" aria-labelledby="h-ht"><div class="panel-head"><h2 id="h-ht">Daily tasks</h2><span class="meta num">' + s.habits.length + "</span></div>" +
-        '<ul class="list">' + s.habits.map((h) => '<li class="row"><div class="row-main"><div class="row-title">' + esc(taskName(h)) + "</div>" + (h.id === "workout" ? '<div class="row-sub">Ticks itself when you save a workout' + (bridge && health !== "unavailable" ? " or Samsung Health records one" : "") + "</div>" : METRICS[h.id] && bridge && health !== "unavailable" ? '<div class="row-sub">Ticks itself from Samsung Health</div>' : "") + '</div><button class="del" data-action="del-habit" data-id="' + h.id + '" aria-label="Remove ' + esc(taskName(h)) + '">×</button></li>').join("") + "</ul>" +
+        '<ul class="list">' + s.habits.map((h) => '<li class="row"><div class="row-main"><div class="row-title">' + esc(taskName(h)) + "</div>" + (h.id === "workout" ? '<div class="row-sub">' + (bridge && health !== "unavailable" ? esc(workoutRule()) : "Ticks itself when you save a workout") + "</div>" : METRICS[h.id] && bridge && health !== "unavailable" ? '<div class="row-sub">Ticks itself from Samsung Health</div>' : "") + '</div><button class="del" data-action="del-habit" data-id="' + h.id + '" aria-label="Remove ' + esc(taskName(h)) + '">×</button></li>').join("") + "</ul>" +
         '<form class="inline" id="habit-form"><input class="field" id="new-habit" placeholder="Add a task, e.g. 10k steps" maxlength="60" autocomplete="off"><button class="btn" type="submit">Add</button></form>' +
         '<p class="hint">"Hit protein goal" ticks itself at ' + fmt(s.proteinGoal) + ' g, and "Workout" when you save a workout. A new task counts from the day you add it.</p>' +
       "</section>"

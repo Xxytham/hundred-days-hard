@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.1
+- "2 workouts" now means one Push, Pull or Legs saved in the app plus one cardio session from Samsung Health. "Other workout" and other lifting sessions in Samsung Health don't count on their own; their minutes show next to the workout you saved.
+- The task row says what's still missing, like "1 / 2 · Push day 62 min, still need cardio".
+
 ## v0.7
 - Workouts from Samsung Health (runs, rides, swims, rowing, racquet sports, skiing, hikes, walks, and "Other workout") count toward your workout task. Set how many a day under Goals in Settings. Each shows in the task row, like "2 / 2 · Push day 62 min, Running 32 min".
 - A strength workout logged in Samsung Health on the same day as one saved here counts once, not twice.
