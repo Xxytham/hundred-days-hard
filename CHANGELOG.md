@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7
+- Workouts from Samsung Health (runs, rides, swims, rowing, racquet sports, skiing, hikes, walks, and "Other workout") count toward your workout task. Set how many a day under Goals in Settings. Each shows in the task row, like "2 / 2 · Push day 62 min, Running 32 min".
+- A strength workout logged in Samsung Health on the same day as one saved here counts once, not twice.
+- Tasks the app ticks itself come off again if you raise the target; ticks you make by hand stay.
+- Sleeker day counter in the corner, with the settings gear built into the ring.
+- Goals tab: an overall progress bar, goals grouped into Strength, Cardio and Body, and one compact row per goal with its own bar. Tap a goal to open its ladder.
+- In setup, tapping the big numbers clears them so you can type a new one.
+- The setup suggestion says which goal it's for ("Suggested for losing fat").
+
 ## v0.6
 - New setup: "Welcome to [100] Days Hard" (tap the number to set your length), then "Today is day [1]" with your last day shown big.
 - Calorie goal is either **Lose fat** (a 200-calorie range to land in) or **Build muscle** (a number to reach). Today, Progress and Settings all follow it.

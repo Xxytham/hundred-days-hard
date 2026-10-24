@@ -7,10 +7,15 @@ import android.health.connect.HealthConnectManager;
 import android.health.connect.ReadRecordsRequestUsingFilters;
 import android.health.connect.ReadRecordsResponse;
 import android.health.connect.TimeInstantRangeFilter;
+import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
+import android.health.connect.datatypes.ExerciseSessionRecord;
+import android.health.connect.datatypes.ExerciseSessionType;
+import android.health.connect.datatypes.Metadata;
 import android.health.connect.datatypes.NutritionRecord;
 import android.health.connect.datatypes.Record;
 import android.health.connect.datatypes.SleepSessionRecord;
 import android.health.connect.datatypes.StepsRecord;
+import android.health.connect.datatypes.TotalCaloriesBurnedRecord;
 import android.health.connect.datatypes.WeightRecord;
 import android.os.Build;
 import android.os.OutcomeReceiver;
@@ -32,15 +37,63 @@ import java.util.function.Consumer;
 
 /**
  * Reads what Samsung Health shares through Health Connect (Android 14+): daily food totals,
- * body weight, steps and sleep. Each type is read only if its permission was granted.
+ * body weight, steps, sleep and exercise sessions (with the calories burned during them). Each type is read only if its permission was granted.
  */
 final class HealthReader {
     static final String NUTRITION = "android.permission.health.READ_NUTRITION";
     static final String WEIGHT = "android.permission.health.READ_WEIGHT";
     static final String STEPS = "android.permission.health.READ_STEPS";
     static final String SLEEP = "android.permission.health.READ_SLEEP";
-    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP};
-    private static final String[] NAMES = {"food", "weight", "steps", "sleep"};
+    static final String EXERCISE = "android.permission.health.READ_EXERCISE";
+    static final String ACTIVE_CAL = "android.permission.health.READ_ACTIVE_CALORIES_BURNED";
+    static final String TOTAL_CAL = "android.permission.health.READ_TOTAL_CALORIES_BURNED";
+    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL};
+    private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned"};
+
+    private static final Map<Integer, String> TYPES = new HashMap<>();
+    // Session types that are lifting rather than cardio. One of these on the same day as a workout saved
+    // in the app counts as that same workout.
+    private static final List<Integer> STRENGTH = new ArrayList<>();
+    static {
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_BIKING, "Biking");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_BIKING_STATIONARY, "Stationary bike");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_SWIMMING_POOL, "Swimming");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_SWIMMING_OPEN_WATER, "Open-water swim");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_ROWING, "Rowing");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_ROWING_MACHINE, "Rowing machine");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_RACQUETBALL, "Racquetball");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_TENNIS, "Tennis");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_SKIING, "Skiing");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_SNOWBOARDING, "Snowboarding");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_HIKING, "Hiking");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_WALKING, "Walking");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_RUNNING, "Running");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_RUNNING_TREADMILL, "Treadmill run");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_ELLIPTICAL, "Elliptical");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_STAIR_CLIMBING, "Stairs");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_STAIR_CLIMBING_MACHINE, "Stair machine");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING, "HIIT");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_YOGA, "Yoga");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_PILATES, "Pilates");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_BADMINTON, "Badminton");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_SQUASH, "Squash");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_TABLE_TENNIS, "Table tennis");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_BASKETBALL, "Basketball");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_SOCCER, "Soccer");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_VOLLEYBALL, "Volleyball");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_BOXING, "Boxing");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_MARTIAL_ARTS, "Martial arts");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_DANCING, "Dancing");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_GOLF, "Golf");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_OTHER_WORKOUT, "Workout");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_STRENGTH_TRAINING, "Strength training");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_WEIGHTLIFTING, "Weightlifting");
+        TYPES.put(ExerciseSessionType.EXERCISE_SESSION_TYPE_CALISTHENICS, "Calisthenics");
+        STRENGTH.add(ExerciseSessionType.EXERCISE_SESSION_TYPE_OTHER_WORKOUT);
+        STRENGTH.add(ExerciseSessionType.EXERCISE_SESSION_TYPE_STRENGTH_TRAINING);
+        STRENGTH.add(ExerciseSessionType.EXERCISE_SESSION_TYPE_WEIGHTLIFTING);
+        STRENGTH.add(ExerciseSessionType.EXERCISE_SESSION_TYPE_CALISTHENICS);
+    }
     private static final String SAMSUNG_HEALTH = "com.sec.android.app.shealth";
 
     private HealthReader() { }
@@ -121,6 +174,8 @@ final class HealthReader {
         Map<String, Map<String, double[]>> steps = new TreeMap<>();
         Map<String, Map<String, double[]>> sleep = new TreeMap<>();
         Map<String, Double> weightKg = new HashMap<>();
+        // day -> app that wrote it -> sessions
+        Map<String, Map<String, JSONArray>> workouts = new TreeMap<>();
 
         readAll(c, hcm, NUTRITION, NutritionRecord.class, range, ex, nutrition -> {
             for (NutritionRecord n : nutrition) {
@@ -155,11 +210,49 @@ final class HealthReader {
                             }
                             slot(sleep, n.getEndTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 1)[0] += Math.max(0, min);
                         }
-                        done.accept(toJson(food, weightKg, steps, sleep, fromIso));
+                        readAll(c, hcm, EXERCISE, ExerciseSessionRecord.class, range, ex, sessions ->
+                        readAll(c, hcm, ACTIVE_CAL, ActiveCaloriesBurnedRecord.class, range, ex, active ->
+                        readAll(c, hcm, TOTAL_CAL, TotalCaloriesBurnedRecord.class, range, ex, total -> {
+                            for (ExerciseSessionRecord w : sessions) {
+                                try {
+                                    JSONObject o = new JSONObject();
+                                    int type = w.getExerciseType();
+                                    o.put("name", TYPES.containsKey(type) ? TYPES.get(type) : "Workout");
+                                    o.put("strength", STRENGTH.contains(type));
+                                    o.put("start", w.getStartTime().toEpochMilli());
+                                    o.put("min", Duration.between(w.getStartTime(), w.getEndTime()).toMinutes());
+                                    double kcal = activeDuring(active, w);
+                                    if (kcal <= 0) kcal = totalDuring(total, w);
+                                    if (kcal > 0) o.put("kcal", Math.round(kcal));
+                                    o.put("auto", w.getMetadata().getRecordingMethod() == Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED);
+                                    String day = w.getStartTime().atZone(zone).toLocalDate().toString();
+                                    String origin = w.getMetadata().getDataOrigin().getPackageName();
+                                    workouts.computeIfAbsent(day, k -> new HashMap<>()).computeIfAbsent(origin == null ? "" : origin, k -> new JSONArray()).put(o);
+                                } catch (Exception ignored) { }
+                            }
+                            done.accept(toJson(food, weightKg, steps, sleep, workouts, fromIso));
+                        })));
                     });
                 });
             });
         });
+    }
+
+    // Calories recorded inside a session's time window (a minute of slack either side).
+    private static boolean inside(Instant s, Instant e, ExerciseSessionRecord w) {
+        return !s.isBefore(w.getStartTime().minusSeconds(60)) && !e.isAfter(w.getEndTime().plusSeconds(60));
+    }
+
+    private static double activeDuring(List<ActiveCaloriesBurnedRecord> list, ExerciseSessionRecord w) {
+        double sum = 0;
+        for (ActiveCaloriesBurnedRecord r : list) if (inside(r.getStartTime(), r.getEndTime(), w)) sum += r.getEnergy().getInCalories() / 1000.0;
+        return sum;
+    }
+
+    private static double totalDuring(List<TotalCaloriesBurnedRecord> list, ExerciseSessionRecord w) {
+        double sum = 0;
+        for (TotalCaloriesBurnedRecord r : list) if (inside(r.getStartTime(), r.getEndTime(), w)) sum += r.getEnergy().getInCalories() / 1000.0;
+        return sum;
     }
 
     private static double[] slot(Map<String, Map<String, double[]>> map, Instant when, ZoneId zone, String origin, int size) {
@@ -182,7 +275,8 @@ final class HealthReader {
     }
 
     private static String toJson(Map<String, Map<String, double[]>> food, Map<String, Double> weightKg,
-                                 Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> sleep, String fromIso) {
+                                 Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> sleep,
+                                 Map<String, Map<String, JSONArray>> workouts, String fromIso) {
         try {
             JSONObject days = new JSONObject();
             for (Map.Entry<String, Map<String, double[]>> e : food.entrySet()) {
@@ -195,6 +289,12 @@ final class HealthReader {
             for (Map.Entry<String, Map<String, double[]>> e : steps.entrySet()) day(days, e.getKey()).put("steps", Math.round(pick(e.getValue(), 1)[0]));
             for (Map.Entry<String, Map<String, double[]>> e : sleep.entrySet()) {
                 if (e.getKey().compareTo(fromIso) >= 0) day(days, e.getKey()).put("sleepMin", Math.round(pick(e.getValue(), 1)[0]));
+            }
+            for (Map.Entry<String, Map<String, JSONArray>> e : workouts.entrySet()) {
+                Map<String, JSONArray> origins = e.getValue();
+                JSONArray list = origins.containsKey(SAMSUNG_HEALTH) ? origins.get(SAMSUNG_HEALTH) : new JSONArray();
+                if (!origins.containsKey(SAMSUNG_HEALTH)) for (JSONArray a : origins.values()) for (int i = 0; i < a.length(); i++) list.put(a.get(i));
+                day(days, e.getKey()).put("sessions", list);
             }
             JSONObject out = new JSONObject();
             out.put("ok", true);

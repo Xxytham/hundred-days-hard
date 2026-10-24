@@ -23,7 +23,7 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 | `app.html` | The app: CSS tokens at top, then markup, then one script. Written as an artifact page (no `<html>`/`<head>`; the artifact host and `build.sh` add them). |
 | `android/build.sh` | Builds the APK with plain SDK tools (aapt2, javac, d8, apksigner). No Gradle. Downloads the SDK via `setup-sdk.sh` if missing (needs `dl.google.com` allowed). |
 | `android/src/.../MainActivity.java` | WebView host, insets, back button, `AndroidBridge` (backup file, restore picker, Health Connect). |
-| `android/src/.../HealthReader.java` | Reads Nutrition, Weight, Steps and Sleep records from Health Connect (Android 14+ framework API, no Jetpack), each only if its permission was granted. Prefers Samsung Health's records over other apps' to avoid double counting. Sleep counts on the day it ends, minus awake stages. |
+| `android/src/.../HealthReader.java` | Reads Nutrition, Weight, Steps, Sleep and Exercise session records (plus Active/Total Calories Burned inside each session's time window) from Health Connect (Android 14+ framework API, no Jetpack), each only if its permission was granted. Prefers Samsung Health's records over other apps' to avoid double counting. Sleep counts on the day it ends, minus awake stages. |
 | `android/src/.../PrivacyActivity.java` | Rationale screen Health Connect requires. |
 | `android/assets/fonts*` | Bundled Google Fonts so the APK works offline. `assets/index.html` is generated, not committed. |
 | `tools/wrap_page.py` | Wraps `app.html` into a full document with bundled fonts. Used by both builds; `--pwa` adds the home-screen tags and service worker. |
@@ -32,7 +32,7 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 
 ## How the app works
 
-Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter plate in the top corner.
+Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day counter in the top corner (`gaugeSVG()`: a 300° ring with the gear in the gap at the bottom). In setup, the big inline numbers (`.inline-num`) clear on focus and restore if left empty.
 
 - **First-time setup:** shown while `settings.setupDone` is false (fresh installs only). Steps: welcome ("Welcome to [N] Days Hard", N is an editable number) or restore → "Today is day [n]" with the last day's date → targets → daily tasks (`TASK_PRESETS` plus custom) → Samsung Health (APK only) → done. The targets step picks a calorie goal (Lose fat or Build muscle) and has **Suggest for me** (Katch-McArdle when a body-fat range is picked, otherwise Mifflin-St Jeor; × activity 1.4/1.55/1.75; × 0.8 to lose or 1.1 to build; lose rounds to the nearest 100. Protein is 1 g per lb of lean mass, or 0.8 g per lb of body weight if body fat is unknown, capped at 250 g. The weight entered becomes today's weigh-in. `suggestCheck()` lists what's missing) and **I know my numbers**. Anyone with saved data from before v0.4 is marked `setupDone` on load.
 - **TEMPORARY setup preview:** Settings → Testing → "Preview first-time setup" (`previewSetup`) runs setup without saving anything. Remove `testingSection()` and `previewSetup` once the owner says setup is settled.
@@ -42,7 +42,7 @@ Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter pl
 - **Sharing:** Settings has "Share with friends": the link `https://xxytham.github.io/hundred-days-hard/get/`, a QR code (qrcode-generator from cdnjs, loaded on demand), plus share/copy buttons. Releases and Pages only work for friends while the repo is **public**.
 
 - **Challenge length:** `settings.totalDays` (default 100) drives the plate, the grid, "Day N of X" and the streak range. When the last day is done (or passed), Today shows a finish card with round stats. "Start another round" appends `{startDate, totalDays}` to `settings.rounds` and makes today day 1. History is never deleted.
-- **Tasks that tick themselves:** `METRICS` covers `steps` and `sleep` (task ids). Names come from `settings.stepsTarget`/`sleepTarget`. Water used to be read too, but the owner found it unreliable, so it was dropped in v0.5.1; "Drink 3 L of water" is a manual task and old `day.health.waterL` values are ignored. Synced values live in `day.health` and tick the task when they reach the target (never unticking). People who set up before v0.5 get a one-time "Add them" card (`settings.autoOffered`).
+- **Tasks that tick themselves:** `METRICS` covers `steps`, `sleep` and `workout` (task ids). The workout count is `workoutParts(day)`: Samsung Health sessions of 10+ minutes, plus a workout saved in the app, where one strength-type session (Other workout, strength training, weightlifting, calisthenics) on the same day merges with the saved workout. Target is `settings.workoutsTarget` (default 1; the owner uses 2). Existing users got a one-time card to turn this on (`settings.workoutOffered`). Ticks the app made are recorded in `day.autoTicks` and come off if the value drops below the target; manual ticks clear that flag and stay. Names come from `settings.stepsTarget`/`sleepTarget`. Water used to be read too, but the owner found it unreliable, so it was dropped in v0.5.1; "Drink 3 L of water" is a manual task and old `day.health.waterL` values are ignored. Synced values live in `day.health` and tick the task when they reach the target (never unticking). People who set up before v0.5 get a one-time "Add them" card (`settings.autoOffered`).
 - **Tasks count from `addedOn`:** a task with `addedOn` only counts for days on or after it (`tasksFor(date)`), so adding a task never breaks past perfect days or a streak.
 - **Trends:** Progress has one 14-day bar chart (`TRENDS`: calories, sleep, steps) with chips, shown only for measures that have data.
 - **Apple Health:** not possible from the iPhone web app. It would need a native iOS app and an Apple developer account.
@@ -52,18 +52,20 @@ Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter pl
 - **Daily tasks:** checklist from `settings.habits`. `protein` auto-checks when the protein goal is met, and `workout` checks when a workout is saved.
 - **Workouts (Push / Pull / Legs):** starting a type copies the exercises, order, weights, reps and sets from the most recent *saved* session of that type. −/+ steps weight by 5 lb (2.5 kg). Exercises with "cable" in the name get an lb/kg toggle that converts the value. A workout autosaves as a draft (`saved: false`) until "Save workout".
 - **Strength (Progress tab):** per-exercise "stock ticker". Change is measured on estimated 1RM, `w × (1 + reps/30)` (Epley), so 45×12 → 50×7 reads as a small drop. Bodyweight exercises (weight 0) compare reps.
+- **Goals tab layout:** an overall bar, then goals grouped by `groupOf(g)` (keyword guess, or `g.group` set in Edit) into Strength / Cardio / Body, one collapsed row per goal (`openGoal` expands one ladder at a time).
 - **Goals:** ladders the owner wrote. Steps are stored easiest → hardest and shown hardest at the top. "Next up" is the first step not yet done.
 - **Backup:** APK writes `Download/100 Days Hard/100-days-hard-backup.json` about 1.5 s after any change (skipped while the app has no data, so a fresh install can't overwrite a good backup). "Send a copy" opens the share sheet. Restore merges by `updatedAt` per document, newest wins. The web version saves to the account automatically and can save/restore the same file.
 
 ### Data shape (localStorage key `hundred-days-hard.v1`, and one db doc per key)
 
 ```
-settings: { startDate, totalDays, calorieGoal, calorieAim: "lose"|"build", proteinGoal, stepsTarget, sleepTarget, unit: "lb"|"kg",
-            habits: [{id, name, addedOn?}], setupDone, autoOffered?, finishDismissed?, rounds?: [{startDate, totalDays}], lastExport?, updatedAt }
-goals:    { updatedAt, list: [{ id, name, focus, steps: [{ id, text, done, doneDay }] }] }
+settings: { startDate, totalDays, calorieGoal, calorieAim: "lose"|"build", proteinGoal, stepsTarget, sleepTarget, workoutsTarget, unit: "lb"|"kg",
+            habits: [{id, name, addedOn?}], setupDone, autoOffered?, workoutOffered?, finishDismissed?, rounds?: [{startDate, totalDays}], lastExport?, updatedAt }
+goals:    { updatedAt, list: [{ id, name, focus, group?, steps: [{ id, text, done, doneDay }] }] }
 days["YYYY-MM-DD"]: {
   kcal, protein, kcalSrc: null|"manual"|"health", weight, habits: {habitId: bool},
-  health: null | { steps, sleepMin },   (older days may also hold an unused waterL)
+  health: null | { steps, sleepMin, sessions?: [{ name, strength, start, min, kcal?, auto }] },   (older days may also hold an unused waterL)
+  autoTicks?: { taskId: bool },   tasks the app ticked by itself
   workout: null | { type: "push"|"pull"|"legs"|"other", saved, savedAt,
                     exercises: [{ id, name, weight, reps, sets, unit }] },
   updatedAt
