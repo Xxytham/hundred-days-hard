@@ -1709,11 +1709,7 @@ body.setup .nav, body.setup .top { display: none; }
     }
     return null;
   }
-  function allExerciseNames() {
-    const seen = {};
-    savedSessions().forEach((d) => state.days[d].workout.exercises.forEach((e) => (seen[exKey(e.name)] = e.name)));
-    return Object.values(seen).sort();
-  }
+
 
   function workoutPanel(day) {
     const w = day.workout, unit = S().unit;
@@ -1788,11 +1784,9 @@ body.setup .nav, body.setup .top { display: none; }
         (conv || lastTxt ? '<div class="ex-sub num">' + (conv ? "<span>" + conv + "</span>" : "") + (lastTxt ? "<span>" + lastTxt + "</span>" : "") + "</div>" : "")) +
       "</div>";
     }).join("");
-    const names = allExerciseNames().filter((n) => !w.exercises.some((e) => exKey(e.name) === exKey(n)));
     const addForm = wAdding
       ? '<form class="form ex" id="wadd-form">' +
-          '<label>Exercise<input class="field" id="wadd-name" list="wadd-names" placeholder="' + (w.exercises.length ? "" : { push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "") + '" maxlength="60" autocomplete="off" required></label>' +
-          '<datalist id="wadd-names">' + names.map((n) => '<option value="' + esc(n) + '"></option>').join("") + "</datalist>" +
+          '<label>Exercise<input class="field" id="wadd-name" placeholder="' + (w.exercises.length ? "" : { push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "") + '" maxlength="60" autocomplete="off" required></label>' +
           '<div class="two"><label for="wadd-weight">Weight<span class="suffix"><input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0"><span class="u" id="wadd-unit">' + S().unit + "</span></span></label>" +
           '<label for="wadd-reps">Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10"></label></div>' +
           '<p class="hint">This is set 1. After adding, tap + next to Set for each set after it. Leave weight at 0 for bodyweight moves like dips.</p>' +

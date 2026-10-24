@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.8.1
+- The exercise name box no longer shows a dropdown of other days' exercises or a little arrow. Typing an exercise you've done before still fills in last time's weight and reps.
+
 ## v0.8
 - Log sets one at a time. Every exercise starts at Set 1; + moves to the next set (copying the weight and reps), and the −/+ on weight and reps change only that set. Tap a set chip to go back to it, or remove it. Works the same for new and preloaded exercises.
 - Next time, each exercise loads every set from last time, starting at set 1.
