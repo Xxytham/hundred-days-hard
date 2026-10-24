@@ -254,6 +254,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String healthMissing() {
+            return HealthReader.missing(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public String healthStatus() {
             return HealthReader.status(MainActivity.this);
         }

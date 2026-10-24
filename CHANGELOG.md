@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5
+- Tasks that tick themselves: water, steps and sleep, filled in from Samsung Health. Each shows today's number right in its row, like "7 h 35 m last night".
+- Set your targets in Settings (defaults: 3 L of water, 10,000 steps, 9 hours of sleep).
+- New tasks count from the day you add them, so adding one never breaks your streak.
+- Progress shows the last 14 days of calories, sleep, steps or water in one chart, with averages.
+- Choose how long your challenge is (30, 75, 100 or any number of days), in setup or Settings.
+- A finish screen when your challenge ends, with your stats and a button to start another round.
+
 ## v0.4.1
 - Adding an exercise: Weight, Reps and Sets sit in one row, with a small lb/kg badge in the weight box.
 - Settings has an **App updates** section with a button that downloads the newest version.
