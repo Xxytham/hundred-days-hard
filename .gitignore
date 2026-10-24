@@ -6,3 +6,5 @@ android/assets/index.html
 android/keystore/
 *.jks
 *.idsig
+
+dist/

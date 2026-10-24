@@ -6,9 +6,17 @@ My gym tracker for a 100-day challenge: daily calories and protein from Samsung 
 1. On the phone, open this repo's **Releases** page and download the newest `100-days-hard-v….apk`.
 2. Tap it and choose **Install** (or **Update**). My data stays, because every release is signed with the same key.
 
+## Sharing with friends
+In the app, tap the day counter, then **Share with friends**. That shows a link and a QR code for **https://xxytham.github.io/hundred-days-hard/get/**:
+- **Android friends** download and install the app from that page. The app tells them when an update is out.
+- **iPhone friends** open the link in Safari and choose **Share → Add to Home Screen**.
+
+Each friend starts with a short setup and their own empty tracker. None of my data goes with it.
+(This needs the repo to be public and GitHub Pages turned on: **Settings → Pages → Source: GitHub Actions**.)
+
 ## Keeping my data safe
 - The app copies everything to **Download/100 Days Hard/100-days-hard-backup.json** after every change. That file survives uninstalling the app.
-- About once a week: **tap the day counter → Send a copy to Drive or email → Google Drive.**
+- About once a week: **tap the day counter → Send a copy to Drive or email → Google Drive.** The dot next to the date turns yellow after a week without a copy, and red after two.
 - New phone or reinstall: install the app, tap **Restore from backup**, and pick the newest file.
 
 ## Keeping the app safe

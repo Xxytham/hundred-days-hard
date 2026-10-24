@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Get 100 Days Hard</title>
+<meta name="description" content="A free tracker for a 100-day gym challenge. Install it on Android or add it to your iPhone home screen.">
+<meta name="theme-color" content="#14181D">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="stylesheet" href="../fonts.css">
+<style>
+/* Layout: single column install page. Same tokens as the app. */
+:root {
+  --bg: #EDF0F3; --surface: #FFFFFF; --sunk: #E2E6EB; --ink: #14181D; --muted: #5B6570; --line: #D2D8DF; --red: #CF2539;
+  --font-display: "Saira Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0F1215; --surface: #191E24; --sunk: #232A31; --ink: #E8ECF0; --muted: #96A0AB; --line: #2B333C; --red: #FF5263; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(24px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-bottom, 0px));
+}
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 16px; }
+.hero { display: flex; align-items: center; gap: 16px; padding-block: 8px 4px; }
+.hero img { width: 72px; height: 72px; border-radius: 18px; flex: none; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 0.95; margin: 0; }
+.lead { margin: 0; color: var(--muted); }
+.card { background: var(--surface); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.02em; margin: 0; }
+ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); }
+ol b { color: var(--ink); }
+.btn { display: block; text-align: center; text-decoration: none; background: var(--ink); color: var(--bg); font-weight: 700; padding: 14px 16px; border-radius: 12px; }
+.btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.note { font-size: 14px; color: var(--muted); margin: 0; }
+.mine { order: -1; box-shadow: inset 0 0 0 2px var(--red); }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img src="../icons/icon-192.png" alt="">
+    <div><h1>100 Days Hard</h1><p class="lead">A free tracker for a 100-day gym challenge. No account needed.</p></div>
+  </div>
+  <p class="lead">Log food totals, daily tasks, Push / Pull / Legs workouts and body weight, track your strength like stocks, and climb your own goal ladders.</p>
+
+  <section class="card" id="android">
+    <h2>Android</h2>
+    <a class="btn" href="https://github.com/Xxytham/hundred-days-hard/releases/latest/download/100-days-hard.apk">Download for Android</a>
+    <ol>
+      <li>Open the downloaded file and tap <b>Install</b>.</li>
+      <li>If your phone asks, allow installing apps from your browser.</li>
+      <li>If Play Protect warns that it doesn't know the app, tap <b>Install anyway</b>. It isn't from the Play Store, which is why.</li>
+    </ol>
+    <p class="note">The app tells you when a new version is ready.</p>
+  </section>
+
+  <section class="card" id="iphone">
+    <h2>iPhone</h2>
+    <a class="btn" href="../">Open the app</a>
+    <ol>
+      <li>Open this page in <b>Safari</b>.</li>
+      <li>Tap <b>Open the app</b>, then the <b>Share</b> button.</li>
+      <li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+    </ol>
+    <p class="note">It works offline and updates by itself. Your data stays on your phone, so save a backup file from the app now and then.</p>
+  </section>
+</main>
+<script>
+  // Put the visitor's own phone first.
+  var ua = navigator.userAgent;
+  var id = /android/i.test(ua) ? "android" : /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document) ? "iphone" : "";
+  if (id) document.getElementById(id).classList.add("mine");
+</script>
+</body>
+</html>

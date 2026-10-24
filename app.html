@@ -160,6 +160,53 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 .sessions .r { color: var(--muted); }
 @media (max-width: 360px) { .tick { grid-template-columns: minmax(0, 1fr) auto 60px; } .tick .spark { display: none; } }
 
+/* Streak strip */
+.streak { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.streak-num { display: flex; align-items: baseline; gap: 6px; }
+.streak-num b { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 0.9; color: var(--red); }
+.streak-num span { font-family: var(--font-display); font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.week { display: flex; gap: 6px; }
+.week span { display: grid; justify-items: center; gap: 3px; font-size: 10px; font-weight: 700; color: var(--muted); }
+.week i { width: 18px; height: 18px; border-radius: 5px; background: var(--sunk); display: block; }
+.week i.full { background: var(--red); }
+.week i.partial { background: color-mix(in srgb, var(--blue) 55%, var(--sunk)); }
+.week i.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ink); }
+.streak-note { margin: -6px 0 0; font-size: 13px; color: var(--muted); }
+
+/* Backup status dot by the date */
+.eyebrow { display: flex; align-items: center; gap: 8px; }
+.bk-dot { width: 22px; height: 22px; margin: -6px 0; padding: 0; border: 0; background: none; display: grid; place-items: center; flex: none; }
+.bk-dot::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.bk-dot.ok::before { background: var(--green); }
+.bk-dot.warn::before { background: var(--yellow); }
+.bk-dot.bad::before { background: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 25%, transparent); }
+
+/* Update banner */
+.update { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--ink); color: var(--bg); border-radius: var(--radius); padding: 12px 14px; }
+.update .btn { background: var(--bg); color: var(--ink); padding: 8px 14px; }
+
+/* Share */
+.share-qr { width: 168px; height: 168px; background: #FFFFFF; border-radius: 12px; padding: 10px; display: grid; place-items: center; }
+.share-qr svg { width: 100%; height: 100%; display: block; }
+.share-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.share-link { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; user-select: all; min-width: 0; }
+
+/* First-time setup */
+body.setup .nav, body.setup .top { display: none; }
+.setup-wrap { display: grid; gap: 18px; padding-top: 8px; }
+.setup-progress { display: flex; gap: 6px; }
+.setup-progress i { flex: 1; height: 4px; border-radius: 2px; background: var(--sunk); }
+.setup-progress i.on { background: var(--red); }
+.setup-hero { display: grid; gap: 14px; justify-items: start; padding-top: 24px; }
+.setup-hero .plate { pointer-events: none; }
+.setup-title { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 0.95; margin: 0; text-wrap: balance; }
+.setup-lead { font-size: 16px; color: var(--muted); margin: 0; max-width: 34ch; }
+.setup-actions { display: grid; gap: 8px; }
+.pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 10px 14px; font-weight: 600; font-size: 14px; }
+.pick button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.big-field { font-family: var(--font-display); font-weight: 800; font-size: 40px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); width: 140px; }
+
 /* Settings shortcut on the day plate */
 .plate { position: relative; }
 .plate-gear {
@@ -334,7 +381,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 <div class="app">
   <header class="top">
     <div class="top-text">
-      <div class="eyebrow" id="hdr-date"></div>
+      <div class="eyebrow"><span id="hdr-date"></span><button class="bk-dot" id="bk-dot" data-action="open-settings" hidden></button></div>
       <h1 id="hdr-title">Today</h1>
     </div>
     <button class="plate" id="plate" data-action="open-settings" aria-label="Challenge day. Open settings.">
@@ -395,10 +442,18 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     { id: "read", name: "Read 10 pages" },
     { id: "photo", name: "Progress photo" },
   ];
+  // Shipped defaults are generic: friends install this same app, so nothing personal lives in code.
+  const TASK_PRESETS = [
+    ...DEFAULT_HABITS,
+    { id: "steps", name: "10,000 steps" },
+    { id: "diet", name: "Stick to the diet" },
+    { id: "noalcohol", name: "No alcohol" },
+    { id: "stretch", name: "Stretch 10 minutes" },
+  ];
   const defaultSettings = () => ({
-    startDate: "2026-09-17", // Oct 23, 2026 = day 37
+    startDate: iso(new Date()),
     calorieGoal: 2500,
-    proteinGoal: 180,
+    proteinGoal: 150,
     unit: "lb",
     habits: DEFAULT_HABITS.map((h) => ({ ...h })),
     updatedAt: 0,
@@ -408,21 +463,15 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     id, name, focus: focus || "",
     steps: steps.map((st, i) => ({ id: "s" + i, text: typeof st === "string" ? st : st[0], done: Array.isArray(st), doneDay: null })),
   });
-  const defaultGoals = () => ({
-    updatedAt: 0,
-    list: [
-      ladder("pushups", "Push-ups in one go", [["15"], ["18"], "20", "30", "40", "50"], "Keep elbows close"),
-      ladder("partner", "Two-person push-up", ["Start working on it"]),
-      ladder("pullwide", "Pull-ups, wide grip", [["1"], "2", "3", "5", "10"]),
-      ladder("pullclose", "Pull-ups, close grip", [["1"], ["2"], "5", "10"]),
-      ladder("dips", "Dips in one go", [["8"], "10", "12", "14", "15", "16", "18", "20", "25", "30"]),
-      ladder("hang", "Dead hang", [["0:40"], "0:45", "0:50", "1:00", "1:30"]),
-      ladder("running", "Running", ["Doing sprints", "Start running", "0.25 mi comfortably", "0.5 mi", "1 mi without passing out", "2 mi"]),
-      ladder("weight", "Body weight", [["245 lb"], ["240 lb"], ["235 lb"], "230 lb", "225 lb", "220 lb"]),
-      ladder("bodyfat", "Body fat", [["20%"], "18%", "15%"]),
-      ladder("muscle", "Muscle mass", [["100 lb at 235"], "100 lb at 230", "100 lb at 225", "100 lb at 220", "Over 100 lb"]),
-    ],
-  });
+  const defaultGoals = () => ({ updatedAt: 0, list: [] });
+  const GOAL_TEMPLATES = [
+    ["Push-ups in one go", ["10", "20", "30", "40", "50"]],
+    ["Pull-ups", ["1", "3", "5", "8", "10"]],
+    ["Dips in one go", ["5", "10", "15", "20"]],
+    ["Dead hang", ["0:30", "0:45", "1:00", "1:30"]],
+    ["Plank", ["0:30", "1:00", "2:00", "3:00"]],
+    ["Running", ["0.25 mi", "0.5 mi", "1 mi", "2 mi", "5K"]],
+  ];
   const blankDay = () => ({ kcal: null, protein: null, kcalSrc: null, habits: {}, workout: null, weight: null, updatedAt: 0 });
   function normalizeDay(d) {
     const day = { ...blankDay(), ...d };
@@ -452,6 +501,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       state.settings = { ...defaultSettings(), ...saved.settings };
       Object.keys(saved.days || {}).forEach((k) => (state.days[k] = normalizeDay(saved.days[k])));
       if (saved.goals && Array.isArray(saved.goals.list)) state.goals = saved.goals;
+      if (state.settings.setupDone === undefined) state.settings.setupDone = true; // already using the app before setup existed
     }
   } catch (e) { /* storage unavailable */ }
 
@@ -473,6 +523,10 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
   let col = null;
   let sync = "local"; // local | ok | err
   let downloads = null;
+  // Opened from the public web address (iPhone home-screen app), not inside Claude or the Android app.
+  const isWebApp = !bridge && !(window.claude && typeof window.claude.use === "function");
+  let setupReady = !!bridge || isWebApp;
+  if (isWebApp && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   const timers = {}, pending = {}, inflight = {};
 
   function persistLocal() {
@@ -510,9 +564,8 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     const [db, user, dl] = await Promise.all([window.claude.use("db"), window.claude.use("user"), window.claude.use("downloads")]);
     downloads = dl;
     if (downloads && view === "settings") render();
-    if (!db || !user) return;
-    const id = await user.id();
-    if (!id) return;
+    const id = db && user ? await user.id() : null;
+    if (!id) { setupReady = true; render(); return; }
     col = db.collection("data/users/" + id);
     mode = "claude";
     let first = true;
@@ -520,7 +573,10 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       let gotSettings = false, gotGoals = false;
       snap.docs.forEach((doc) => {
         const busy = pending[doc.id] || inflight[doc.id];
-        if (doc.id === "settings") { gotSettings = true; if (!busy) state.settings = { ...defaultSettings(), ...doc.data() }; }
+        if (doc.id === "settings") {
+          gotSettings = true;
+          if (!busy) { state.settings = { ...defaultSettings(), ...doc.data() }; if (state.settings.setupDone === undefined) state.settings.setupDone = true; }
+        }
         else if (doc.id === "goals") { gotGoals = true; const g = doc.data(); if (!busy && g && Array.isArray(g.list)) state.goals = g; }
         else if (/^\d{4}-\d\d-\d\d$/.test(doc.id) && !busy) state.days[doc.id] = normalizeDay(doc.data());
       });
@@ -533,9 +589,10 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
         Object.keys(state.days).forEach((d) => { if (!remote.has(d) && isLogged(state.days[d])) save(d, { keepStamp: true }); });
       }
       sync = "ok";
+      setupReady = true;
       persistLocal();
       render();
-    }, () => setSync("err"));
+    }, () => { setupReady = true; setSync("err"); render(); });
   }
 
   // ---------- backup & restore ----------
@@ -580,6 +637,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
         restored++;
       }
     });
+    if (restored) { S().setupDone = true; save("settings"); setupStep = 0; }
     render(true);
     toast(restored ? "Restored " + restored + " item" + (restored === 1 ? "" : "s") + " from your backup" : "Everything in that backup is already here");
   }
@@ -596,12 +654,27 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     ev.target.value = "";
   });
 
+  function stampExport() { S().lastExport = Date.now(); save("settings"); render(); }
   async function saveBackupFile() {
-    if (bridge) { bridge.shareBackup(exportData()); return; }
+    if (bridge) { stampExport(); bridge.shareBackup(exportData()); return; }
+    if (isWebApp) {
+      const data = exportData();
+      try {
+        const file = new File([data], backupName(), { type: "application/json" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: "100 Days Hard backup" });
+        else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(file); a.download = backupName();
+          document.body.appendChild(a); a.click(); a.remove();
+        }
+        stampExport(); toast("Backup saved");
+      } catch (e) { if (!e || e.name !== "AbortError") toast("Couldn't save the backup. Try again."); }
+      return;
+    }
     if (!downloads) return;
     try {
       await downloads.save({ filename: backupName(), data: exportData() });
-      S().lastExport = Date.now(); save("settings"); render();
+      stampExport();
       toast("Backup saved");
     } catch (e) {
       if (e && e.code !== "declined") toast("Couldn't save the backup here. Try again from the Claude app or claude.ai.");
@@ -666,6 +739,12 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     const a = document.activeElement;
     if (!force && a && main.contains(a) && (a.tagName === "INPUT" || a.tagName === "SELECT")) { deferred = true; return; }
     deferred = false;
+    const inSetup = !S().setupDone && setupReady;
+    document.body.classList.toggle("setup", inSetup);
+    if (inSetup) { main.innerHTML = renderSetup(); return; }
+    const bk = backupState(), dotEl = document.getElementById("bk-dot");
+    dotEl.hidden = !bk;
+    if (bk) { dotEl.className = "bk-dot " + bk.level; dotEl.setAttribute("aria-label", bk.text + ". Open backup settings."); dotEl.title = bk.text; }
     const t = todayISO();
     const n = Math.max(0, Math.min(100, dayNum(t)));
     document.getElementById("plate-day").textContent = n;
@@ -676,6 +755,149 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     document.getElementById("hdr-title").textContent = title;
     document.getElementById("hdr-date").textContent = view === "today" ? fmtDate(viewDate, { weekday: "long", month: "short", day: "numeric" }) : "100 Days Hard";
     main.innerHTML = view === "today" ? renderToday() : view === "goals" ? renderGoals() : view === "progress" ? renderProgress() : renderSettings();
+    if (view === "settings") drawShareQR();
+  }
+
+  // ---------- backup reminder ----------
+  function backupState() {
+    if (mode === "claude" && sync === "ok") return { level: "ok", text: "Backed up to your Claude account" };
+    if (!hasAnyData()) return null;
+    const last = S().lastExport;
+    if (!last) return { level: "bad", text: "No backup copy saved off this phone yet" };
+    const days = Math.floor((Date.now() - last) / 86400000);
+    return { level: days <= 7 ? "ok" : days <= 14 ? "warn" : "bad", text: "Last backup copy " + (days < 1 ? "today" : days === 1 ? "yesterday" : days + " days ago") };
+  }
+
+  // ---------- streak: days in a row with every daily task done ----------
+  function streakInfo() {
+    const total = S().habits.length;
+    if (!total) return null;
+    const t = todayISO();
+    const full = (d) => { const day = state.days[d]; return !!day && habitsDone(day) === total; };
+    let cur = 0, d = full(t) ? t : addDays(t, -1);
+    while (dayNum(d) >= 1 && full(d)) { cur++; d = addDays(d, -1); }
+    let best = 0, run = 0;
+    for (let i = 1, end = Math.min(dayNum(t), 100); i <= end; i++) {
+      run = full(addDays(S().startDate, i - 1)) ? run + 1 : 0;
+      best = Math.max(best, run);
+    }
+    return { cur, best, todayDone: full(t), left: total - habitsDone(peekDay(t)) };
+  }
+  function streakHTML() {
+    const st = streakInfo();
+    if (!st || dayNum(todayISO()) < 1) return "";
+    const total = S().habits.length, t = todayISO();
+    const dots = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDays(t, -i), day = state.days[d], f = day ? habitsDone(day) / total : 0;
+      const cls = (f === 1 ? "full" : f > 0 ? "partial" : "") + (i === 0 ? " today" : "");
+      dots.push("<span><i class=\"" + cls + "\"></i>" + parseISO(d).toLocaleDateString(undefined, { weekday: "narrow" }) + "</span>");
+    }
+    const note = st.todayDone
+      ? "Today counted." + (st.cur >= st.best && st.cur > 1 ? " That's your best streak yet." : " Best: " + st.best + ".")
+      : (st.cur ? "Finish today's " + st.left + " task" + (st.left === 1 ? "" : "s") + " to make it " + (st.cur + 1) + "." : "Finish all of today's tasks to start a streak.") + (st.best > st.cur ? " Best: " + st.best + "." : "");
+    return '<div class="streak"><div class="streak-num"><b class="num">' + st.cur + "</b><span>day streak</span></div>" +
+      '<div class="week" role="img" aria-label="Last 7 days of daily tasks">' + dots.join("") + "</div></div>" +
+      '<p class="streak-note">' + note + "</p>";
+  }
+
+  // ---------- app updates (installed app) ----------
+  const REPO = "Xxytham/hundred-days-hard";
+  const APK_URL = "https://github.com/" + REPO + "/releases/latest/download/100-days-hard.apk";
+  const SHARE_URL = "https://xxytham.github.io/hundred-days-hard/get/";
+  let update = null;
+  const newer = (a, b) => {
+    const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+    return false;
+  };
+  async function checkForUpdate() {
+    if (!bridge || !bridge.appVersion) return;
+    try {
+      const r = await fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
+      if (!r.ok) return;
+      const v = String((await r.json()).tag_name || "").replace(/^v/, "");
+      if (v && newer(v, bridge.appVersion())) { update = v; render(); }
+    } catch (e) { /* offline or repo not public */ }
+  }
+
+  // ---------- share with friends ----------
+  let qrLib = null;
+  function drawShareQR() {
+    const box = document.getElementById("share-qr");
+    if (!box) return;
+    const paint = () => {
+      try { const q = window.qrcode(0, "M"); q.addData(SHARE_URL); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); }
+      catch (e) { box.hidden = true; }
+    };
+    if (window.qrcode) return paint();
+    if (!qrLib) qrLib = new Promise((res, rej) => {
+      const sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+      sc.onload = res; sc.onerror = rej;
+      document.head.appendChild(sc);
+    });
+    qrLib.then(() => { const b = document.getElementById("share-qr"); if (b) paint(); }, () => { box.hidden = true; });
+  }
+  function shareSection() {
+    const ver = bridge && bridge.appVersion ? bridge.appVersion() : "";
+    return '<section class="panel" aria-labelledby="h-share"><h2 id="h-share">Share with friends</h2>' +
+      '<p class="hint">Friends get their own fresh copy with a short setup. None of your goals, workouts or numbers go with it.</p>' +
+      '<div class="share-row"><div class="share-qr" id="share-qr" aria-label="QR code for the download page"></div>' +
+      '<div class="form" style="flex:1;min-width:0"><span class="share-link" id="share-link">' + SHARE_URL + "</span>" +
+      '<div class="btn-row">' + (bridge && bridge.shareText ? '<button class="btn" data-action="share-app">Share link</button>' : "") + '<button class="btn secondary" data-action="copy-link">Copy link</button></div></div></div>' +
+      '<ol class="steps"><li><b>Android:</b> they open the link, download the app and install it.</li><li><b>iPhone:</b> they open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</li></ol>' +
+      (ver ? '<p class="hint">You have version ' + esc(ver) + ".</p>" : "") + "</section>";
+  }
+
+  // ---------- first-time setup ----------
+  let setupStep = 0;
+  const draft = { day: 1, kcal: 2500, protein: 150, unit: "lb", tasks: DEFAULT_HABITS.map((h) => h.id), custom: [] };
+  function setupSteps() { return ["welcome", "day", "goals", "tasks"].concat(bridge && health !== "unavailable" ? ["health"] : []).concat(["done"]); }
+  function renderSetup() {
+    const steps = setupSteps(), key = steps[Math.min(setupStep, steps.length - 1)];
+    const bar = '<div class="setup-progress">' + steps.slice(1).map((_, i) => '<i class="' + (i < setupStep ? "on" : "") + '"></i>').join("") + "</div>";
+    const nav = (next, back) => '<div class="setup-actions"><button class="btn wide" data-action="setup-next">' + (next || "Next") + "</button>" + (back === false ? "" : '<button class="btn secondary wide" data-action="setup-back">Back</button>') + "</div>";
+    const start = addDays(todayISO(), -(draft.day - 1));
+    let body;
+    if (key === "welcome") {
+      body = '<div class="setup-hero"><span class="plate" style="--p:1"><span class="plate-inner"><span class="plate-day num">1</span><span class="plate-of">/ 100</span></span></span>' +
+        '<h1 class="setup-title">100 Days Hard</h1><p class="setup-lead">Track 100 days of training: food, daily tasks, workouts, body weight and your goals. Setup takes about a minute.</p></div>' +
+        '<div class="setup-actions"><button class="btn wide" data-action="setup-next">Get started</button><button class="btn secondary wide" data-action="restore">I have a backup file</button></div>';
+    } else if (key === "day") {
+      body = bar + '<h1 class="setup-title">Which day are you on?</h1><p class="setup-lead">Starting today? Keep it at 1.</p>' +
+        '<input class="big-field num" id="su-day" type="number" inputmode="numeric" min="1" max="100" value="' + draft.day + '" aria-label="Challenge day">' +
+        '<p class="hint" id="su-day-hint">Day 1 ' + (draft.day === 1 ? "is today" : "was " + fmtDate(start, { weekday: "long", month: "short", day: "numeric" })) + ". Day 100 lands on " + fmtDate(addDays(start, 99), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" + nav();
+    } else if (key === "goals") {
+      body = bar + '<h1 class="setup-title">Daily targets</h1><p class="setup-lead">Your calorie and protein goals. Change them any time.</p>' +
+        '<div class="two"><label class="form"><span class="hint">Calories</span><input class="field num" id="su-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + draft.kcal + '"></label>' +
+        '<label class="form"><span class="hint">Protein (g)</span><input class="field num" id="su-protein" type="number" inputmode="numeric" min="0" step="5" value="' + draft.protein + '"></label></div>' +
+        '<div class="form"><span class="hint">Weigh yourself in</span><span class="seg" role="group"><button data-action="su-unit" data-unit="lb" aria-pressed="' + (draft.unit === "lb") + '">lb</button><button data-action="su-unit" data-unit="kg" aria-pressed="' + (draft.unit === "kg") + '">kg</button></span></div>' + nav();
+    } else if (key === "tasks") {
+      const all = TASK_PRESETS.concat(draft.custom);
+      body = bar + '<h1 class="setup-title">Daily tasks</h1><p class="setup-lead">Check off all of them to keep your streak. Pick yours, or add your own.</p>' +
+        '<div class="pick">' + all.map((t) => '<button data-action="su-task" data-id="' + t.id + '" aria-pressed="' + draft.tasks.includes(t.id) + '">' + esc(t.name) + "</button>").join("") + "</div>" +
+        '<form class="inline" id="su-task-form"><input class="field" id="su-task-new" placeholder="Add your own task" maxlength="60" autocomplete="off"><button class="btn secondary" type="submit">Add</button></form>' + nav();
+    } else if (key === "health") {
+      const on = health === "granted";
+      body = bar + '<h1 class="setup-title">Samsung Health</h1><p class="setup-lead">Log food and weight in Samsung Health and they fill in here by themselves.</p>' +
+        (on ? '<div class="sync"><span class="dot ok"></span><span>Connected.</span></div>' : '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let it share <b>Nutrition</b> and <b>Weight</b>.</li><li>Then tap <b>Connect</b> below and allow both.</li></ol><button class="btn wide" data-action="health-connect">Connect Samsung Health</button>') +
+        nav(on ? "Next" : "Skip for now");
+    } else {
+      body = '<div class="setup-hero"><span class="plate" style="--p:' + draft.day + '"><span class="plate-inner"><span class="plate-day num">' + draft.day + '</span><span class="plate-of">/ 100</span></span></span>' +
+        '<h1 class="setup-title">You\'re set.</h1><p class="setup-lead">Tap the day counter in the corner any time for settings, backups and sharing.</p></div>' + nav("Start day " + draft.day);
+    }
+    return '<div class="setup-wrap">' + body + "</div>";
+  }
+  function finishSetup() {
+    const s = S();
+    s.startDate = addDays(todayISO(), -(draft.day - 1));
+    s.calorieGoal = draft.kcal; s.proteinGoal = draft.protein; s.unit = draft.unit;
+    s.habits = TASK_PRESETS.concat(draft.custom).filter((t) => draft.tasks.includes(t.id)).map((t) => ({ id: t.id, name: t.name }));
+    s.setupDone = true;
+    save("settings");
+    view = "today"; viewDate = todayISO();
+    render(true); window.scrollTo(0, 0);
   }
   main.addEventListener("focusout", () => { if (deferred) setTimeout(() => render(), 0); });
 
@@ -743,6 +965,8 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
         '<span class="label">' + (n >= 1 && n <= 100 ? "Day " + n + " of 100" : n < 1 ? "Before the challenge" : "Challenge finished") + "</span>" +
         (isToday ? '<button class="iconbtn" aria-label="Next day" disabled>›</button>' : '<button class="iconbtn" data-action="next-day" aria-label="Next day">›</button>') +
       "</div>" +
+      (isToday && update ? '<div class="update"><span>Version ' + esc(update) + ' is ready.</span><button class="btn" data-action="get-update">Update</button></div>' : "") +
+      (isToday ? streakHTML() : "") +
       '<p class="coach">' + coachLine(day, isToday) + "</p>" +
       restoreCard +
 
@@ -796,8 +1020,12 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
         (editing ? '<button class="btn danger" data-action="del-goal" data-g="' + g.id + '">' + (confirmDelete === g.id ? "Tap again to delete" : "Delete goal") + "</button>" : "") + "</div>" +
       "</section>";
     }).join("");
-    return '<p class="coach"><strong class="num">' + reached + " of " + total + "</strong> milestones reached. Tap a step the day you hit it.</p>" + cards +
-      '<section class="panel" aria-labelledby="h-ng"><h2 id="h-ng">New goal</h2><form class="inline" id="goal-form"><input class="field" id="new-goal" placeholder="e.g. Plank, bench press" maxlength="40" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>';
+    const templates = GOAL_TEMPLATES.filter(([name]) => !list.some((g) => g.name.toLowerCase() === name.toLowerCase()));
+    return (list.length ? '<p class="coach"><strong class="num">' + reached + " of " + total + "</strong> milestones reached. Tap a step the day you hit it.</p>"
+        : '<p class="coach">Set goals as ladders: small steps up to something hard, like 10 push-ups in one go, then 20, then 50. Start from an idea below or make your own.</p>') + cards +
+      '<section class="panel" aria-labelledby="h-ng"><h2 id="h-ng">New goal</h2>' +
+      (templates.length ? '<div class="pick">' + templates.map(([name]) => '<button data-action="add-template" data-name="' + esc(name) + '">+ ' + esc(name) + "</button>").join("") + "</div>" : "") +
+      '<form class="inline" id="goal-form"><input class="field" id="new-goal" placeholder="e.g. Plank, bench press" maxlength="40" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>';
   }
   const findGoal = (id) => state.goals.list.find((g) => g.id === id);
 
@@ -823,12 +1051,8 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       if (i === tn) cls += " today";
       cells.push('<button class="' + cls + ' num" style="--f:' + f.toFixed(2) + '" ' + (i > tn ? 'disabled aria-label="Day ' + i + ', upcoming"' : 'data-action="open-day" data-date="' + d + '" aria-label="Day ' + i + ", " + Math.round(f * 100) + '% of tasks"') + ">" + i + "</button>");
     }
-    for (let i = Math.min(tn, 100); i >= 1; i--) {
-      const day = state.days[addDays(S().startDate, i - 1)];
-      if (day && total && habitsDone(day) === total) streak++;
-      else if (i === tn) continue; // today still in progress
-      else break;
-    }
+    const si = streakInfo();
+    if (si) streak = si.cur;
     return (
       '<div class="stats">' +
         '<div class="stat"><b class="num">' + complete + "</b><span>Perfect days</span></div>" +
@@ -996,11 +1220,19 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       if (downloads) buttons += '<button class="btn" data-action="save-backup">Save a backup file</button>';
       buttons += '<button class="btn secondary" data-action="restore">Restore from file</button>';
       how = '<p class="hint">' + (S().lastExport ? "Last backup file saved " + fmtWhen(S().lastExport) + ". " : "") + "A backup file moves your history into the installed app, or back here from it.</p>";
+    } else if (isWebApp) {
+      const bk = backupState();
+      dot = bk ? (bk.level === "ok" ? "ok" : bk.level === "bad" ? "err" : "") : "";
+      status = "Saved on this phone. " + (S().lastExport ? "Last backup file saved " + fmtWhen(S().lastExport) + "." : "Save a backup file now and then, in case the phone clears its storage.");
+      buttons = '<button class="btn" data-action="save-backup">Save a backup file</button><button class="btn secondary" data-action="restore">Restore from file</button>';
+      how = '<p class="hint">On iPhone, choose <b>Save to Files</b> and keep it in iCloud Drive.</p>';
     } else {
       dot = "";
       status = "Saved in this browser only. Open the app from your Claude link to keep it in your account.";
       buttons = '<button class="btn secondary" data-action="restore">Restore from file</button>';
     }
+    const bkState = backupState();
+    if (bkState && mode !== "claude") how += '<p class="hint">The dot next to the date shows this: green means a copy was saved in the last week, yellow after a week, red after two weeks or if there\'s no copy yet.</p>';
     return '<section class="panel" aria-labelledby="h-bk"><h2 id="h-bk">Backup &amp; restore</h2>' +
       '<div class="sync"><span class="dot ' + dot + '"></span><span>' + status + "</span></div>" +
       '<div class="btn-row">' + buttons + "</div>" + how + "</section>";
@@ -1022,6 +1254,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
     return (
       backupSection() +
       healthSection() +
+      shareSection() +
       '<section class="panel" aria-labelledby="h-ch"><h2 id="h-ch">Challenge</h2><div class="form">' +
         '<label>Today is day<input class="field num" id="set-day" type="number" inputmode="numeric" min="1" max="100" value="' + dayNum(todayISO()) + '"></label>' +
         '<p class="hint">Day 1 was ' + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day 100 lands on " + fmtDate(addDays(s.startDate, 99), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" +
@@ -1195,6 +1428,32 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       case "open-day": viewDate = el.dataset.date; view = "today"; render(true); window.scrollTo(0, 0); break;
       case "toggle-habit": { const d = day(); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; save(viewDate); render(true); break; }
       case "open-settings": view = "settings"; render(true); window.scrollTo(0, 0); break;
+      case "get-update": if (bridge && bridge.openUrl) bridge.openUrl(APK_URL); break;
+      case "share-app": if (bridge && bridge.shareText) bridge.shareText("I'm tracking my 100-day gym challenge with this app. Get it here: " + SHARE_URL); break;
+      case "copy-link": {
+        const ok = () => toast("Link copied");
+        const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("share-link")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Link selected. Copy it from the menu."); };
+        try { navigator.clipboard.writeText(SHARE_URL).then(ok, fallback); } catch (e) { fallback(); }
+        break;
+      }
+      case "add-template": {
+        const tpl = GOAL_TEMPLATES.find(([name]) => name === el.dataset.name);
+        if (!tpl) break;
+        state.goals.list.push({ id: uid(), name: tpl[0], focus: "", steps: tpl[1].map((t) => ({ id: uid(), text: t, done: false, doneDay: null })) });
+        save("goals"); render(true); toast(tpl[0] + " added");
+        break;
+      }
+      case "setup-next": {
+        const key = setupSteps()[setupStep];
+        if (key === "day") { const v = Math.round(+document.getElementById("su-day").value); draft.day = v >= 1 && v <= 100 ? v : 1; }
+        if (key === "goals") { draft.kcal = Math.max(0, Math.round(+document.getElementById("su-kcal").value) || 2500); draft.protein = Math.max(0, Math.round(+document.getElementById("su-protein").value) || 150); }
+        if (key === "done") { finishSetup(); break; }
+        setupStep++; render(true); window.scrollTo(0, 0);
+        break;
+      }
+      case "setup-back": setupStep = Math.max(0, setupStep - 1); render(true); break;
+      case "su-unit": draft.unit = el.dataset.unit; render(true); break;
+      case "su-task": { const id = el.dataset.id; draft.tasks = draft.tasks.includes(id) ? draft.tasks.filter((x) => x !== id) : draft.tasks.concat(id); render(true); break; }
       case "start-workout": startWorkout(el.dataset.type); break;
       case "open-workout": openWorkout(); break;
       case "ex-step": {
@@ -1293,6 +1552,13 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       editingGoal = g.id;
       save("goals"); render(true);
       document.getElementById("step-in-" + g.id).focus();
+    } else if (f.id === "su-task-form") {
+      const name = val("su-task-new");
+      if (!name) return;
+      const t = { id: uid(), name };
+      draft.custom.push(t); draft.tasks.push(t.id);
+      render(true);
+      document.getElementById("su-task-new").focus();
     } else if (f.id === "habit-form") {
       const name = val("new-habit");
       if (!name) return;
@@ -1300,6 +1566,18 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
       save("settings"); render(true);
       document.getElementById("new-habit").focus();
     }
+  });
+
+  // Setup fields update the draft as you type, so tapping other controls never loses them.
+  function setupDayHint() {
+    const start = addDays(todayISO(), -(draft.day - 1)), el = document.getElementById("su-day-hint");
+    if (el) el.textContent = "Day 1 " + (draft.day === 1 ? "is today" : "was " + fmtDate(start, { weekday: "long", month: "short", day: "numeric" })) + ". Day 100 lands on " + fmtDate(addDays(start, 99), { weekday: "long", month: "long", day: "numeric" }) + ".";
+  }
+  document.addEventListener("input", (ev) => {
+    const t = ev.target, v = Math.round(+t.value);
+    if (t.id === "su-day" && v >= 1 && v <= 100) { draft.day = v; setupDayHint(); }
+    else if (t.id === "su-kcal" && v > 0) draft.kcal = v;
+    else if (t.id === "su-protein" && v >= 0 && t.value !== "") draft.protein = v;
   });
 
   // Live meter updates while typing totals; saved on change.
@@ -1366,6 +1644,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
   window.__appBack = function () {
     if (!sheet.hidden) { closeSheet(); return true; }
+    if (!S().setupDone && setupReady) { if (setupStep > 0) { setupStep--; render(true); return true; } return false; }
     if (editingGoal) { editingGoal = confirmDelete = null; render(true); return true; }
     if (view !== "today" || viewDate !== todayISO()) { view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0); return true; }
     return false;
@@ -1380,6 +1659,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
   render(true);
   healthSync();
   scheduleFileBackup();
-  connect().catch(() => {});
+  connect().catch(() => { setupReady = true; render(); });
+  checkForUpdate();
 })();
 </script>

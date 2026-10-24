@@ -1,5 +1,7 @@
-# Builds the signed APK and publishes it as a GitHub Release whenever android/VERSION changes on main.
-# Needs the repository secret KEYSTORE_B64 (the signing key, base64-encoded).
+# Whenever android/VERSION changes on main:
+#   build  - signs the APK and publishes it as a GitHub Release (needs the KEYSTORE_B64 secret)
+#   web    - publishes the iPhone home-screen app and the friends' download page to GitHub Pages
+#            (needs Settings -> Pages -> Source: GitHub Actions; skipped quietly until that is on)
 name: Build APK
 
 on:
@@ -41,8 +43,38 @@ jobs:
           # Release notes: this version's section of CHANGELOG.md
           awk -v v="## v$NAME" '$0==v{on=1;next} /^## v/{on=0} on' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "100 Days Hard v$NAME" > notes.md
+          cat >> notes.md <<'NOTES'
+
+**Install or update**
+- Android: download `100-days-hard.apk` below, open it, and tap Install (or Update). Your data stays.
+- iPhone: open https://xxytham.github.io/hundred-days-hard/get/ in Safari and follow the steps.
+NOTES
+          # Same file under a fixed name, so .../releases/latest/download/100-days-hard.apk always gets the newest
+          cp "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk
           if gh release view "v$NAME" >/dev/null 2>&1; then
-            gh release upload "v$NAME" "android/100-days-hard-v$NAME.apk" --clobber
+            gh release upload "v$NAME" "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk --clobber
           else
-            gh release create "v$NAME" "android/100-days-hard-v$NAME.apk" --title "100 Days Hard v$NAME" --notes-file notes.md
+            gh release create "v$NAME" "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk --title "100 Days Hard v$NAME" --notes-file notes.md
           fi
+
+  web:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build web app
+        run: web/build.sh
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/web
+      - id: deploy
+        uses: actions/deploy-pages@v4

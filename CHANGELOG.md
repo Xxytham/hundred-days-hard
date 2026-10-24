@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4
+- Streak counter on Today: days in a row with every daily task done, your last 7 days, and your best streak.
+- Backup dot next to the date: green when a copy was saved off the phone in the last week, yellow after a week, red after two.
+- First-time setup for new installs: challenge day, calorie and protein targets, daily tasks, Samsung Health.
+- Share with friends from Settings: link, QR code, and a download page for Android and iPhone. Friends start fresh.
+- The app tells you when a new version is ready.
+- Goal ideas to start from on the Goals tab.
+
 ## v0.3
 - Push / Pull / Legs workouts that load your last session's exercises, order, weights, reps and sets.
 - Quick −/+ buttons (5 lb), and an lb/kg toggle on cable exercises.

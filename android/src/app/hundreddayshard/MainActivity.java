@@ -225,6 +225,35 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String appVersion() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
+        public void openUrl(String url) {
+            if (url == null || !url.startsWith("https://")) return;
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                } catch (Exception ignored) { }
+            });
+        }
+
+        @JavascriptInterface
+        public void shareText(String text) {
+            runOnUiThread(() -> {
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("text/plain");
+                send.putExtra(Intent.EXTRA_TEXT, text);
+                startActivity(Intent.createChooser(send, "Share 100 Days Hard"));
+            });
+        }
+
+        @JavascriptInterface
         public String healthStatus() {
             return HealthReader.status(MainActivity.this);
         }

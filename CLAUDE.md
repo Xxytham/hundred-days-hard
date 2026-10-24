@@ -1,14 +1,16 @@
 # 100 Days Hard — notes for Claude
 
-A personal gym tracker for a 100-day challenge. One HTML file (`app.html`) is the whole app. It ships two ways:
+A gym tracker for a 100-day challenge, built for the owner and shared with friends. One HTML file (`app.html`) is the whole app. It ships three ways:
 
 1. **Installed Android app (main one the owner uses).** `android/` wraps `app.html` in a WebView APK. Data lives on the phone. Samsung Health numbers arrive through Health Connect.
+3. **iPhone home-screen web app** for friends, at https://xxytham.github.io/hundred-days-hard/ (GitHub Pages, built by `web/build.sh`). Data lives in that phone's browser storage. The friends' download page is `/get/`.
 2. **Claude artifact (web).** https://claude.ai/artifact/XAhfUhWMsa4JCgrTkEJTEE, published from `app.html`. Data lives in the artifact's database under the owner's private `data/users/<id>/` path.
 
 The owner is not a programmer and talks to you from a phone. Keep explanations plain, test before shipping, and say what you could not test.
 
 ## Ground rules
 
+- **No personal data in code.** Friends install the same app, so defaults stay generic (no goals, generic tasks, start date = today). The owner's own goals and settings live in their saved data, not in `defaultGoals()`/`defaultSettings()`.
 - **Never lose the owner's data.** Every change to the stored format needs a migration in `normalizeDay()` (or the matching loader), and old backups must still restore.
 - **Never make a new signing key.** The APK is signed with the key in the `KEYSTORE_B64` Actions secret. A different key means the phone refuses the update unless the app is uninstalled, which wipes its data. `android/build.sh` refuses to sign without the real key; use `TEST=1` for local test builds.
 - **Bump `android/VERSION` (`code` +1, `name`) for every APK release** and add a `## v<name>` section to `CHANGELOG.md`. Pushing a VERSION change to `main` makes GitHub Actions build and publish the signed APK as a Release.
@@ -24,11 +26,19 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 | `android/src/.../HealthReader.java` | Reads Nutrition and Weight records from Health Connect (Android 14+ framework API, no Jetpack). |
 | `android/src/.../PrivacyActivity.java` | Rationale screen Health Connect requires. |
 | `android/assets/fonts*` | Bundled Google Fonts so the APK works offline. `assets/index.html` is generated, not committed. |
-| `.github/workflows/build-apk.yml` | Signed release build on VERSION change. |
+| `tools/wrap_page.py` | Wraps `app.html` into a full document with bundled fonts. Used by both builds; `--pwa` adds the home-screen tags and service worker. |
+| `web/` | iPhone web app pieces: `manifest.webmanifest`, `sw.js` (offline cache), `icons/`, `get/index.html` (download page for friends), `build.sh` (outputs `dist/web`). |
+| `.github/workflows/build-apk.yml` | On VERSION change: `build` job signs the APK and makes a Release (assets `100-days-hard-v<name>.apk` and a fixed-name `100-days-hard.apk`, so `releases/latest/download/100-days-hard.apk` is always newest), and the `web` job deploys `dist/web` to GitHub Pages. |
 
 ## How the app works
 
 Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter plate in the top corner.
+
+- **First-time setup:** shown while `settings.setupDone` is false (fresh installs only). Steps: welcome or restore → day → calorie/protein/unit → daily tasks (`TASK_PRESETS` plus custom) → Samsung Health (APK only) → done. Anyone with saved data from before v0.4 is marked `setupDone` on load.
+- **Streak:** `streakInfo()` counts consecutive days with every daily task done. Today counts once it's complete; until then the streak runs through yesterday. It's shown on Today with the last 7 days, and the Progress tab uses the same number.
+- **Backup dot:** next to the date. `backupState()` is green if `settings.lastExport` (last copy sent off the phone) is within 7 days, yellow within 14, and red otherwise or if there's never been one. It's always green in the Claude artifact once synced. Tapping it opens Settings.
+- **Updates:** the APK checks `api.github.com/repos/Xxytham/hundred-days-hard/releases/latest` on launch and shows an "Update" banner if the tag is newer than `AndroidBridge.appVersion()`. The web app updates itself (network-first page in `sw.js`, with the cache name bumped by version).
+- **Sharing:** Settings has "Share with friends": the link `https://xxytham.github.io/hundred-days-hard/get/`, a QR code (qrcode-generator from cdnjs, loaded on demand), plus share/copy buttons. Releases and Pages only work for friends while the repo is **public**.
 
 - **Day counter:** `settings.startDate` is day 1 (2026-09-17, so 2026-10-23 was day 37).
 - **Food:** one daily total for calories and protein (the owner logs food in Samsung Health). In the APK these fill in from Health Connect on open/resume. A value the owner types sets `kcalSrc: "manual"`, and synced data never overwrites it.
@@ -41,7 +51,7 @@ Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter pl
 ### Data shape (localStorage key `hundred-days-hard.v1`, and one db doc per key)
 
 ```
-settings: { startDate, calorieGoal, proteinGoal, unit: "lb"|"kg", habits: [{id, name}], lastExport?, updatedAt }
+settings: { startDate, calorieGoal, proteinGoal, unit: "lb"|"kg", habits: [{id, name}], setupDone, lastExport?, updatedAt }
 goals:    { updatedAt, list: [{ id, name, focus, steps: [{ id, text, done, doneDay }] }] }
 days["YYYY-MM-DD"]: {
   kcal, protein, kcalSrc: null|"manual"|"health", weight, habits: {habitId: bool},
@@ -62,7 +72,7 @@ Treat that data as the owner's private health info. Read it to help them, and ne
 ## Shipping a change
 
 1. Edit `app.html` (and `android/` if native code changes).
-2. Test in Chromium with Playwright at 412×915 (the owner has a Samsung S25 Ultra). To exercise APK-only paths, inject a fake `window.AndroidBridge` with an init script (see the methods in `MainActivity.Bridge`). Check for page errors, and take screenshots for anything visual.
+2. Regenerate test pages with `python3 tools/wrap_page.py android/assets/index.html` and `web/build.sh` (serve `dist/web` with `python3 -m http.server`). Test in Chromium with Playwright at 412×915 (the owner has a Samsung S25 Ultra). To exercise APK-only paths, inject a fake `window.AndroidBridge` with an init script (see the methods in `MainActivity.Bridge`). Check for page errors, and take screenshots for anything visual.
 3. Optionally `TEST=1 android/build.sh` to check it compiles. Don't hand that APK to the owner; it won't install over theirs.
 4. Bump `android/VERSION`, add the changelog section, commit, push to `main`. That triggers the "Build APK" workflow, which publishes the signed APK to the repo's Releases page. The owner installs it over the old one.
    - Claude sessions can push, but can't view Actions runs, create releases, or set secrets (the session's GitHub proxy blocks those). Reading releases does work, so check that a build landed with `gh api repos/Xxytham/hundred-days-hard/releases`. Download the asset with `gh api -H "Accept: application/octet-stream" repos/Xxytham/hundred-days-hard/releases/assets/<id>`, and confirm its signer SHA-256 is `9851d428…fb26b` with `apksigner verify --print-certs`. If a build is missing, ask the owner to check the **Actions** tab, or the **Releases** page at https://github.com/Xxytham/hundred-days-hard/releases, and to use **Run workflow** on "Build APK" if a build needs re-running.

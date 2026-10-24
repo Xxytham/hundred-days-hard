@@ -29,17 +29,7 @@ fi
 OUT=build; rm -rf $OUT/gen $OUT/classes $OUT/dex $OUT/*.apk; mkdir -p $OUT/gen $OUT/classes $OUT/dex
 
 # Page: wrap the artifact HTML in a document and swap Google Fonts for the bundled copies.
-python3 - <<'PY'
-import re
-src = open('../app.html').read()
-src = re.sub(r'<link rel="preconnect"[^>]*>\n', '', src)
-src = re.sub(r'<link rel="stylesheet" href="https://fonts.googleapis.com[^"]*">', '<link rel="stylesheet" href="fonts.css">', src)
-head = ('<!doctype html><html><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-        '<style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>'
-        '</head><body>')
-open('assets/index.html', 'w').write(head + src + '</body></html>')
-PY
+python3 ../tools/wrap_page.py assets/index.html
 
 $BT/aapt2 compile --dir res -o $OUT/res.zip
 $BT/aapt2 link -I $JAR --manifest AndroidManifest.xml -A assets --java $OUT/gen \
