@@ -52,6 +52,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .app { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
+#main { width: 100%; min-width: 0; }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -98,6 +99,9 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 .bar { height: 12px; border-radius: 6px; background: var(--sunk); overflow: hidden; display: flex; }
 .bar > span { display: block; height: 100%; background: var(--blue); transition: width 0.3s ease; }
 .bar > span.over { background: var(--red); }
+.bar > span.met { background: var(--green); }
+.bar.cal { position: relative; }
+.bar .band { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); opacity: 0.55; }
 
 /* Push / Pull / Legs */
 .ppl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -193,6 +197,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .bk-dot.warn::before { background: var(--yellow); }
 .bk-dot.bad::before { background: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 25%, transparent); }
 
+.inline-num {
+  font: inherit; color: var(--red); background: var(--surface); border: 0; border-bottom: 4px solid var(--red); border-radius: 10px 10px 4px 4px;
+  width: 3.4ch; padding: 0 0.12em; text-align: center; box-shadow: 0 2px 0 var(--line); margin: 0 0.06em;
+}
+#su-day.inline-num { width: 2.6ch; }
+.inline-num:focus { outline: 3px solid var(--blue); outline-offset: 2px; }
+.last-day { display: grid; gap: 2px; padding-top: 8px; }
+.last-day b { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1.05; }
+.need { color: var(--red); font-weight: 600; }
 .suggest { display: grid; gap: 4px; background: var(--surface); border-radius: 12px; padding: 14px; box-shadow: inset 0 0 0 2px var(--green); }
 .suggest b { font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.05; }
 
@@ -203,6 +216,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .auto-tag { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); vertical-align: 1px; }
 .pick button[aria-pressed="true"] .auto-tag { background: color-mix(in srgb, var(--bg) 22%, transparent); color: var(--bg); }
 .chart .b.met { fill: var(--green); }
+.chart .range { fill: var(--green); opacity: 0.14; }
 
 /* End of challenge */
 .finish { background: var(--ink); color: var(--bg); border-radius: var(--radius); padding: 18px 16px; display: grid; gap: 12px; }
@@ -232,7 +246,7 @@ body.setup .nav, body.setup .top { display: none; }
 .setup-progress i.on { background: var(--red); }
 .setup-hero { display: grid; gap: 14px; justify-items: start; padding-top: 24px; }
 .setup-hero .plate { pointer-events: none; }
-.setup-title { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 0.95; margin: 0; text-wrap: balance; }
+.setup-title { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 1.1; margin: 0; text-wrap: balance; }
 .setup-lead { font-size: 16px; color: var(--muted); margin: 0; max-width: 34ch; }
 .setup-actions { display: grid; gap: 8px; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -546,6 +560,18 @@ body.setup .nav, body.setup .top { display: none; }
   const dayNum = (s) => diffDays(S().startDate, s) + 1;
   const peekDay = (d) => state.days[d] || blankDay();
   const getDay = (d) => (state.days[d] = state.days[d] || blankDay());
+  // Fat loss: land within 100 kcal either side of the goal. Muscle: reach at least the goal.
+  const calAim = () => (S().calorieAim === "build" ? "build" : "lose");
+  const calRange = () => [S().calorieGoal - 100, S().calorieGoal + 100];
+  function calStatus(k) {
+    const g = S().calorieGoal;
+    if (calAim() === "build") return k >= g ? { state: "met", short: "Goal hit", left: 0 } : { state: "under", short: fmt(g - k) + " kcal to go", left: g - k };
+    const [lo, hi] = calRange();
+    if (k > hi) return { state: "over", short: fmt(k - hi) + " kcal over your range", left: 0 };
+    if (k >= lo) return { state: "met", short: "In your range", left: 0 };
+    return { state: "under", short: fmt(lo - k) + " kcal until your range", left: lo - k };
+  }
+  const calGoalText = () => (calAim() === "lose" ? fmt(calRange()[0]) + "–" + fmt(calRange()[1]) : "at least " + fmt(S().calorieGoal));
   const TOTAL = () => Math.max(1, Math.round(+S().totalDays) || 100);
   // A task counts from the day it was added, so adding one never breaks past days or a streak.
   const tasksFor = (date) => S().habits.filter((h) => !h.addedOn || h.addedOn <= date);
@@ -954,71 +980,89 @@ body.setup .nav, body.setup .top { display: none; }
   // TEMPORARY: lets the owner walk through setup from Settings without changing anything. Remove once setup is settled.
   let previewSetup = false;
   const freshDraft = () => ({ len: 100, day: 1, kcal: 2500, protein: 150, unit: "lb", tasks: DEFAULT_HABITS.map((h) => h.id), custom: [],
-    mode: "suggest", sex: "", age: "", heightFt: "", heightIn: "", heightCm: "", weight: "", activity: "", aim: "" });
+    mode: "suggest", sex: "", age: "", heightFt: "", heightIn: "", heightCm: "", weight: "", bodyFat: "unsure", activity: "", aim: "" });
   const draft = freshDraft();
-  // Starting targets from Mifflin-St Jeor, an activity factor and the goal. Shown as a suggestion, always editable.
-  const ACTIVITY = { desk: ["Desk job", 1.4], feet: ["On my feet a lot", 1.55], physical: ["Physical job", 1.75] };
-  const AIMS = { lose: ["Lose fat", 0.8], maintain: ["Stay the same", 1], build: ["Build muscle", 1.1] };
-  function suggestTargets() {
+  // Starting targets: Katch-McArdle when body fat is known, otherwise Mifflin-St Jeor; times activity; times the goal.
+  const ACTIVITY = { low: ["Mostly sitting", 1.4], mid: ["Pretty active", 1.55], high: ["Very active", 1.75] };
+  const AIMS = { lose: ["Lose fat", 0.8], build: ["Build muscle", 1.1] };
+  const BODYFAT = { unsure: ["Not sure", null], u15: ["Under 15%", 12], b15: ["15–20%", 17.5], b20: ["20–25%", 22.5], b25: ["25–30%", 27.5], o30: ["Over 30%", 33] };
+  function suggestCheck() {
     const kg = draft.unit === "lb" ? +draft.weight / KG_TO_LB : +draft.weight;
     const cm = draft.unit === "lb" ? ((+draft.heightFt || 0) * 12 + (+draft.heightIn || 0)) * 2.54 : +draft.heightCm;
-    const age = +draft.age;
-    if (!(kg >= 30 && kg <= 300 && cm >= 120 && cm <= 230 && age >= 13 && age <= 100 && draft.sex && ACTIVITY[draft.activity] && AIMS[draft.aim])) return null;
-    const bmr = 10 * kg + 6.25 * cm - 5 * age + (draft.sex === "f" ? -161 : 5);
-    const kcal = Math.round((bmr * ACTIVITY[draft.activity][1] * AIMS[draft.aim][1]) / 50) * 50;
-    const protein = Math.min(250, Math.round((kg * KG_TO_LB * (draft.aim === "maintain" ? 0.8 : 0.9)) / 5) * 5);
+    const age = +draft.age, bf = BODYFAT[draft.bodyFat] ? BODYFAT[draft.bodyFat][1] : null;
+    const need = [];
+    if (!AIMS[draft.aim]) need.push("your calorie goal");
+    if (!draft.sex) need.push("male or female");
+    if (!draft.age) need.push("your age"); else if (!(age >= 13 && age <= 100)) need.push("an age between 13 and 100");
+    if (draft.unit === "lb" ? !draft.heightFt : !draft.heightCm) need.push("your height");
+    else if (!(cm >= 120 && cm <= 230)) need.push(draft.unit === "lb" ? "your height in feet and inches, like 5 and 10" : "your height in cm, like 178");
+    if (!draft.weight) need.push("your weight"); else if (!(kg >= 30 && kg <= 320)) need.push("your weight in " + draft.unit);
+    if (!ACTIVITY[draft.activity]) need.push("your activity level");
+    return { need, kg, cm, age, bf };
+  }
+  function suggestTargets() {
+    const c = suggestCheck();
+    if (c.need.length) return null;
+    const bmr = c.bf != null ? 370 + 21.6 * c.kg * (1 - c.bf / 100) : 10 * c.kg + 6.25 * c.cm - 5 * c.age + (draft.sex === "f" ? -161 : 5);
+    const tdee = bmr * ACTIVITY[draft.activity][1] * AIMS[draft.aim][1];
+    const kcal = draft.aim === "lose" ? Math.round(tdee / 100) * 100 : Math.round(tdee / 50) * 50;
+    const lb = c.kg * KG_TO_LB, leanLb = c.bf != null ? lb * (1 - c.bf / 100) : null;
+    const protein = Math.min(250, Math.round((leanLb != null ? leanLb * 1.0 : lb * 0.8) / 5) * 5);
     return { kcal, protein };
   }
+  const calText = (aim, kcal) => (aim === "lose" ? fmt(kcal - 100) + "–" + fmt(kcal + 100) + " kcal" : "at least " + fmt(kcal) + " kcal");
   function suggestionHTML() {
     const t = suggestTargets();
-    return t
-      ? '<div class="suggest"><span class="hint">Suggested for you</span><b class="num">' + fmt(t.kcal) + ' kcal</b><b class="num">' + t.protein + ' g protein</b>' +
-        '<span class="hint">A starting point. If your weight isn\'t moving the way you want after two weeks, change it in Settings.</span></div>'
-      : '<p class="hint">Fill in the boxes above to see your numbers.</p>';
+    if (!t) return '<p class="hint need">Still need: ' + suggestCheck().need.join(", ") + ".</p>";
+    return '<div class="suggest"><span class="hint">Suggested for you</span><b class="num">' + calText(draft.aim, t.kcal) + "</b><b class=\"num\">" + t.protein + " g protein</b>" +
+      '<span class="hint">' + (draft.aim === "lose" ? "Land anywhere in the range each day." : "Eat at least this much each day.") + " If your weight isn't moving the way you want after two weeks, change it in Settings.</span></div>";
   }
   function setupSteps() { return ["welcome", "day", "goals", "tasks"].concat(bridge && health !== "unavailable" ? ["health"] : []).concat(["done"]); }
+  const inlineNum = (id, val, max, label) => '<input class="inline-num num" id="' + id + '" type="number" inputmode="numeric" min="1" max="' + max + '" value="' + val + '" aria-label="' + label + '">';
   function renderSetup() {
     const steps = setupSteps(), key = steps[Math.min(setupStep, steps.length - 1)];
     const bar = '<div class="setup-progress">' + steps.slice(1).map((_, i) => '<i class="' + (i < setupStep ? "on" : "") + '"></i>').join("") + "</div>";
     const nav = (next, back) => '<div class="setup-actions"><button class="btn wide" data-action="setup-next">' + (next || "Next") + "</button>" + (back === false ? "" : '<button class="btn secondary wide" data-action="setup-back">Back</button>') + "</div>";
-    const start = addDays(todayISO(), -(draft.day - 1));
+    const pick = (action, opts, cur) => '<div class="pick">' + Object.keys(opts).map((k) => '<button data-action="' + action + '" data-v="' + k + '" aria-pressed="' + (cur === k) + '">' + opts[k][0] + "</button>").join("") + "</div>";
     let body;
     if (key === "welcome") {
-      body = '<div class="setup-hero"><span class="plate" style="--p:1"><span class="plate-inner"><span class="plate-day num">1</span><span class="plate-of">/ 100</span></span></span>' +
-        '<h1 class="setup-title">100 Days Hard</h1><p class="setup-lead">Track a gym challenge, 100 days or however long you choose: food, daily tasks, workouts, body weight and your goals. Setup takes about a minute.</p></div>' +
+      body = '<div class="setup-hero">' +
+        '<h1 class="setup-title">Welcome to ' + inlineNum("su-len", draft.len, 1000, "Number of days") + " Days Hard</h1>" +
+        '<p class="hint">Tap the number to pick how many days.</p>' +
+        '<p class="setup-lead">Track your food, workouts, strength, body weight and daily tasks, one day at a time.</p></div>' +
         '<div class="setup-actions"><button class="btn wide" data-action="setup-next">Get started</button>' + (previewSetup ? "" : '<button class="btn secondary wide" data-action="restore">I have a backup file</button>') + "</div>";
     } else if (key === "day") {
-      body = bar + '<h1 class="setup-title">Your challenge</h1><p class="setup-lead">How many days?</p>' +
-        '<div class="pick">' + [30, 75, 100].map((v) => '<button data-action="su-len" data-v="' + v + '" aria-pressed="' + (draft.len === v) + '">' + v + " days</button>").join("") + "</div>" +
-        '<label class="form"><span class="hint">Or any number</span><input class="field num" id="su-len" type="number" inputmode="numeric" min="1" max="1000" value="' + draft.len + '" style="width:140px"></label>' +
-        '<p class="setup-lead">Which day are you on? Starting today? Keep it at 1.</p>' +
-        '<input class="big-field num" id="su-day" type="number" inputmode="numeric" min="1" max="' + draft.len + '" value="' + draft.day + '" aria-label="Challenge day">' +
-        '<p class="hint" id="su-day-hint"></p>' + nav();
+      body = bar + '<h1 class="setup-title">Today is day ' + inlineNum("su-day", draft.day, draft.len, "Today's challenge day") + "</h1>" +
+        '<p class="hint">Starting today? Keep it at 1.</p>' +
+        '<div class="last-day"><span class="hint">Your last day</span><b id="su-last"></b><span class="hint" id="su-last-n"></span></div>' + nav();
     } else if (key === "goals") {
-      const pick = (action, opts, cur) => '<div class="pick">' + Object.keys(opts).map((k) => '<button data-action="' + action + '" data-v="' + k + '" aria-pressed="' + (cur === k) + '">' + opts[k][0] + "</button>").join("") + "</div>";
-      const unitSeg = '<div class="form"><span class="hint">Units</span><span class="seg" role="group"><button data-action="su-unit" data-unit="lb" aria-pressed="' + (draft.unit === "lb") + '">lb / ft</button><button data-action="su-unit" data-unit="kg" aria-pressed="' + (draft.unit === "kg") + '">kg / cm</button></span></div>';
+      const unitSeg = '<div class="form"><span class="hint">Units</span>' + pick("su-unit", { lb: ["lb / ft"], kg: ["kg / cm"] }, draft.unit) + "</div>";
       const modeSeg = '<span class="seg" role="group" aria-label="How to set targets"><button data-action="su-mode" data-v="suggest" aria-pressed="' + (draft.mode === "suggest") + '">Suggest for me</button><button data-action="su-mode" data-v="manual" aria-pressed="' + (draft.mode === "manual") + '">I know my numbers</button></span>';
+      const aimPick = '<div class="form"><span class="hint">Calorie goal</span>' + pick("su-aim", AIMS, draft.aim) +
+        (draft.aim ? '<span class="hint">' + (draft.aim === "lose" ? "You'll get a 200-calorie range to land in each day." : "You'll get a number to reach each day.") + "</span>" : "") + "</div>";
       let inner;
       if (draft.mode === "suggest") {
         const num = (id, label, val, attrs) => '<label class="form"><span class="hint">' + label + '</span><input class="field num" id="' + id + '" type="number" inputmode="decimal" value="' + esc(val) + '" ' + (attrs || "") + "></label>";
-        inner = unitSeg +
-          '<div class="form"><span class="hint">Body</span><span class="seg" role="group"><button data-action="su-sex" data-v="m" aria-pressed="' + (draft.sex === "m") + '">Male</button><button data-action="su-sex" data-v="f" aria-pressed="' + (draft.sex === "f") + '">Female</button></span></div>' +
-          '<div class="three">' + num("su-age", "Age", draft.age, 'min="13" max="100"') +
-          (draft.unit === "lb" ? num("su-hft", "Height (ft)", draft.heightFt, 'min="3" max="8"') + num("su-hin", "(in)", draft.heightIn, 'min="0" max="11"') : num("su-hcm", "Height (cm)", draft.heightCm, 'min="120" max="230"') + "<span></span>") + "</div>" +
-          '<div class="two">' + num("su-weight", "Weight (" + draft.unit + ")", draft.weight, 'min="30" max="700" step="0.1"') + "<span></span></div>" +
-          '<div class="form"><span class="hint">Day to day</span>' + pick("su-activity", ACTIVITY, draft.activity) + "</div>" +
-          '<div class="form"><span class="hint">Your goal</span>' + pick("su-aim", AIMS, draft.aim) + "</div>" +
+        inner = aimPick + unitSeg +
+          '<div class="form"><span class="hint">Body</span>' + pick("su-sex", { m: ["Male"], f: ["Female"] }, draft.sex) + "</div>" +
+          '<div class="two">' + num("su-age", "Age", draft.age, 'min="13" max="100"') + num("su-weight", "Weight (" + draft.unit + ")", draft.weight, 'min="30" max="700" step="0.1"') + "</div>" +
+          (draft.unit === "lb" ? '<div class="two">' + num("su-hft", "Height (feet)", draft.heightFt, 'min="3" max="8"') + num("su-hin", "and inches", draft.heightIn, 'min="0" max="11"') + "</div>"
+            : '<div class="two">' + num("su-hcm", "Height (cm)", draft.heightCm, 'min="120" max="230"') + "<span></span></div>") +
+          '<div class="form"><span class="hint">Body fat, if you know it</span>' + pick("su-bf", BODYFAT, draft.bodyFat) + "</div>" +
+          '<div class="form"><span class="hint">Activity level</span>' + pick("su-activity", ACTIVITY, draft.activity) + "</div>" +
           '<div id="su-result">' + suggestionHTML() + "</div>";
       } else {
-        inner = '<div class="two"><label class="form"><span class="hint">Calories per day</span><input class="field num" id="su-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + draft.kcal + '"></label>' +
+        inner = aimPick +
+          '<div class="two"><label class="form"><span class="hint">' + (draft.aim === "build" ? "Calories (at least)" : "Calories (middle of range)") + '</span><input class="field num" id="su-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + draft.kcal + '"></label>' +
           '<label class="form"><span class="hint">Protein per day (g)</span><input class="field num" id="su-protein" type="number" inputmode="numeric" min="0" step="5" value="' + draft.protein + '"></label></div>' +
+          (draft.aim === "lose" ? '<p class="hint" id="su-range">Your range: ' + calText("lose", draft.kcal) + ".</p>" : "") +
           '<p class="hint">Not sure? Tap <b>Suggest for me</b> and answer a few questions.</p>' + unitSeg;
       }
-      body = bar + '<h1 class="setup-title">Daily targets</h1><p class="setup-lead">How many calories and how much protein to aim for each day. You can change these any time.</p>' + modeSeg + inner + nav();
+      body = bar + '<h1 class="setup-title">Daily targets</h1><p class="setup-lead">Calories and protein to aim for each day. You can change them any time.</p>' + modeSeg + inner + nav();
     } else if (key === "tasks") {
       const all = TASK_PRESETS.concat(draft.custom);
       const auto = (id) => id === "protein" || id === "workout" || (AUTO_IDS.includes(id) && bridge && health !== "unavailable");
-      body = bar + '<h1 class="setup-title">Daily tasks</h1><p class="setup-lead">Check off all of them to keep your streak. Tap to remove any you don\'t want, or add your own.</p>' +
+      body = bar + '<h1 class="setup-title">Daily tasks</h1><p class="setup-lead">Do all of them to keep your streak. Tap to remove any you don\'t want, or add your own.</p>' +
         '<div class="pick">' + all.map((t) => '<button data-action="su-task" data-id="' + t.id + '" aria-pressed="' + draft.tasks.includes(t.id) + '">' + esc(t.name) + (auto(t.id) ? ' <span class="auto-tag">auto</span>' : "") + "</button>").join("") + "</div>" +
         (bridge && health !== "unavailable" ? '<p class="hint"><span class="auto-tag">auto</span> tasks tick themselves from Samsung Health or when you save a workout.</p>' : "") +
         '<form class="inline" id="su-task-form"><input class="field" id="su-task-new" placeholder="Add your own task" maxlength="60" autocomplete="off"><button class="btn secondary" type="submit">Add</button></form>' + nav();
@@ -1029,7 +1073,7 @@ body.setup .nav, body.setup .top { display: none; }
         nav(on ? "Next" : "Skip for now");
     } else {
       body = '<div class="setup-hero"><span class="plate" style="--p:' + Math.round((draft.day / draft.len) * 100) + '"><span class="plate-inner"><span class="plate-day num">' + draft.day + '</span><span class="plate-of">/ ' + draft.len + "</span></span></span>" +
-        '<h1 class="setup-title">You\'re set.</h1><p class="setup-lead">Aiming for <b>' + fmt(draft.kcal) + " kcal</b> and <b>" + draft.protein + ' g protein</b> a day, with ' + draft.tasks.length + " daily tasks. Tap the day counter in the corner any time for settings, backups and sharing.</p></div>" + nav("Start day " + draft.day);
+        '<h1 class="setup-title">You\'re set.</h1><p class="setup-lead">Aiming for <b>' + calText(draft.aim, draft.kcal) + "</b> and <b>" + draft.protein + " g protein</b> a day, with " + draft.tasks.length + " daily tasks. Tap the day counter in the corner any time for settings, backups and sharing.</p></div>" + nav("Start day " + draft.day);
     }
     const banner = previewSetup ? '<div class="update"><span>Preview. Nothing you pick here is saved.</span><button class="btn" data-action="preview-exit">Exit</button></div>' : "";
     return '<div class="setup-wrap">' + banner + body + "</div>";
@@ -1038,7 +1082,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (previewSetup) { previewSetup = false; view = "settings"; render(true); window.scrollTo(0, 0); toast("Preview finished. Nothing was changed."); return; }
     const s = S();
     s.startDate = addDays(todayISO(), -(draft.day - 1));
-    s.calorieGoal = draft.kcal; s.proteinGoal = draft.protein; s.unit = draft.unit; s.totalDays = draft.len;
+    s.calorieGoal = draft.kcal; s.calorieAim = draft.aim || "lose"; s.proteinGoal = draft.protein; s.unit = draft.unit; s.totalDays = draft.len;
     if (draft.mode === "suggest" && +draft.weight > 0) { getDay(todayISO()).weight = Math.round(+draft.weight * 10) / 10; save(todayISO()); }
     s.autoOffered = true;
     s.habits = TASK_PRESETS.concat(draft.custom).filter((t) => draft.tasks.includes(t.id)).map((t) => ({ id: t.id, name: t.name }));
@@ -1054,9 +1098,9 @@ body.setup .nav, body.setup .top { display: none; }
     if (day.kcal == null) {
       parts.push(isToday ? (health === "granted" ? "Today's food will show up here as you log it in Samsung Health." : "Enter today's totals from Samsung Health when you're done eating.") : "No calories were entered for this day.");
     } else {
-      const left = S().calorieGoal - day.kcal, pLeft = S().proteinGoal - (day.protein || 0);
-      if (left >= 0) parts.push("<strong>" + fmt(left) + " kcal</strong> left" + (pLeft > 0 ? " and <strong>" + fmt(pLeft) + " g</strong> protein to go." : ", protein goal hit."));
-      else parts.push("<strong>" + fmt(-left) + " kcal over</strong> your goal" + (pLeft > 0 ? ", " + fmt(pLeft) + " g protein short." : "."));
+      const c = calStatus(day.kcal), pLeft = S().proteinGoal - (day.protein || 0);
+      const prot = pLeft > 0 ? "<strong>" + fmt(pLeft) + " g</strong> protein to go." : "protein goal hit.";
+      parts.push("<strong>" + c.short + "</strong>" + (c.state === "met" ? ", " : ". ") + (c.state === "met" ? prot : prot.charAt(0).toUpperCase() + prot.slice(1)));
     }
     const done = doneOn(viewDate), total = tasksFor(viewDate).length;
     if (total) parts.push(done === total ? "All daily tasks done." : done + " of " + total + " daily tasks done.");
@@ -1066,11 +1110,14 @@ body.setup .nav, body.setup .top { display: none; }
   function meterHTML(day) {
     const goal = S().calorieGoal, pg = S().proteinGoal;
     const k = day.kcal || 0, p = day.protein || 0;
-    const kp = Math.min(100, goal ? (k / goal) * 100 : 0), pp = Math.min(100, pg ? (p / pg) * 100 : 0);
-    const left = goal - k, pLeft = pg - p;
+    const c = calStatus(k), lose = calAim() === "lose", [lo, hi] = calRange();
+    const scale = lose ? hi * 1.1 : goal; // leave room past the range so "over" is visible
+    const kp = Math.min(100, scale ? (k / scale) * 100 : 0), pp = Math.min(100, pg ? (p / pg) * 100 : 0);
+    const pLeft = pg - p;
+    const band = lose ? '<i class="band" style="left:' + ((lo / scale) * 100).toFixed(1) + "%;width:" + ((200 / scale) * 100).toFixed(1) + '%"></i>' : "";
     return (
-      '<div class="meter"><div class="meter-label"><span>Calories</span><span class="num"><b>' + (left >= 0 ? fmt(left) + "</b> left" : fmt(-left) + "</b> over") + " of " + fmt(goal) + "</span></div>" +
-      '<div class="bar" role="img" aria-label="' + Math.round(kp) + '% of calorie goal"><span class="' + (left < 0 ? "over" : "") + '" style="width:' + kp + '%"></span></div></div>' +
+      '<div class="meter"><div class="meter-label"><span>Calories</span><span class="num"><b>' + c.short + "</b> · " + calGoalText() + "</span></div>" +
+      '<div class="bar cal" role="img" aria-label="' + fmt(k) + " kcal eaten, goal " + calGoalText() + '"><span class="' + (c.state === "over" ? "over" : c.state === "met" ? "met" : "") + '" style="width:' + kp + '%"></span>' + band + "</div></div>" +
       '<div class="meter"><div class="meter-label"><span>Protein</span><span class="num"><b>' + (pLeft > 0 ? fmt(pLeft) + " g</b> to go" : "Goal hit</b>") + " of " + fmt(pg) + " g</span></div>" +
       '<div class="bar protein" role="img" aria-label="' + Math.round(pp) + '% of protein goal"><span style="width:' + pp + '%"></span></div></div>'
     );
@@ -1367,7 +1414,7 @@ body.setup .nav, body.setup .top { display: none; }
 
   // One bar chart, several measures. A chip only appears once that measure has data.
   const TRENDS = {
-    kcal: { name: "Calories", val: (d) => d.kcal, goal: (st) => st.calorieGoal, step: 500, fmtv: (v) => fmt(v), unit: "kcal", overIsBad: true },
+    kcal: { name: "Calories", val: (d) => d.kcal, goal: (st) => st.calorieGoal, step: 500, fmtv: (v) => fmt(v), unit: "kcal", cal: true },
     sleep: { name: "Sleep", val: (d) => (d.health && d.health.sleepMin != null ? d.health.sleepMin / 60 : null), goal: (st) => st.sleepTarget, step: 2, fmtv: (v) => (Math.round(v * 10) / 10).toString(), unit: "h" },
     steps: { name: "Steps", val: (d) => (d.health ? d.health.steps : null), goal: (st) => st.stepsTarget, step: 2000, fmtv: (v) => fmt(v), unit: "steps" },
   };
@@ -1391,18 +1438,25 @@ body.setup .nav, body.setup .top { display: none; }
     [0, max / 2, max].forEach((v) => { s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + tr.fmtv(v) + "</text>"; });
     vals.forEach((v, i) => {
       const x = L + slot * i + (slot - bw) / 2;
-      const cls = tr.overIsBad ? (v > goal ? " over" : "") : v >= goal ? " met" : "";
+      const cs = tr.cal ? calStatus(v).state : v >= goal ? "met" : "under";
+      const cls = cs === "over" ? " over" : cs === "met" ? " met" : "";
       if (v > 0) s += '<rect class="b' + cls + '" x="' + x.toFixed(1) + '" y="' + y(v).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (y(0) - y(v)).toFixed(1) + '" rx="2"><title>Day ' + dayNum(dates[i]) + ": " + tr.fmtv(v) + " " + tr.unit + "</title></rect>";
       if (i % 2 === 1 || i === 13) s += '<text class="num" x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + dayNum(dates[i]) + "</text>";
     });
-    s += '<line class="goal" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(goal) + '" y2="' + y(goal) + '"/>';
-    s += '<text x="' + (W - R) + '" y="' + (y(goal) - 4) + '" text-anchor="end">goal ' + tr.fmtv(goal) + "</text></svg>";
+    if (tr.cal && calAim() === "lose") {
+      const [lo, hi] = calRange();
+      s += '<rect class="range" x="' + L + '" y="' + y(hi).toFixed(1) + '" width="' + pw + '" height="' + (y(lo) - y(hi)).toFixed(1) + '"/>';
+      s += '<text x="' + (W - R) + '" y="' + (y(hi) - 4) + '" text-anchor="end">range ' + fmt(lo) + "–" + fmt(hi) + "</text></svg>";
+    } else {
+      s += '<line class="goal" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(goal) + '" y2="' + y(goal) + '"/>';
+      s += '<text x="' + (W - R) + '" y="' + (y(goal) - 4) + '" text-anchor="end">' + (tr.cal ? "at least " : "goal ") + tr.fmtv(goal) + "</text></svg>";
+    }
     const logged = vals.filter((v) => v > 0);
     if (!logged.length) s += '<p class="empty">Enter your daily totals on the Today tab and they\'ll build up here. Numbers under the bars are challenge days.</p>';
     else {
       const avg = logged.reduce((a, v) => a + v, 0) / logged.length;
-      const hit = tr.overIsBad ? logged.filter((v) => v <= goal).length : logged.filter((v) => v >= goal).length;
-      s += '<p class="hint num">Average ' + (key === "sleep" ? fmtSleep(avg * 60) : tr.fmtv(avg) + " " + tr.unit) + " · " + (tr.overIsBad ? "at or under goal" : "goal met") + " on " + hit + " of " + logged.length + " days.</p>";
+      const hit = logged.filter((v) => (tr.cal ? calStatus(v).state === "met" : v >= goal)).length;
+      s += '<p class="hint num">Average ' + (key === "sleep" ? fmtSleep(avg * 60) : tr.fmtv(avg) + " " + tr.unit) + " · " + (tr.cal && calAim() === "lose" ? "in range" : "goal met") + " on " + hit + " of " + logged.length + " days.</p>";
     }
     return s;
   }
@@ -1493,8 +1547,10 @@ body.setup .nav, body.setup .top { display: none; }
         '<button class="btn secondary" data-action="new-round">Start a new round</button>' +
       "</div></section>" +
       '<section class="panel" aria-labelledby="h-go"><h2 id="h-go">Goals</h2><div class="form">' +
-        '<div class="two"><label>Calories per day<input class="field num" id="set-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + s.calorieGoal + '"></label>' +
+        '<label>Calorie goal<span class="seg" role="group"><button data-action="cal-aim" data-v="lose" aria-pressed="' + (calAim() === "lose") + '">Lose fat</button><button data-action="cal-aim" data-v="build" aria-pressed="' + (calAim() === "build") + '">Build muscle</button></span></label>' +
+        '<div class="two"><label>' + (calAim() === "lose" ? "Calories (middle of range)" : "Calories (at least)") + '<input class="field num" id="set-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + s.calorieGoal + '"></label>' +
         '<label>Protein per day (g)<input class="field num" id="set-protein" type="number" inputmode="numeric" min="0" step="5" value="' + s.proteinGoal + '"></label></div>' +
+        '<p class="hint">' + (calAim() === "lose" ? "Your range: " + calGoalText() + " kcal. Landing anywhere in it counts." : "Eat at least this much each day.") + "</p>" +
         '<div class="two"><label>Steps<input class="field num" id="set-steps" type="number" inputmode="numeric" min="0" step="500" value="' + s.stepsTarget + '"></label>' +
         '<label>Sleep (hours)<input class="field num" id="set-sleep" type="number" inputmode="decimal" min="0" step="0.5" value="' + s.sleepTarget + '"></label></div>' +
         '<label>Weight unit<span class="seg" role="group"><button data-action="unit" data-unit="lb" aria-pressed="' + (s.unit === "lb") + '">lb</button><button data-action="unit" data-unit="kg" aria-pressed="' + (s.unit === "kg") + '">kg</button></span></label>' +
@@ -1681,20 +1737,26 @@ body.setup .nav, body.setup .top { display: none; }
       }
       case "setup-next": {
         const key = setupSteps()[setupStep];
+        if (key === "welcome") { const v = Math.round(+document.getElementById("su-len").value); draft.len = v >= 1 && v <= 1000 ? v : 100; }
         if (key === "day") { const v = Math.round(+document.getElementById("su-day").value); draft.day = v >= 1 && v <= draft.len ? v : 1; }
         if (key === "goals") {
           if (draft.mode === "suggest") {
             const t = suggestTargets();
-            if (!t) { toast("Fill in every box, or tap I know my numbers"); break; }
+            if (!t) { toast("Still need: " + suggestCheck().need.join(", ")); break; }
             draft.kcal = t.kcal; draft.protein = t.protein;
-          } else { draft.kcal = Math.max(0, Math.round(+document.getElementById("su-kcal").value) || 2500); draft.protein = Math.max(0, Math.round(+document.getElementById("su-protein").value) || 150); }
+          } else {
+            if (!AIMS[draft.aim]) { toast("Pick a calorie goal: Lose fat or Build muscle"); break; }
+            draft.kcal = Math.max(0, Math.round(+document.getElementById("su-kcal").value) || 2500); draft.protein = Math.max(0, Math.round(+document.getElementById("su-protein").value) || 150);
+          }
         }
         if (key === "done") { finishSetup(); break; }
         setupStep++; render(true); window.scrollTo(0, 0);
         break;
       }
       case "setup-back": setupStep = Math.max(0, setupStep - 1); render(true); break;
-      case "su-unit": draft.unit = el.dataset.unit; render(true); break;
+      case "su-unit": draft.unit = el.dataset.unit || el.dataset.v; render(true); break;
+      case "su-bf": draft.bodyFat = el.dataset.v; render(true); break;
+      case "cal-aim": S().calorieAim = el.dataset.v; save("settings"); render(true); break;
       case "preview-setup": previewSetup = true; setupStep = 0; Object.assign(draft, freshDraft()); render(true); window.scrollTo(0, 0); break;
       case "preview-exit": previewSetup = false; view = "settings"; render(true); window.scrollTo(0, 0); break;
       case "su-mode": draft.mode = el.dataset.v; render(true); break;
@@ -1842,15 +1904,18 @@ body.setup .nav, body.setup .top { display: none; }
 
   // Setup fields update the draft as you type, so tapping other controls never loses them.
   function setupDayHint() {
-    const start = addDays(todayISO(), -(draft.day - 1)), el = document.getElementById("su-day-hint");
-    if (el) el.textContent = "Day 1 " + (draft.day === 1 ? "is today" : "was " + fmtDate(start, { weekday: "long", month: "short", day: "numeric" })) + ". Day " + draft.len + " lands on " + fmtDate(addDays(start, draft.len - 1), { weekday: "long", month: "long", day: "numeric" }) + ".";
+    const start = addDays(todayISO(), -(draft.day - 1)), last = addDays(start, draft.len - 1);
+    const a = document.getElementById("su-last"), b = document.getElementById("su-last-n");
+    if (a) a.textContent = fmtDate(last, { weekday: "long", month: "long", day: "numeric" });
+    if (b) { const left = diffDays(todayISO(), last); b.textContent = "Day " + draft.len + (left === 0 ? " is today." : ", " + left + " day" + (left === 1 ? "" : "s") + " from now."); }
   }
   document.addEventListener("input", (ev) => {
     const t = ev.target, v = Math.round(+t.value);
     if (t.id === "su-day" && v >= 1 && v <= draft.len) { draft.day = v; setupDayHint(); }
-    else if (t.id === "su-len" && v >= 1 && v <= 1000) { draft.len = v; draft.day = Math.min(draft.day, v); document.getElementById("su-day").max = v; document.querySelectorAll("[data-action=su-len]").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.v === v))); setupDayHint(); }
+    else if (t.id === "su-len" && v >= 1 && v <= 1000) { draft.len = v; draft.day = Math.min(draft.day, v); }
     else if (t.id === "su-kcal" && v > 0) draft.kcal = v;
     else if (t.id === "su-protein" && v >= 0 && t.value !== "") draft.protein = v;
+    if (t.id === "su-kcal") { const r = document.getElementById("su-range"); if (r) r.textContent = "Your range: " + calText("lose", draft.kcal) + "."; }
     else if (["su-age", "su-hft", "su-hin", "su-hcm", "su-weight"].includes(t.id)) {
       draft[{ "su-age": "age", "su-hft": "heightFt", "su-hin": "heightIn", "su-hcm": "heightCm", "su-weight": "weight" }[t.id]] = t.value;
       const r = document.getElementById("su-result"); if (r) r.innerHTML = suggestionHTML();
@@ -1908,7 +1973,7 @@ body.setup .nav, body.setup .top { display: none; }
       const v = +t.value, key = { "set-steps": "stepsTarget", "set-sleep": "sleepTarget" }[t.id];
       if (v > 0) { S()[key] = t.id === "set-steps" ? Math.round(v) : Math.round(v * 2) / 2; save("settings"); reTick(); render(); }
     } else if (t.id === "set-kcal") {
-      const v = Math.round(+t.value); if (v > 0) { S().calorieGoal = v; save("settings"); }
+      const v = Math.round(+t.value); if (v > 0) { S().calorieGoal = v; save("settings"); render(); }
     } else if (t.id === "set-protein") {
       const v = Math.round(+t.value); if (v >= 0) { S().proteinGoal = v; save("settings"); }
     }

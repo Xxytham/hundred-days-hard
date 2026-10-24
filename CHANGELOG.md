@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6
+- New setup: "Welcome to [100] Days Hard" (tap the number to set your length), then "Today is day [1]" with your last day shown big.
+- Calorie goal is either **Lose fat** (a 200-calorie range to land in) or **Build muscle** (a number to reach). Today, Progress and Settings all follow it.
+- "Suggest for me" asks for your activity level and, if you know it, your body fat, and says exactly what's still missing.
+
 ## v0.5.1
 - Setup's targets step has two modes: **Suggest for me** works out calories and protein from a few questions, or **I know my numbers** lets you type them in.
 - A temporary **Preview first-time setup** button in Settings → Testing, to walk through setup without changing anything.

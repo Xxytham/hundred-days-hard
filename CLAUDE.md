@@ -34,7 +34,7 @@ The owner is not a programmer and talks to you from a phone. Keep explanations p
 
 Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter plate in the top corner.
 
-- **First-time setup:** shown while `settings.setupDone` is false (fresh installs only). Steps: welcome or restore → challenge length and day → targets → daily tasks (`TASK_PRESETS` plus custom) → Samsung Health (APK only) → done. The targets step has **Suggest for me** (Mifflin-St Jeor × activity × goal, plus protein of 0.8–0.9 g per lb, capped at 250 g; the weight entered becomes today's weigh-in) and **I know my numbers**. Anyone with saved data from before v0.4 is marked `setupDone` on load.
+- **First-time setup:** shown while `settings.setupDone` is false (fresh installs only). Steps: welcome ("Welcome to [N] Days Hard", N is an editable number) or restore → "Today is day [n]" with the last day's date → targets → daily tasks (`TASK_PRESETS` plus custom) → Samsung Health (APK only) → done. The targets step picks a calorie goal (Lose fat or Build muscle) and has **Suggest for me** (Katch-McArdle when a body-fat range is picked, otherwise Mifflin-St Jeor; × activity 1.4/1.55/1.75; × 0.8 to lose or 1.1 to build; lose rounds to the nearest 100. Protein is 1 g per lb of lean mass, or 0.8 g per lb of body weight if body fat is unknown, capped at 250 g. The weight entered becomes today's weigh-in. `suggestCheck()` lists what's missing) and **I know my numbers**. Anyone with saved data from before v0.4 is marked `setupDone` on load.
 - **TEMPORARY setup preview:** Settings → Testing → "Preview first-time setup" (`previewSetup`) runs setup without saving anything. Remove `testingSection()` and `previewSetup` once the owner says setup is settled.
 - **Streak:** `streakInfo()` counts consecutive days with every daily task done. Today counts once it's complete; until then the streak runs through yesterday. It's shown on Today with the last 7 days, and the Progress tab uses the same number.
 - **Backup dot:** next to the date. `backupState()` is green if `settings.lastExport` (last copy sent off the phone) is within 7 days, yellow within 14, and red otherwise or if there's never been one. It's always green in the Claude artifact once synced. Tapping it opens Settings.
@@ -47,6 +47,7 @@ Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter pl
 - **Trends:** Progress has one 14-day bar chart (`TRENDS`: calories, sleep, steps) with chips, shown only for measures that have data.
 - **Apple Health:** not possible from the iPhone web app. It would need a native iOS app and an Apple developer account.
 - **Day counter:** `settings.startDate` is day 1 of the current round.
+- **Calorie goal:** `settings.calorieAim` is "lose" (default, including for anyone set up before v0.6) or "build". Lose = land within `calorieGoal` ± 100; build = reach at least `calorieGoal`. `calStatus(kcal)` drives Today's meter, the coach line and the calorie trend.
 - **Food:** one daily total for calories and protein (the owner logs food in Samsung Health). In the APK these fill in from Health Connect on open/resume. A value the owner types sets `kcalSrc: "manual"`, and synced data never overwrites it.
 - **Daily tasks:** checklist from `settings.habits`. `protein` auto-checks when the protein goal is met, and `workout` checks when a workout is saved.
 - **Workouts (Push / Pull / Legs):** starting a type copies the exercises, order, weights, reps and sets from the most recent *saved* session of that type. −/+ steps weight by 5 lb (2.5 kg). Exercises with "cable" in the name get an lb/kg toggle that converts the value. A workout autosaves as a draft (`saved: false`) until "Save workout".
@@ -57,7 +58,7 @@ Tabs: **Today**, **Goals**, **Progress**. Settings opens from the day-counter pl
 ### Data shape (localStorage key `hundred-days-hard.v1`, and one db doc per key)
 
 ```
-settings: { startDate, totalDays, calorieGoal, proteinGoal, stepsTarget, sleepTarget, unit: "lb"|"kg",
+settings: { startDate, totalDays, calorieGoal, calorieAim: "lose"|"build", proteinGoal, stepsTarget, sleepTarget, unit: "lb"|"kg",
             habits: [{id, name, addedOn?}], setupDone, autoOffered?, finishDismissed?, rounds?: [{startDate, totalDays}], lastExport?, updatedAt }
 goals:    { updatedAt, list: [{ id, name, focus, steps: [{ id, text, done, doneDay }] }] }
 days["YYYY-MM-DD"]: {
