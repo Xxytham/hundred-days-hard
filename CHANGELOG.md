@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.1 · Cleaner strength chart
+- The strength line is green where you went up or held and red where you dropped, matching the shading. No more blue.
+- Round numbers on the side (55, 60, 65) instead of odd decimals.
+- One short line above the chart, marked est. 1RM: "Best yet. Up 10 lb since day 40", or your best to aim for. The long explanation is gone.
+
 ## v0.9 · Workout button, food bars and one-tap goals
 - Log a workout from the red **+** in the bottom corner of Today. It opens Push, Pull and Legs (with when you last did each); once a workout is started, + opens it. The Push / Pull / Legs tile is gone, and the workout card only shows once there's a workout.
 - The Calories and Protein boxes fill up like bars: blue on the way, green when you hit it, red if you go over. The bars underneath are gone, so there's more room for tasks and weight.

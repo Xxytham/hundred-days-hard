@@ -198,8 +198,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .tick-detail { display: grid; gap: 10px; padding-bottom: 12px; }
 .chart .slabel { fill: var(--ink); font-weight: 700; font-size: 10px; }
 .chart .sreps { fill: var(--muted); font-size: 9px; }
-.chart .sline { fill: none; stroke: var(--blue); stroke-width: 2; }
-.chart .sdot { fill: var(--surface); stroke: var(--blue); stroke-width: 2; }
+.chart .sline { fill: none; stroke: var(--green); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart .sline.down { stroke: var(--red); }
+.chart .sdot { fill: var(--surface); stroke: var(--green); stroke-width: 2.5; }
+.chart .sdot.down { stroke: var(--red); }
+.str-note { margin: 0; font-size: 14px; color: var(--muted); }
+.str-note b { color: var(--ink); }
+.str-what { display: inline-block; margin-right: 8px; padding: 2px 6px; border-radius: 5px; background: var(--sunk); color: var(--ink); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .chart .g-up stop { stop-color: var(--green); }
 .chart .g-down stop { stop-color: var(--red); }
 .sessions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
@@ -1562,36 +1567,53 @@ body.setup .nav, body.setup .top { display: none; }
     return '<svg class="spark ' + cls + '" viewBox="0 0 56 22" aria-hidden="true"><polyline points="' + pt + '"/></svg>';
   }
 
+  // One upbeat line over the chart: what you've gained, or your best to aim for.
+  function strengthNote(m, bw, unit) {
+    const all = m.pts, first = all[0], last = all[all.length - 1];
+    const best = all.reduce((b, p) => (p.score > b.score ? p : b), first);
+    const u = bw ? " reps" : " " + unit, gain = Math.round(last.score - first.score);
+    const what = bw ? "reps" : "est. 1RM";
+    let msg;
+    if (all.length === 1) msg = "First one logged. Beat <b>" + Math.round(last.score) + u + "</b> next time.";
+    else if (last.score >= best.score && gain > 0) msg = "<b>Best yet.</b> Up <b>" + gain + u + "</b> since day " + first.n + ".";
+    else if (gain > 0) msg = "Up <b>" + gain + u + "</b> since day " + first.n + ". Best: " + Math.round(best.score) + u + ".";
+    else msg = "Your best is <b>" + Math.round(best.score) + u + "</b> (day " + best.n + "). Go get it.";
+    return '<p class="str-note"><span class="str-what">' + what + "</span>" + msg + "</p>";
+  }
   function strengthChart(m) {
     const pts = m.pts.slice(-10), unit = S().unit, bw = pts.every((p) => p.w === 0);
     const W = 340, H = 180, L = 36, R = 16, T = 30, B = 22, pw = W - L - R, ph = H - T - B;
     const ys = pts.map((p) => p.score);
-    let lo = Math.min(...ys), hi = Math.max(...ys);
-    const pad = Math.max((hi - lo) * 0.15, hi * 0.04, 1);
-    lo = Math.max(0, lo - pad); hi = hi + pad;
+    // Round grid lines (50, 60, 70) instead of odd decimals.
+    const dataLo = Math.min(...ys), dataHi = Math.max(...ys), span = Math.max(dataHi - dataLo, dataHi * 0.08, 2);
+    const step = [1, 2, 5, 10, 20, 25, 50, 100].find((k) => span / k <= 3) || 100;
+    const lo = Math.max(0, Math.floor((dataLo - span * 0.1) / step) * step), hi = Math.ceil((dataHi + span * 0.1) / step) * step;
     const x = (i) => L + (pts.length === 1 ? pw / 2 : (i / (pts.length - 1)) * pw);
     const y = (v) => T + ph * (1 - (v - lo) / (hi - lo));
-    const label = (v) => (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10);
     let s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(m.name) + ' strength by session">';
-    [lo, (lo + hi) / 2, hi].forEach((v) => { s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + label(v) + "</text>"; });
+    for (let v = lo; v <= hi + 0.001; v += step) s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + v + "</text>";
+    // Line, dots and shading share one color per stretch: green going up or holding, red going down.
+    const dir = (i) => (pts[i].score >= pts[i - 1].score * 0.9995 ? "up" : "down");
+    const dotDir = (i) => (pts.length < 2 ? "up" : dir(Math.max(1, i)));
     if (pts.length > 1) {
       // Shade under the line: green where it rises or holds, red where it drops. Neighbouring segments
       // of the same color share one shape, so no seams show between them.
       const base = (T + ph).toFixed(1), top = Math.min(...ys.map(y)).toFixed(1);
       const grad = (k) => '<linearGradient id="sg-' + k + '" class="g-' + k + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + top + '" x2="0" y2="' + base + '"><stop offset="0" stop-opacity="0.45"/><stop offset="1" stop-opacity="0.05"/></linearGradient>';
       s += "<defs>" + grad("up") + grad("down") + "</defs>";
-      const dir = (i) => (pts[i].score >= pts[i - 1].score * 0.9995 ? "up" : "down");
+      let lines = "";
       for (let i = 1; i < pts.length; ) {
         const k = dir(i), a = i - 1;
         while (i < pts.length && dir(i) === k) i++;
         const run = pts.slice(a, i).map((p, j) => x(a + j).toFixed(1) + "," + y(p.score).toFixed(1));
         s += '<polygon fill="url(#sg-' + k + ')" points="' + x(a).toFixed(1) + "," + base + " " + run.join(" ") + " " + x(i - 1).toFixed(1) + "," + base + '"/>';
+        lines += '<polyline class="sline ' + k + '" points="' + run.join(" ") + '"/>';
       }
-      s += '<polyline class="sline" points="' + pts.map((p, i) => x(i).toFixed(1) + "," + y(p.score).toFixed(1)).join(" ") + '"/>';
+      s += lines;
     }
     pts.forEach((p, i) => {
       const cx = x(i).toFixed(1), cy = y(p.score);
-      s += '<circle class="sdot" cx="' + cx + '" cy="' + cy.toFixed(1) + '" r="4"><title>Day ' + p.n + ": " + (p.w ? fmtW(p.w) + " " + unit + " × " : "") + p.r + " reps</title></circle>";
+      s += '<circle class="sdot ' + dotDir(i) + '" cx="' + cx + '" cy="' + cy.toFixed(1) + '" r="4"><title>Day ' + p.n + ": " + (p.w ? fmtW(p.w) + " " + unit + " × " : "") + p.r + " reps</title></circle>";
       if (pts.length <= 7 || i === 0 || i === pts.length - 1) {
         const anchor = i === 0 && pts.length > 1 ? "start" : i === pts.length - 1 && pts.length > 1 ? "end" : "middle";
         s += '<text class="slabel num" x="' + cx + '" y="' + (cy - 16).toFixed(1) + '" text-anchor="' + anchor + '">' + (bw ? p.r : fmtW(p.w)) + "</text>";
@@ -1605,9 +1627,7 @@ body.setup .nav, body.setup .top { display: none; }
       const c = idx > 0 && m.pts[idx - 1].score > 0 ? ((p.score - m.pts[idx - 1].score) / m.pts[idx - 1].score) * 100 : null;
       return '<li><span>Day ' + p.n + " · " + (p.w ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps") + " · " + p.s + ' sets</span><span class="r num">' + (bw ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
     }).reverse().join("");
-    return '<div class="tick-detail">' + s +
-      '<p class="hint">' + (bw ? "Line shows reps per set." : "Line shows estimated one-rep max, which combines weight and reps. More weight for fewer reps can still count as a small drop.") + "</p>" +
-      '<ul class="sessions">' + rows + "</ul></div>";
+    return '<div class="tick-detail">' + strengthNote(m, bw, unit) + s + '<ul class="sessions">' + rows + "</ul></div>";
   }
 
   function renderStrength() {
