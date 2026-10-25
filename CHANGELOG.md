@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.9.3 · Better food bars
+- Calories is one big bar across the card, with Protein as a slimmer bar under it.
+- The number starts in white and turns dark where the bar fills in behind it (the other way round in light mode), so it's always easy to read.
+
 ## v0.9.2 · Simpler strength chart and food bars
 - Calories and Protein fill with solid color: blue on the way, green when you hit it, red if you go over. No outline, stripe or range marks.
 - Strength chart: green and red line to match the shading, round numbers on the side, and one short est. 1RM line ("Best yet. Up 10 lb since day 40").

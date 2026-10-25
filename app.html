@@ -304,27 +304,33 @@ body.setup .nav, body.setup .top { display: none; }
 .del:hover { background: var(--sunk); }
 .empty { font-size: 14px; color: var(--muted); margin: 0; }
 
-/* Daily totals: each box fills up toward its goal, so the box is the bar */
-.totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+/* Daily totals: each box is its own bar. Calories leads; protein sits under it, slimmer.
+   The number is drawn twice: ink on the empty part, and a copy clipped to the fill in the
+   color that reads on it, so it flips as the bar passes under it. The input itself is invisible
+   except for its caret. */
+.totals { display: grid; gap: 12px; }
 .tot { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
 .tot-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .tot-head span:last-child { font-weight: 500; white-space: nowrap; }
-.tot-box { --c: var(--blue); position: relative; display: block; border-radius: 12px; overflow: hidden; background: var(--sunk); }
+.tot-box {
+  --c: var(--blue); --h: 64px; --fs: 40px; --clip: inset(0 calc(100% - var(--p, 0) * 100%) 0 0);
+  position: relative; display: block; height: var(--h); border-radius: 14px; overflow: hidden; background: var(--sunk);
+}
 .tot-box[data-s="met"] { --c: var(--green); }
 .tot-box[data-s="over"] { --c: var(--red); }
-.tot-box.pro { --c: var(--green); }
-.tot-fill {
-  position: absolute; inset: 0; transform-origin: left center; transform: scaleX(var(--p, 0));
-  background: color-mix(in srgb, var(--c) 68%, var(--sunk));
-  transition: transform 300ms var(--ease);
-}
+.tot-box.pro { --c: var(--green); --h: 44px; --fs: 26px; border-radius: 11px; }
+.tot-fill, .tot-num { position: absolute; inset: 0; pointer-events: none; }
+.tot-fill { background: var(--c); clip-path: var(--clip); transition: clip-path 300ms var(--ease); }
+.tot-num, .big-input { font-family: var(--font-display); font-weight: 800; font-size: var(--fs); line-height: 1; padding: 0 14px; }
+.tot-num { display: flex; align-items: center; color: var(--ink); white-space: nowrap; }
+.tot-num.on { color: var(--on-color); clip-path: var(--clip); transition: clip-path 300ms var(--ease); }
+.tot-num.empty { color: var(--muted); opacity: 0.5; }
 .big-input {
-  position: relative; display: block;
-  font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1;
-  padding: 10px 12px 12px; border: 0; background: none; color: var(--ink);
-  border-radius: 12px; width: 100%; min-width: 0;
+  position: relative; display: block; height: 100%; width: 100%; min-width: 0;
+  border: 0; border-radius: inherit; background: none; color: transparent; caret-color: var(--ink);
 }
-.big-input::placeholder { color: var(--line); }
+.big-input::placeholder { color: transparent; }
+.big-input:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 .source { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; }
 .source .linkbtn { padding-left: 0; }
 .notice { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; }
@@ -399,7 +405,7 @@ body.setup .nav, body.setup .top { display: none; }
 .goal-bar.big { height: 10px; border-radius: 5px; }
 .goal-open { display: grid; gap: 12px; padding-bottom: 14px; }
 @media (prefers-reduced-motion: reduce) {
-  .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
+  .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
 }
 
 /* Habits */
@@ -1256,15 +1262,16 @@ body.setup .nav, body.setup .top { display: none; }
       protein: pg ? Math.min(1, p / pg) : 0,
     };
   }
+  const totNums = (v) => '<span class="tot-num num' + (v === "" ? " empty" : "") + '" aria-hidden="true">' + (v === "" ? "0" : esc(v)) + '</span><span class="tot-num on num" aria-hidden="true">' + esc(v) + "</span>";
   function foodBoxes(day) {
-    const f = foodFill(day), lose = calAim() === "lose";
+    const f = foodFill(day), lose = calAim() === "lose", k = day.kcal ?? "", p = day.protein ?? "";
     return '<div class="totals">' +
       '<label class="tot" for="in-kcal"><span class="tot-head"><span>Calories</span><span class="num">' + (lose ? fmt(calRange()[0]) + "–" + fmt(calRange()[1]) : "of " + fmt(S().calorieGoal)) + "</span></span>" +
-        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + '"><i class="tot-fill"></i>' +
-        '<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + (day.kcal ?? "") + '"></span></label>' +
+        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(String(k)) +
+        '<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + k + '"></span></label>' +
       '<label class="tot" for="in-protein"><span class="tot-head"><span>Protein</span><span class="num">of ' + fmt(S().proteinGoal) + " g</span></span>" +
-        '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' +
-        '<input class="big-input num" id="in-protein" type="number" inputmode="numeric" min="0" max="1000" placeholder="0" value="' + (day.protein ?? "") + '"></span></label>' +
+        '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(String(p)) +
+        '<input class="big-input num" id="in-protein" type="number" inputmode="numeric" min="0" max="1000" placeholder="0" value="' + p + '"></span></label>' +
       "</div>";
   }
 
@@ -2314,6 +2321,8 @@ body.setup .nav, body.setup .top { display: none; }
       const kb = document.getElementById("kcal-box"), pb = document.getElementById("protein-box");
       kb.style.setProperty("--p", f.kcal.toFixed(3)); kb.dataset.s = f.kState;
       pb.style.setProperty("--p", f.protein.toFixed(3));
+      const box = t.id === "in-kcal" ? kb : pb, nums = box.querySelectorAll(".tot-num");
+      nums[0].textContent = t.value === "" ? "0" : t.value; nums[0].classList.toggle("empty", t.value === ""); nums[1].textContent = t.value;
       return;
     }
     if (t.id !== "wadd-name") return;
