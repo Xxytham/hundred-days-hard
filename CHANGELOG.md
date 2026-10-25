@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9 · Workout button, food bars and one-tap goals
+- Log a workout from the red **+** in the bottom corner of Today. It opens Push, Pull and Legs (with when you last did each); once a workout is started, + opens it. The Push / Pull / Legs tile is gone, and the workout card only shows once there's a workout.
+- The Calories and Protein boxes fill up like bars: blue on the way, green when you hit it, red if you go over. The bars underneath are gone, so there's more room for tasks and weight.
+- Adding an exercise: **Next** on the keyboard goes from name to weight to reps, and the last one adds it. While the keyboard is open, the sheet keeps the whole form (with the Add button) in view above it, and Save steps aside until you're done typing.
+- Fixed: typing calories and then tapping protein (or weight, then reps, in a workout) sometimes ignored the tap.
+- Goals show three steps side by side: the one before (grey), the one you're on, and the next one. Tap the next one to tick it, right from the list; the steps slide over, and Undo appears in case it was a mistake. A tap that only stops a scroll never ticks anything.
+- The strength chart is shaded under the line: green where it went up or held, red where it dropped.
+- Update notices now say what's new as well as the version number (starting with the update after this one).
+
 ## v0.8.1
 - The exercise name box no longer shows a dropdown of other days' exercises or a little arrow. Typing an exercise you've done before still fills in last time's weight and reps.
 

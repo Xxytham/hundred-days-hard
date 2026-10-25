@@ -25,6 +25,9 @@
   --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --nav-h: 64px;
   --radius: 14px;
+  /* Motion: short, small, only on a tap, and only transform/opacity (see CLAUDE.md, Design) */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t: 200ms;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -94,22 +97,41 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .panel-head .meta { font-size: 13px; color: var(--muted); }
 
-.bar { height: 12px; border-radius: 6px; background: var(--sunk); overflow: hidden; display: flex; }
-.bar > span { display: block; height: 100%; background: var(--blue); transition: width 0.3s ease; }
-.bar > span.over { background: var(--red); }
-.bar > span.met { background: var(--green); }
-.bar.cal { position: relative; }
-.bar .band { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); opacity: 0.55; }
 
-/* Push / Pull / Legs */
-.ppl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.ppl button {
-  border: 0; border-radius: 12px; background: var(--ink); color: var(--bg);
-  padding: 14px 6px 12px; display: grid; gap: 2px; justify-items: center;
+/* Workout button: a + in the bottom corner of Today that opens Push / Pull / Legs */
+.sbtn:active { transform: scale(0.97); }
+body.fab-on { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 96px); }
+.fab-wrap { display: none; }
+body.fab-on .fab-wrap { display: block; }
+body.kb .fab-wrap { display: none; }
+.fab, .fab-menu { position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right, 0px), calc((100vw - 560px) / 2)); }
+.fab {
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px);
+  width: 58px; height: 58px; border: 0; border-radius: 50%; padding: 0;
+  background: var(--red); color: var(--on-color); display: grid; place-items: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
 }
-.ppl b { font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
-.ppl small { font-size: 12px; opacity: 0.75; font-weight: 600; }
-.ppl button:active, .sbtn:active { transform: scale(0.97); }
+.fab svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; transition: transform var(--t) var(--ease); }
+.fab:active { transform: scale(0.95); }
+.fab-wrap.open .fab svg { transform: rotate(45deg); }
+.fab-menu {
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 86px);
+  display: grid; gap: 8px; justify-items: end; visibility: hidden; transition: visibility 0s linear 120ms;
+}
+.fab-wrap.open .fab-menu { visibility: visible; transition-delay: 0s; }
+.fab-menu button {
+  min-width: 196px; border: 0; border-radius: 14px; padding: 12px 16px; background: var(--ink); color: var(--bg);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  opacity: 0; transform: translateY(10px) scale(0.96); transform-origin: right bottom;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.fab-menu b { font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
+.fab-menu small { font-size: 12px; font-weight: 600; opacity: 0.75; }
+.fab-wrap.open .fab-menu button { opacity: 1; transform: none; transition-duration: var(--t); transition-timing-function: var(--ease); }
+.fab-wrap.open .fab-menu button:nth-child(2) { transition-delay: 30ms; }
+.fab-wrap.open .fab-menu button:nth-child(1) { transition-delay: 60ms; }
+.fab-scrim { position: fixed; inset: 0; z-index: 24; background: var(--backdrop); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.fab-wrap.open .fab-scrim { opacity: 1; pointer-events: auto; transition-duration: var(--t); }
 .w-status { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .w-status.saved { color: var(--green); }
 .w-status.draft { color: var(--yellow); }
@@ -142,6 +164,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-h
 .set-chips button[aria-pressed="true"] span { color: var(--bg); opacity: 0.7; }
 .sbtn:disabled { opacity: 0.35; }
 .sheet-foot { display: grid; gap: 8px; position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); background: var(--surface); padding-block: 10px 6px; }
+.sheet.typing .sheet-foot { display: none; }
 
 .three { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
 .three label { min-width: 0; }
@@ -177,6 +200,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .chart .sreps { fill: var(--muted); font-size: 9px; }
 .chart .sline { fill: none; stroke: var(--blue); stroke-width: 2; }
 .chart .sdot { fill: var(--surface); stroke: var(--blue); stroke-width: 2; }
+.chart .g-up stop { stop-color: var(--green); }
+.chart .g-down stop { stop-color: var(--red); }
 .sessions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
 .sessions li { display: flex; justify-content: space-between; gap: 8px; }
 .sessions .r { color: var(--muted); }
@@ -236,7 +261,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Update banner */
 .update { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--ink); color: var(--bg); border-radius: var(--radius); padding: 12px 14px; }
-.update .btn { background: var(--bg); color: var(--ink); padding: 8px 14px; }
+.update .btn { background: var(--bg); color: var(--ink); padding: 8px 14px; flex: none; }
+.update-text { display: grid; gap: 1px; min-width: 0; }
+.update-text small { font-size: 13px; opacity: 0.8; }
 
 /* Share */
 .share-qr { width: 168px; height: 168px; background: #FFFFFF; border-radius: 12px; padding: 10px; display: grid; place-items: center; }
@@ -272,20 +299,28 @@ body.setup .nav, body.setup .top { display: none; }
 .del:hover { background: var(--sunk); }
 .empty { font-size: 14px; color: var(--muted); margin: 0; }
 
-/* Daily totals */
+/* Daily totals: each box fills up toward its goal, so the box is the bar */
 .totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.totals label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.tot { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.tot-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.tot-head span:last-child { font-weight: 500; white-space: nowrap; }
+.tot-box { --c: var(--blue); position: relative; display: block; border-radius: 12px; overflow: hidden; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.tot-box[data-s="met"] { --c: var(--green); }
+.tot-box[data-s="over"] { --c: var(--red); }
+.tot-box.pro { --c: var(--green); }
+.tot-fill {
+  position: absolute; inset: 0; transform-origin: left center; transform: scaleX(var(--p, 0));
+  background: color-mix(in srgb, var(--c) 30%, transparent); box-shadow: inset 0 -4px 0 var(--c);
+  transition: transform 300ms var(--ease);
+}
+.tot-band { position: absolute; bottom: 0; height: 12px; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); opacity: 0.45; }
 .big-input {
+  position: relative; display: block;
   font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1;
-  padding: 10px 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  padding: 10px 12px 12px; border: 0; background: none; color: var(--ink);
   border-radius: 12px; width: 100%; min-width: 0;
 }
 .big-input::placeholder { color: var(--line); }
-#meters { display: grid; gap: 12px; }
-.meter { display: grid; gap: 6px; }
-.meter-label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
-.meter-label b { color: var(--ink); }
-.bar.protein > span { background: var(--green); }
 .source { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; }
 .source .linkbtn { padding-left: 0; }
 .notice { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; }
@@ -311,7 +346,6 @@ body.setup .nav, body.setup .top { display: none; }
 .step.done .step-text { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .step.next { background: var(--bg); box-shadow: inset 0 0 0 2px var(--red); }
 .step.next .mark { border-color: var(--red); }
-.pill { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--red); white-space: nowrap; }
 .focus { margin: 0; font-size: 13px; color: var(--muted); }
 .focus b { color: var(--ink); }
 .goal-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -326,22 +360,43 @@ body.setup .nav, body.setup .top { display: none; }
 .goal-list { display: grid; }
 .goal { border-top: 1px solid var(--line); }
 .goal:first-child { border-top: 0; }
-.goal-row {
-  width: 100%; border: 0; background: none; text-align: left; padding: 12px 0;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center;
+.goal-row { display: grid; gap: 8px; padding: 12px 0; }
+.goal-head {
+  width: 100%; border: 0; background: none; text-align: left; padding: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center;
 }
-.goal-main { display: grid; gap: 1px; min-width: 0; }
 .goal-name { font-weight: 700; overflow-wrap: anywhere; }
 .goal-next { font-size: 13px; color: var(--muted); }
-.goal-next b { color: var(--ink); }
+/* Three steps at a time: the one before, where you are, and the next one to tick. They slide left when you tick. */
+.gstrip { position: relative; height: 46px; overflow: hidden; }
+.gs {
+  position: absolute; left: 0; top: 0; height: 100%; width: calc((100% - 16px) / 3);
+  transform: translateX(calc(var(--i) * (100% + 8px))); transition: transform 240ms var(--ease), opacity 240ms var(--ease);
+  display: flex; align-items: center; gap: 7px; padding: 0 10px; border: 0; border-radius: 10px; text-align: left;
+  font-size: 14px; line-height: 1.15; background: var(--bg); color: var(--muted);
+}
+.gs.off { opacity: 0; }
+.gs.blank { background: none; }
+.gs-t { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.gs .mark { width: 18px; height: 18px; font-size: 10px; border-width: 2px; transition: background-color 240ms ease, border-color 240ms ease; }
+.gs.prev .mark { background: var(--line); border-color: var(--line); }
+.gs.cur { color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 1px var(--line); }
+.gs.cur .mark { background: var(--green); border-color: var(--green); }
+.gs.next { background: none; color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--line); }
+.gs.next .mark { border-color: var(--red); }
+.gs.fin { background: none; color: var(--green); font-weight: 700; }
+.gs.fin .mark { background: var(--green); border-color: var(--green); }
+.gs.start { background: none; box-shadow: none; color: var(--muted); font-weight: 600; font-style: italic; }
 .goal-count { font-weight: 700; display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .chev { width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 2; transition: transform 0.15s ease; }
 .goal.open .chev { transform: rotate(180deg); }
 .goal-bar { grid-column: 1 / -1; display: block; height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
-.goal-bar i { display: block; height: 100%; background: var(--green); border-radius: 3px; }
+.goal-bar i { display: block; height: 100%; background: var(--green); transform-origin: left center; transition: transform 240ms var(--ease); }
 .goal-bar.big { height: 10px; border-radius: 5px; }
 .goal-open { display: grid; gap: 12px; padding-bottom: 14px; }
-@media (prefers-reduced-motion: reduce) { .chev, .g-gear { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
+}
 
 /* Habits */
 .habit { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); min-height: 52px; width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; }
@@ -439,14 +494,17 @@ body.setup .nav, body.setup .top { display: none; }
 .sheet-inner { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
 .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 4px; }
 @keyframes up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .bar > span, .check { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .check { transition: none; } }
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 40;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 12px);
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
   font-size: 14px; font-weight: 600; max-width: calc(100% - 32px);
+  display: flex; align-items: center; gap: 14px;
 }
+.toast[hidden] { display: none; }
+.toast button { flex: none; border: 0; background: none; color: inherit; padding: 4px 2px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px; }
 </style>
 
 <div class="app">
@@ -474,6 +532,12 @@ body.setup .nav, body.setup .top { display: none; }
     </button>
   </div>
 </nav>
+
+<div class="fab-wrap" id="fab-wrap">
+  <div class="fab-scrim" data-action="fab-close"></div>
+  <div class="fab-menu" id="fab-menu" aria-label="Pick a workout"></div>
+  <button class="fab" id="fab" data-action="fab" aria-expanded="false" aria-label="Log a workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+</div>
 
 <div class="backdrop" id="backdrop" data-action="close-sheet" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
@@ -900,6 +964,10 @@ body.setup .nav, body.setup .top { display: none; }
   // ---------- rendering ----------
   const main = document.getElementById("main");
   let deferred = false;
+  const reduceMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // When the page last scrolled. A tap that lands right after (say, to stop a fling) never ticks a goal step.
+  let lastScroll = 0;
+  window.addEventListener("scroll", () => (lastScroll = Date.now()), { passive: true });
 
   function render(force) {
     const a = document.activeElement;
@@ -907,6 +975,8 @@ body.setup .nav, body.setup .top { display: none; }
     deferred = false;
     const inSetup = !S().setupDone && setupReady;
     document.body.classList.toggle("setup", inSetup);
+    document.body.classList.toggle("fab-on", !inSetup && view === "today");
+    if (view !== "today" || inSetup) fabMenu(false);
     if (inSetup) { main.innerHTML = renderSetup(); setupDayHint(); return; }
     const bk = backupState(), dotEl = document.getElementById("bk-dot");
     dotEl.hidden = !bk;
@@ -979,7 +1049,7 @@ body.setup .nav, body.setup .top { display: none; }
   const REPO = "Xxytham/hundred-days-hard";
   const APK_URL = "https://github.com/" + REPO + "/releases/latest/download/100-days-hard.apk";
   const SHARE_URL = "https://xxytham.github.io/hundred-days-hard/get/";
-  let update = null, updateChecked = 0, updateFailed = false, lastUpdateCheck = 0;
+  let update = null, updateAbout = "", updateChecked = 0, updateFailed = false, lastUpdateCheck = 0;
   const newer = (a, b) => {
     const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
@@ -992,9 +1062,11 @@ body.setup .nav, body.setup .top { display: none; }
     try {
       const r = await fetch("https://api.github.com/repos/" + REPO + "/releases/latest?t=" + Date.now(), { cache: "no-store", headers: { Accept: "application/vnd.github+json" } });
       if (!r.ok) throw new Error("status " + r.status);
-      const v = String((await r.json()).tag_name || "").replace(/^v/, "");
+      const rel = await r.json(), v = String(rel.tag_name || "").replace(/^v/, "");
       updateChecked = Date.now(); updateFailed = false;
       update = v && newer(v, bridge.appVersion()) ? v : null;
+      // Releases named like "v0.9 · Workout button and one-tap goals" carry a one-line description.
+      updateAbout = String(rel.name || "").replace(/^100 Days Hard\s*/i, "").replace(/^v?\d+(\.\d+)*\s*/, "").replace(/^(·|—|–|:|-)\s*/, "").trim();
     } catch (e) { updateFailed = true; }
     render();
   }
@@ -1032,7 +1104,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (isWebApp) return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2><p class="hint">This app updates itself whenever you open it with an internet connection.</p></section>';
     if (!bridge || !bridge.appVersion) return "";
     const ver = bridge.appVersion();
-    const status = update ? "Version " + esc(update) + " is ready. You have " + esc(ver) + "."
+    const status = update ? "Version " + esc(update) + " is ready" + (updateAbout ? ": " + esc(updateAbout) : "") + ". You have " + esc(ver) + "."
       : updateFailed ? "You have version " + esc(ver) + ". Couldn't check for a newer one just now."
       : updateChecked ? "You have the latest version (" + esc(ver) + "). Checked " + fmtTime(updateChecked) + "."
       : "You have version " + esc(ver) + ".";
@@ -1170,20 +1242,28 @@ body.setup .nav, body.setup .top { display: none; }
     return parts.join(" ");
   }
 
-  function meterHTML(day) {
-    const goal = S().calorieGoal, pg = S().proteinGoal;
-    const k = day.kcal || 0, p = day.protein || 0;
-    const c = calStatus(k), lose = calAim() === "lose", [lo, hi] = calRange();
-    const scale = lose ? hi * 1.1 : goal; // leave room past the range so "over" is visible
-    const kp = Math.min(100, scale ? (k / scale) * 100 : 0), pp = Math.min(100, pg ? (p / pg) * 100 : 0);
-    const pLeft = pg - p;
-    const band = lose ? '<i class="band" style="left:' + ((lo / scale) * 100).toFixed(1) + "%;width:" + ((200 / scale) * 100).toFixed(1) + '%"></i>' : "";
-    return (
-      '<div class="meter"><div class="meter-label"><span>Calories</span><span class="num"><b>' + c.short + "</b> · " + calGoalText() + "</span></div>" +
-      '<div class="bar cal" role="img" aria-label="' + fmt(k) + " kcal eaten, goal " + calGoalText() + '"><span class="' + (c.state === "over" ? "over" : c.state === "met" ? "met" : "") + '" style="width:' + kp + '%"></span>' + band + "</div></div>" +
-      '<div class="meter"><div class="meter-label"><span>Protein</span><span class="num"><b>' + (pLeft > 0 ? fmt(pLeft) + " g</b> to go" : "Goal hit</b>") + " of " + fmt(pg) + " g</span></div>" +
-      '<div class="bar protein" role="img" aria-label="' + Math.round(pp) + '% of protein goal"><span style="width:' + pp + '%"></span></div></div>'
-    );
+  // The calorie and protein boxes double as bars: each fills toward its goal (blue under, green met, red over).
+  function foodFill(day) {
+    const pg = S().proteinGoal, k = day.kcal || 0, p = day.protein || 0;
+    const lose = calAim() === "lose", [lo, hi] = calRange();
+    const scale = lose ? hi * 1.1 : S().calorieGoal; // leave room past the range so "over" is visible
+    return {
+      kcal: scale ? Math.min(1, k / scale) : 0, kState: calStatus(k).state,
+      protein: pg ? Math.min(1, p / pg) : 0,
+      band: lose && scale ? [lo / scale, (hi - lo) / scale] : null,
+    };
+  }
+  function foodBoxes(day) {
+    const f = foodFill(day), lose = calAim() === "lose";
+    const band = f.band ? '<i class="tot-band" style="left:' + (f.band[0] * 100).toFixed(1) + "%;width:" + (f.band[1] * 100).toFixed(1) + '%"></i>' : "";
+    return '<div class="totals">' +
+      '<label class="tot" for="in-kcal"><span class="tot-head"><span>Calories</span><span class="num">' + (lose ? fmt(calRange()[0]) + "–" + fmt(calRange()[1]) : "of " + fmt(S().calorieGoal)) + "</span></span>" +
+        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + '"><i class="tot-fill"></i>' + band +
+        '<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + (day.kcal ?? "") + '"></span></label>' +
+      '<label class="tot" for="in-protein"><span class="tot-head"><span>Protein</span><span class="num">of ' + fmt(S().proteinGoal) + " g</span></span>" +
+        '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' +
+        '<input class="big-input num" id="in-protein" type="number" inputmode="numeric" min="0" max="1000" placeholder="0" value="' + (day.protein ?? "") + '"></span></label>' +
+      "</div>";
   }
 
   function sourceHTML(day, isToday) {
@@ -1228,7 +1308,7 @@ body.setup .nav, body.setup .top { display: none; }
         '<span class="label">' + (n >= 1 && n <= TOTAL() ? "Day " + n + " of " + TOTAL() : n < 1 ? "Before the challenge" : "After the challenge") + "</span>" +
         (isToday ? '<button class="iconbtn" aria-label="Next day" disabled>›</button>' : '<button class="iconbtn" data-action="next-day" aria-label="Next day">›</button>') +
       "</div>" +
-      (isToday && update ? '<div class="update"><span>Version ' + esc(update) + ' is ready.</span><button class="btn" data-action="get-update">Update</button></div>' : "") +
+      (isToday && update ? '<div class="update"><span class="update-text"><b>Version ' + esc(update) + " is ready</b>" + (updateAbout ? "<small>" + esc(updateAbout) + "</small>" : "") + '</span><button class="btn" data-action="get-update">Update</button></div>' : "") +
       (isToday ? finishHTML() : "") +
       (isToday ? offerHTML() || workoutOfferHTML() : "") +
       (isToday ? streakHTML() : "") +
@@ -1237,11 +1317,7 @@ body.setup .nav, body.setup .top { display: none; }
 
       '<section class="panel" aria-labelledby="h-cal">' +
         '<div class="panel-head"><h2 id="h-cal">Food</h2><span class="meta">' + (isToday ? "Today's totals" : "Day totals") + "</span></div>" +
-        '<div class="totals">' +
-          '<label for="in-kcal">Calories<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + (day.kcal ?? "") + '"></label>' +
-          '<label for="in-protein">Protein (g)<input class="big-input num" id="in-protein" type="number" inputmode="numeric" min="0" max="1000" placeholder="0" value="' + (day.protein ?? "") + '"></label>' +
-        "</div>" +
-        '<div id="meters">' + meterHTML(day) + "</div>" +
+        foodBoxes(day) +
         sourceHTML(day, isToday) +
       "</section>" +
 
@@ -1268,7 +1344,7 @@ body.setup .nav, body.setup .top { display: none; }
     const steps = g.steps.map((x, i) => ({ x, i })).reverse().map(({ x, i }) =>
       '<li><button class="step' + (x.done ? " done" : "") + (i === next ? " next" : "") + '" data-action="toggle-step" data-g="' + g.id + '" data-s="' + x.id + '" aria-pressed="' + x.done + '">' +
         '<span class="mark" aria-hidden="true">' + (x.done ? "✓" : "") + '</span><span class="step-text">' + esc(x.text) + "</span>" +
-        (i === next ? '<span class="pill">Next up</span>' : x.done && x.doneDay ? '<span class="step-meta num">Day ' + x.doneDay + "</span>" : "") +
+        (x.done && x.doneDay ? '<span class="step-meta num">Day ' + x.doneDay + "</span>" : "") +
       "</button>" +
       (editing ? '<button class="del" data-action="del-step" data-g="' + g.id + '" data-s="' + x.id + '" aria-label="Remove ' + esc(x.text) + '">×</button>' : "") + "</li>").join("");
     return '<div class="goal-open">' +
@@ -1280,13 +1356,50 @@ body.setup .nav, body.setup .top { display: none; }
       '<div class="goal-foot"><button class="linkbtn" data-action="edit-goal" data-g="' + g.id + '">' + (editing ? "Done editing" : "Edit") + "</button>" +
       (editing ? '<button class="btn danger" data-action="del-goal" data-g="' + g.id + '">' + (confirmDelete === g.id ? "Tap again to delete" : "Delete goal") + "</button>" : "") + "</div></div>";
   }
+  // Three steps of a ladder side by side: the one before (grey), the one you're on (white), and the next one,
+  // which you tap to tick. Five are drawn so a tick can slide them one place left (or back, on undo).
+  const firstOpen = (g) => { const i = g.steps.findIndex((x) => !x.done); return i < 0 ? g.steps.length : i; };
+  const gsRole = (i) => (i < 0 || i > 2 ? "off" : ["prev", "cur", "next"][i]);
+  function goalStrip(g) {
+    const c = firstOpen(g), n = g.steps.length, slots = [];
+    for (let i = -1; i <= 3; i++) {
+      const k = c - 2 + i, x = g.steps[k], role = gsRole(i);
+      let cls = "", body = "";
+      if (x) body = '<span class="mark" aria-hidden="true">' + (x.done ? "✓" : "") + '</span><span class="gs-t">' + esc(x.text) + "</span>";
+      else if (k === n) { cls = " fin"; body = '<span class="mark" aria-hidden="true">✓</span><span class="gs-t">All done</span>'; }
+      else if (k === -1) { cls = " start"; body = '<span class="gs-t">Start</span>'; }
+      else cls = " blank";
+      const tag = x && !x.done && i === 2 ? "button" : "span";
+      slots.push("<" + tag + ' class="gs ' + (role === "off" ? (i < 0 ? "prev" : "next") + " off" : role) + cls + '" data-i="' + i + '" style="--i:' + i + '"' +
+        (tag === "button" ? ' data-action="goal-tick" data-g="' + g.id + '" data-s="' + x.id + '" aria-label="Tick ' + esc(x.text) + '"' : ' aria-hidden="' + (role === "off") + '"') + ">" + body + "</" + tag + ">");
+    }
+    return '<div class="gstrip" id="gs-' + g.id + '">' + slots.join("") + "</div>";
+  }
+  // Slide a goal's strip one place: dir 1 after a tick, -1 after an undo. The next render draws the same end state.
+  function slideStrip(g, dir) {
+    const el = document.getElementById("gs-" + g.id);
+    if (!el) return false;
+    el.querySelectorAll(".gs").forEach((sl) => {
+      const i = +sl.dataset.i - dir, role = gsRole(i);
+      sl.dataset.i = i; sl.style.setProperty("--i", i);
+      ["prev", "cur", "next", "off"].forEach((r) => sl.classList.remove(r));
+      sl.classList.add(role === "off" ? (i < 0 ? "prev" : "next") : role);
+      if (role === "off") sl.classList.add("off");
+      const m = sl.querySelector(".mark");
+      if (m && !sl.classList.contains("fin")) m.textContent = i <= 1 ? "✓" : "";
+    });
+    const bar = el.parentNode.querySelector(".goal-bar i"), n = g.steps.length;
+    if (bar && n) bar.style.transform = "scaleX(" + (g.steps.filter((x) => x.done).length / n).toFixed(3) + ")";
+    return true;
+  }
   function goalRow(g) {
-    const done = g.steps.filter((x) => x.done).length, n = g.steps.length, next = g.steps.find((x) => !x.done), open = openGoal === g.id;
-    const pct = n ? (done / n) * 100 : 0;
-    return '<div class="goal' + (open ? " open" : "") + '"><button class="goal-row" data-action="open-goal" data-g="' + g.id + '" aria-expanded="' + open + '">' +
-      '<span class="goal-main"><span class="goal-name">' + esc(g.name) + '</span><span class="goal-next">' + (next ? "Next up: <b>" + esc(next.text) + "</b>" : n ? "<b>All done</b>" : "No steps yet") + "</span></span>" +
-      '<span class="goal-count num">' + done + "/" + n + '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>' +
-      '<span class="goal-bar" role="img" aria-label="' + Math.round(pct) + '% of steps reached"><i style="width:' + pct + '%"></i></span></button>' +
+    const done = g.steps.filter((x) => x.done).length, n = g.steps.length, open = openGoal === g.id;
+    const pct = n ? done / n : 0;
+    return '<div class="goal' + (open ? " open" : "") + '"><div class="goal-row">' +
+      '<button class="goal-head" data-action="open-goal" data-g="' + g.id + '" aria-expanded="' + open + '"><span class="goal-name">' + esc(g.name) + "</span>" +
+      '<span class="goal-count num">' + done + "/" + n + '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>' +
+      (n ? goalStrip(g) : '<span class="goal-next">No steps yet</span>') +
+      '<span class="goal-bar" role="img" aria-label="' + Math.round(pct * 100) + '% of steps reached"><i style="transform:scaleX(' + pct.toFixed(3) + ')"></i></span></div>' +
       (open ? goalLadder(g) : "") + "</div>";
   }
   function renderGoals() {
@@ -1303,8 +1416,8 @@ body.setup .nav, body.setup .top { display: none; }
     }).join("");
     const summary = list.length
       ? '<div class="goals-sum"><div class="goals-sum-top"><b class="num">' + reached + "</b><span>of " + total + " steps reached</span></div>" +
-        '<span class="goal-bar big" role="img" aria-label="' + Math.round(total ? (reached / total) * 100 : 0) + '% of all steps"><i style="width:' + (total ? (reached / total) * 100 : 0) + '%"></i></span>' +
-        '<p class="hint">Tap a goal to see its ladder, then tap a step the day you hit it.</p></div>'
+        '<span class="goal-bar big" role="img" aria-label="' + Math.round(total ? (reached / total) * 100 : 0) + '% of all steps"><i style="transform:scaleX(' + (total ? reached / total : 0).toFixed(3) + ')"></i></span>' +
+        '<p class="hint">Tap the next step the day you hit it. Tap a goal\'s name to see its whole ladder.</p></div>'
       : '<p class="coach">Set goals as ladders: small steps up to something hard, like 10 push-ups in one go, then 20, then 50. Start from an idea below or make your own.</p>';
     const templates = GOAL_TEMPLATES.filter(([name]) => !list.some((g) => g.name.toLowerCase() === name.toLowerCase()));
     return summary + groups +
@@ -1461,7 +1574,21 @@ body.setup .nav, body.setup .top { display: none; }
     const label = (v) => (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10);
     let s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(m.name) + ' strength by session">';
     [lo, (lo + hi) / 2, hi].forEach((v) => { s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + label(v) + "</text>"; });
-    if (pts.length > 1) s += '<polyline class="sline" points="' + pts.map((p, i) => x(i).toFixed(1) + "," + y(p.score).toFixed(1)).join(" ") + '"/>';
+    if (pts.length > 1) {
+      // Shade under the line: green where it rises or holds, red where it drops. Neighbouring segments
+      // of the same color share one shape, so no seams show between them.
+      const base = (T + ph).toFixed(1), top = Math.min(...ys.map(y)).toFixed(1);
+      const grad = (k) => '<linearGradient id="sg-' + k + '" class="g-' + k + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + top + '" x2="0" y2="' + base + '"><stop offset="0" stop-opacity="0.45"/><stop offset="1" stop-opacity="0.05"/></linearGradient>';
+      s += "<defs>" + grad("up") + grad("down") + "</defs>";
+      const dir = (i) => (pts[i].score >= pts[i - 1].score * 0.9995 ? "up" : "down");
+      for (let i = 1; i < pts.length; ) {
+        const k = dir(i), a = i - 1;
+        while (i < pts.length && dir(i) === k) i++;
+        const run = pts.slice(a, i).map((p, j) => x(a + j).toFixed(1) + "," + y(p.score).toFixed(1));
+        s += '<polygon fill="url(#sg-' + k + ')" points="' + x(a).toFixed(1) + "," + base + " " + run.join(" ") + " " + x(i - 1).toFixed(1) + "," + base + '"/>';
+      }
+      s += '<polyline class="sline" points="' + pts.map((p, i) => x(i).toFixed(1) + "," + y(p.score).toFixed(1)).join(" ") + '"/>';
+    }
     pts.forEach((p, i) => {
       const cx = x(i).toFixed(1), cy = y(p.score);
       s += '<circle class="sdot" cx="' + cx + '" cy="' + cy.toFixed(1) + '" r="4"><title>Day ' + p.n + ": " + (p.w ? fmtW(p.w) + " " + unit + " × " : "") + p.r + " reps</title></circle>";
@@ -1665,7 +1792,38 @@ body.setup .nav, body.setup .top { display: none; }
     const f = focusId && document.getElementById(focusId);
     if (f) setTimeout(() => f.focus(), 60);
   }
-  function closeSheet() { sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall"); }
+  function closeSheet() { sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
+
+  // ---------- keyboard ----------
+  // When the keyboard opens, the installed app's page gets shorter (on iPhone, the visual viewport does). While you
+  // type in the workout sheet, the Save bar steps aside and the sheet scrolls so the whole card you're in (for a new
+  // exercise: name, weight, reps and the Add button) sits just above the keyboard.
+  let kbWidth = 0, kbFull = 0, fitT = null;
+  const viewH = () => (window.visualViewport ? visualViewport.height : innerHeight);
+  function fitTyping() {
+    const a = document.activeElement;
+    if (sheet.hidden || !a || a.tagName !== "INPUT" || !sheet.contains(a)) return;
+    const card = a.closest(".ex") || a, vv = window.visualViewport, sr = sheet.getBoundingClientRect();
+    const top = Math.max(sr.top, vv ? vv.offsetTop : 0) + 12, bot = Math.min(sr.bottom, vv ? vv.offsetTop + vv.height : innerHeight) - 12;
+    const r = card.getBoundingClientRect(), f = a.getBoundingClientRect();
+    let d = r.bottom > bot ? r.bottom - bot : r.top < top ? r.top - top : 0;
+    d = Math.max(Math.min(d, f.top - top), f.bottom - bot); // the box you're typing in always stays in view
+    if (Math.abs(d) > 2) sheet.scrollTo({ top: sheet.scrollTop + d, behavior: reduceMotion ? "auto" : "smooth" });
+  }
+  function onViewport() {
+    const h = viewH();
+    if (innerWidth !== kbWidth) { kbWidth = innerWidth; kbFull = h; }
+    kbFull = Math.max(kbFull, h);
+    const a = document.activeElement, typing = !!a && a.tagName === "INPUT" && kbFull - h > 120;
+    document.body.classList.toggle("kb", typing);
+    sheet.classList.toggle("typing", typing && sheet.contains(a));
+    fitTyping();
+    clearTimeout(fitT); fitT = setTimeout(fitTyping, 300); // again once the keyboard has settled
+  }
+  window.addEventListener("resize", onViewport);
+  if (window.visualViewport) visualViewport.addEventListener("resize", onViewport);
+  document.addEventListener("focusin", () => setTimeout(onViewport, 60));
+  document.addEventListener("focusout", () => setTimeout(onViewport, 60));
 
   // ---------- workouts: Push / Pull / Legs ----------
   const TYPES = [{ id: "push", name: "Push" }, { id: "pull", name: "Pull" }, { id: "legs", name: "Legs" }];
@@ -1712,23 +1870,33 @@ body.setup .nav, body.setup .top { display: none; }
 
 
   function workoutPanel(day) {
-    const w = day.workout, unit = S().unit;
-    let body;
-    if (w) {
-      const list = w.exercises.length
-        ? '<ul class="list">' + w.exercises.map((e) =>
-            '<li class="row"><div class="row-main"><div class="row-title">' + esc(e.name) + '</div><div class="row-sub num">' + e.sets + (e.sets === 1 ? " set: " : " sets: ") + esc(setsText(e)) + "</div></div>" +
-            '<div class="row-val num">' + (e.weight > 0 ? fmtW(e.weight) + " " + e.unit : "Bodyweight") + "</div></li>").join("") + "</ul>"
-        : '<p class="empty">No exercises yet.</p>';
-      body = list + '<button class="btn wide' + (w.saved ? " secondary" : "") + '" data-action="open-workout">' + (w.saved ? "Edit workout" : "Continue workout") + "</button>";
-    } else {
-      body = '<div class="ppl">' + TYPES.map((t) => {
-        const last = lastSession(t.id, viewDate);
-        return '<button data-action="start-workout" data-type="' + t.id + '"><b>' + t.name + "</b><small>" + (last ? "Last: day " + dayNum(last.date) : "Set up") + "</small></button>";
-      }).join("") + "</div>";
+    const w = day.workout;
+    if (!w) return "";
+    const list = w.exercises.length
+      ? '<ul class="list">' + w.exercises.map((e) =>
+          '<li class="row"><div class="row-main"><div class="row-title">' + esc(e.name) + '</div><div class="row-sub num">' + e.sets + (e.sets === 1 ? " set: " : " sets: ") + esc(setsText(e)) + "</div></div>" +
+          '<div class="row-val num">' + (e.weight > 0 ? fmtW(e.weight) + " " + e.unit : "Bodyweight") + "</div></li>").join("") + "</ul>"
+      : '<p class="empty">No exercises yet.</p>';
+    const body = list + '<button class="btn wide' + (w.saved ? " secondary" : "") + '" data-action="open-workout">' + (w.saved ? "Edit workout" : "Continue workout") + "</button>";
+    const status = '<span class="w-status ' + (w.saved ? "saved" : "draft") + '">' + (w.saved ? "Saved" : "In progress") + "</span>";
+    return '<section class="panel" aria-labelledby="h-ex"><div class="panel-head"><h2 id="h-ex">' + typeName(w.type) + " day</h2>" + status + "</div>" + body + "</section>";
+  }
+
+  // The + in the corner of Today. With no workout on the day it opens Push / Pull / Legs; otherwise it opens that workout.
+  const fabWrap = document.getElementById("fab-wrap"), fabBtn = document.getElementById("fab");
+  function fabMenu(open) {
+    if (open) {
+      // Built once and then only relabelled: brand-new buttons would appear without their fade-in.
+      const menu = document.getElementById("fab-menu");
+      if (!menu.children.length) {
+        menu.innerHTML = TYPES.map((t) => '<button data-action="start-workout" data-type="' + t.id + '"><b>' + t.name + "</b><small></small></button>").join("");
+        void menu.offsetWidth;
+      }
+      TYPES.forEach((t, i) => { const last = lastSession(t.id, viewDate); menu.children[i].querySelector("small").textContent = last ? "Last: day " + dayNum(last.date) : "First time"; });
     }
-    const status = w ? '<span class="w-status ' + (w.saved ? "saved" : "draft") + '">' + (w.saved ? "Saved" : "In progress") + "</span>" : "";
-    return '<section class="panel" aria-labelledby="h-ex"><div class="panel-head"><h2 id="h-ex">' + (w ? typeName(w.type) + " day" : "Workout") + "</h2>" + status + "</div>" + body + "</section>";
+    fabWrap.classList.toggle("open", open);
+    fabBtn.setAttribute("aria-expanded", String(open));
+    fabBtn.setAttribute("aria-label", open ? "Close" : "Log a workout");
   }
 
   let wEdit = false, wAdding = false, wConfirmDiscard = false;
@@ -1758,6 +1926,7 @@ body.setup .nav, body.setup .top { display: none; }
       '<button class="sbtn" data-action="ex-step" data-id="' + e.id + '" data-f="' + field + '" data-d="1" aria-label="More ' + label.toLowerCase() + '">+</button></div></div>';
   }
   function drawWorkout() {
+    sheetDeferred = false;
     const w = peekDay(viewDate).workout;
     if (!w) { closeSheet(); return; }
     const scroll = sheet.scrollTop;
@@ -1786,11 +1955,11 @@ body.setup .nav, body.setup .top { display: none; }
     }).join("");
     const addForm = wAdding
       ? '<form class="form ex" id="wadd-form">' +
-          '<label>Exercise<input class="field" id="wadd-name" placeholder="' + (w.exercises.length ? "" : { push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "") + '" maxlength="60" autocomplete="off" required></label>' +
-          '<div class="two"><label for="wadd-weight">Weight<span class="suffix"><input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0"><span class="u" id="wadd-unit">' + S().unit + "</span></span></label>" +
-          '<label for="wadd-reps">Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10"></label></div>' +
+          '<label>Exercise<input class="field" id="wadd-name" placeholder="' + (w.exercises.length ? "" : { push: "Bench press", pull: "Cable row", legs: "Squat" }[w.type] || "") + '" maxlength="60" autocomplete="off" enterkeyhint="next" required></label>' +
+          '<div class="two"><label for="wadd-weight">Weight<span class="suffix"><input class="field num" id="wadd-weight" type="number" inputmode="decimal" min="0" step="any" placeholder="0" enterkeyhint="next"><span class="u" id="wadd-unit">' + S().unit + "</span></span></label>" +
+          '<label for="wadd-reps">Reps<input class="field num" id="wadd-reps" type="number" inputmode="numeric" min="0" value="10" enterkeyhint="done"></label></div>' +
+          '<div class="btn-row"><button class="btn" type="submit">Add exercise</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
           '<p class="hint">This is set 1. After adding, tap + next to Set for each set after it. Leave weight at 0 for bodyweight moves like dips.</p>' +
-          '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
         "</form>"
       : "";
     const intro = prev
@@ -1808,12 +1977,34 @@ body.setup .nav, body.setup .top { display: none; }
       "</div>";
     sheet.scrollTop = scroll;
   }
+  // After typing a weight or reps, redraw once you've left the boxes, so tapping straight into the next box works.
+  let sheetDeferred = false;
+  const typingInSheet = () => { const a = document.activeElement; return !!a && a.tagName === "INPUT" && sheet.contains(a); };
+  function drawWorkoutSoon() {
+    setTimeout(() => { if (typingInSheet()) sheetDeferred = true; else drawWorkout(); }, 0);
+  }
+  sheet.addEventListener("focusout", () => {
+    if (sheetDeferred) setTimeout(() => { if (!sheetDeferred || typingInSheet()) return; sheetDeferred = false; if (!sheet.hidden) drawWorkout(); }, 0);
+  });
   function findEx(id) { const w = peekDay(viewDate).workout; return w && w.exercises.find((e) => e.id === id); }
 
   // ---------- toast ----------
   const toastEl = document.getElementById("toast");
-  let toastT;
-  function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (toastEl.hidden = true), 2200); }
+  let toastT, toastUndo = null;
+  function toast(msg, undo) {
+    toastEl.textContent = msg; toastUndo = undo || null;
+    if (undo) { const b = document.createElement("button"); b.dataset.action = "toast-undo"; b.textContent = "Undo"; toastEl.appendChild(b); }
+    toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(hideToast, undo ? 4000 : 2200);
+  }
+  function hideToast() { toastEl.hidden = true; toastUndo = null; }
+
+  // A tick on the Goals tab slides that goal's steps, then redraws once they've settled.
+  let gsBusy = false;
+  function slideThenRender(g, dir) {
+    if (view !== "goals" || reduceMotion || !slideStrip(g, dir)) { render(true); return; }
+    gsBusy = true;
+    setTimeout(() => { gsBusy = false; render(true); }, 260);
+  }
 
   // ---------- events ----------
   document.addEventListener("click", (ev) => {
@@ -1908,7 +2099,13 @@ body.setup .nav, body.setup .top { display: none; }
         break;
       }
       case "su-task": { const id = el.dataset.id; draft.tasks = draft.tasks.includes(id) ? draft.tasks.filter((x) => x !== id) : draft.tasks.concat(id); render(true); break; }
-      case "start-workout": startWorkout(el.dataset.type); break;
+      case "fab":
+        if (fabWrap.classList.contains("open")) fabMenu(false);
+        else if (peekDay(viewDate).workout) openWorkout();
+        else fabMenu(true);
+        break;
+      case "fab-close": fabMenu(false); break;
+      case "start-workout": fabMenu(false); startWorkout(el.dataset.type); break;
       case "open-workout": openWorkout(); break;
       case "ex-step": {
         const e = findEx(el.dataset.id), f = el.dataset.f, dir = +el.dataset.d;
@@ -1949,7 +2146,7 @@ body.setup .nav, body.setup .top { display: none; }
         save(viewDate); drawWorkout(); break;
       }
       case "ex-del": { const w = day().workout; w.exercises = w.exercises.filter((e) => e.id !== el.dataset.id); save(viewDate); drawWorkout(); render(); break; }
-      case "wadd-open": wAdding = true; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); f.scrollIntoView({ block: "center" }); } }, 30); break;
+      case "wadd-open": wAdding = true; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
       case "wadd-cancel": wAdding = false; drawWorkout(); break;
       case "w-edit": wEdit = !wEdit; wAdding = false; drawWorkout(); break;
       case "w-discard":
@@ -1980,6 +2177,22 @@ body.setup .nav, body.setup .top { display: none; }
         if (st.done) toast(g.name + ": " + st.text + " reached");
         break;
       }
+      case "goal-tick": {
+        if (gsBusy || Date.now() - lastScroll < 300) break;
+        const g = findGoal(el.dataset.g), st = g && g.steps.find((x) => x.id === el.dataset.s);
+        if (!st || st.done) break;
+        st.done = true; st.doneDay = dayNum(todayISO());
+        save("goals"); slideThenRender(g, 1);
+        const gid = g.id, sid = st.id;
+        toast(g.name + ": " + st.text + " reached", () => {
+          const g2 = findGoal(gid), st2 = g2 && g2.steps.find((x) => x.id === sid);
+          if (!st2 || !st2.done) return;
+          st2.done = false; st2.doneDay = null;
+          save("goals"); slideThenRender(g2, -1);
+        });
+        break;
+      }
+      case "toast-undo": { const f = toastUndo; hideToast(); if (f) f(); break; }
       case "edit-goal": editingGoal = editingGoal === el.dataset.g ? null : el.dataset.g; openGoal = el.dataset.g; confirmDelete = null; render(true); break;
       case "open-goal": openGoal = openGoal === el.dataset.g ? null : el.dataset.g; if (editingGoal !== openGoal) editingGoal = null; confirmDelete = null; render(true); break;
       case "goal-group": { const g = findGoal(el.dataset.g); if (g) { g.group = el.dataset.v; save("goals"); render(true); } break; }
@@ -2014,7 +2227,7 @@ body.setup .nav, body.setup .top { display: none; }
       save(viewDate); render();
       drawWorkout();
       const n = document.getElementById("wadd-name");
-      if (n) { n.focus(); n.scrollIntoView({ block: "center" }); }
+      if (n) { n.focus(); fitTyping(); }
     } else if (f.id.indexOf("step-form-") === 0) {
       const g = findGoal(f.dataset.goal), text = val("step-in-" + f.dataset.goal);
       if (!g || !text) return;
@@ -2080,8 +2293,10 @@ body.setup .nav, body.setup .top { display: none; }
   document.addEventListener("input", (ev) => {
     const t = ev.target;
     if (t.id === "in-kcal" || t.id === "in-protein") {
-      const preview = { ...peekDay(viewDate), kcal: readTotal("in-kcal"), protein: readTotal("in-protein") };
-      document.getElementById("meters").innerHTML = meterHTML(preview);
+      const f = foodFill({ ...peekDay(viewDate), kcal: readTotal("in-kcal"), protein: readTotal("in-protein") });
+      const kb = document.getElementById("kcal-box"), pb = document.getElementById("protein-box");
+      kb.style.setProperty("--p", f.kcal.toFixed(3)); kb.dataset.s = f.kState;
+      pb.style.setProperty("--p", f.protein.toFixed(3));
       return;
     }
     if (t.id !== "wadd-name") return;
@@ -2093,6 +2308,10 @@ body.setup .nav, body.setup .top { display: none; }
     document.getElementById("wadd-reps").value = k.e.reps;
   });
 
+  // A change fires as you leave a box, before the next box you tapped has focus. Redrawing right then would
+  // swap that box out from under your tap, so wait a moment: if you're now typing in another box, the redraw
+  // waits until you leave it.
+  const renderSoon = () => setTimeout(() => render(), 0);
   document.addEventListener("change", (ev) => {
     const t = ev.target;
     if (t.id === "in-kcal" || t.id === "in-protein") {
@@ -2102,13 +2321,13 @@ body.setup .nav, body.setup .top { display: none; }
       const hadGoal = d.protein != null && d.protein >= S().proteinGoal;
       d.kcal = k; d.protein = p; d.kcalSrc = "manual";
       if (!hadGoal) autoProteinHabit(d);
-      save(viewDate); render(); toast("Saved");
+      save(viewDate); renderSoon(); toast("Saved");
     } else if (t.classList.contains("sval")) {
       const e = findEx(t.dataset.id), f = t.dataset.f, v = parseFloat(t.value);
-      if (!e || !(v >= 0)) { drawWorkout(); return; }
+      if (!e || !(v >= 0)) { drawWorkoutSoon(); return; }
       const cs = ensureSets(e)[curIdx(e)];
       if (f === "w") cs.w = half(v); else cs.r = Math.round(v);
-      syncEx(e); save(viewDate); drawWorkout();
+      syncEx(e); save(viewDate); drawWorkoutSoon();
     } else if (t.id.indexOf("focus-") === 0) {
       const g = findGoal(t.dataset.goal);
       if (g) { g.focus = t.value.trim(); save("goals"); }
@@ -2118,18 +2337,18 @@ body.setup .nav, body.setup .top { display: none; }
       save(viewDate); toast(w > 0 ? "Weight saved" : "Weight cleared");
     } else if (t.id === "set-day") {
       const n = Math.round(+t.value);
-      if (n >= 1 && n <= TOTAL()) { S().startDate = addDays(todayISO(), -(n - 1)); save("settings"); toast("Today is now day " + n); render(); }
+      if (n >= 1 && n <= TOTAL()) { S().startDate = addDays(todayISO(), -(n - 1)); save("settings"); toast("Today is now day " + n); renderSoon(); }
     } else if (t.id === "set-len") {
       const n = Math.round(+t.value);
-      if (n >= 1 && n <= 1000) { S().totalDays = n; save("settings"); toast("Challenge length: " + n + " days"); render(); }
+      if (n >= 1 && n <= 1000) { S().totalDays = n; save("settings"); toast("Challenge length: " + n + " days"); renderSoon(); }
     } else if (t.id === "set-workouts") {
       const v = Math.round(+t.value);
-      if (v >= 1 && v <= 5) { S().workoutsTarget = v; save("settings"); reTick(); render(); }
+      if (v >= 1 && v <= 5) { S().workoutsTarget = v; save("settings"); reTick(); renderSoon(); }
     } else if (t.id === "set-steps" || t.id === "set-sleep") {
       const v = +t.value, key = { "set-steps": "stepsTarget", "set-sleep": "sleepTarget" }[t.id];
-      if (v > 0) { S()[key] = t.id === "set-steps" ? Math.round(v) : Math.round(v * 2) / 2; save("settings"); reTick(); render(); }
+      if (v > 0) { S()[key] = t.id === "set-steps" ? Math.round(v) : Math.round(v * 2) / 2; save("settings"); reTick(); renderSoon(); }
     } else if (t.id === "set-kcal") {
-      const v = Math.round(+t.value); if (v > 0) { S().calorieGoal = v; save("settings"); render(); }
+      const v = Math.round(+t.value); if (v > 0) { S().calorieGoal = v; save("settings"); renderSoon(); }
     } else if (t.id === "set-protein") {
       const v = Math.round(+t.value); if (v >= 0) { S().proteinGoal = v; save("settings"); }
     }
@@ -2137,7 +2356,16 @@ body.setup .nav, body.setup .top { display: none; }
 
   // Enter on the number keyboard moves from calories to protein, then closes the keyboard.
   document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && fabWrap.classList.contains("open")) fabMenu(false);
     if (ev.key === "Escape" && !sheet.hidden) closeSheet();
+    // Adding an exercise: Next on the keyboard goes name → weight → reps, and the last one adds it.
+    if (ev.key === "Enter" && ["wadd-name", "wadd-weight", "wadd-reps"].includes(ev.target.id)) {
+      ev.preventDefault();
+      if (ev.target.id === "wadd-name") { if (ev.target.value.trim()) document.getElementById("wadd-weight").focus(); }
+      else if (ev.target.id === "wadd-weight") document.getElementById("wadd-reps").focus();
+      else document.getElementById("wadd-form").requestSubmit();
+    }
+    if (ev.key === "Enter" && ev.target.classList && ev.target.classList.contains("sval")) { ev.preventDefault(); ev.target.blur(); }
     if (ev.key === "Enter" && (ev.target.id === "in-kcal" || ev.target.id === "in-protein" || ev.target.id === "weight")) {
       ev.preventDefault();
       if (ev.target.id === "in-kcal") document.getElementById("in-protein").focus();
@@ -2147,6 +2375,7 @@ body.setup .nav, body.setup .top { display: none; }
 
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
   window.__appBack = function () {
+    if (fabWrap.classList.contains("open")) { fabMenu(false); return true; }
     if (!sheet.hidden) { closeSheet(); return true; }
     if (!S().setupDone && setupReady) {
       if (setupStep > 0) { setupStep--; render(true); return true; }

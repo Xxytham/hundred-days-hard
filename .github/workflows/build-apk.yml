@@ -40,8 +40,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           NAME=$(sed -n 's/^name=//p' android/VERSION)
-          # Release notes: this version's section of CHANGELOG.md
-          awk -v v="## v$NAME" '$0==v{on=1;next} /^## v/{on=0} on' CHANGELOG.md > notes.md
+          # Release notes: this version's section of CHANGELOG.md. A heading like "## v0.9 · Short description"
+          # also names the release, and the app's update banner shows that description.
+          HEAD=$(grep -m1 -E "^## v${NAME//./\\.}( |$)" CHANGELOG.md || true)
+          ABOUT=$(printf '%s' "$HEAD" | sed -E 's/^## v[0-9.]+[[:space:]]*//; s/^(·|—|–|:|-)[[:space:]]*//')
+          TITLE="100 Days Hard v$NAME"
+          [ -n "$ABOUT" ] && TITLE="v$NAME · $ABOUT"
+          awk -v v="## v$NAME" 'index($0, v) == 1 && (length($0) == length(v) || substr($0, length(v) + 1, 1) == " ") {on=1; next} /^## v/{on=0} on' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "100 Days Hard v$NAME" > notes.md
           {
             echo
@@ -54,7 +59,7 @@ jobs:
           if gh release view "v$NAME" >/dev/null 2>&1; then
             gh release upload "v$NAME" "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk --clobber
           else
-            gh release create "v$NAME" "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk --title "100 Days Hard v$NAME" --notes-file notes.md
+            gh release create "v$NAME" "android/100-days-hard-v$NAME.apk" android/100-days-hard.apk --title "$TITLE" --notes-file notes.md
           fi
 
   web:
