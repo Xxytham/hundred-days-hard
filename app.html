@@ -309,16 +309,15 @@ body.setup .nav, body.setup .top { display: none; }
 .tot { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
 .tot-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .tot-head span:last-child { font-weight: 500; white-space: nowrap; }
-.tot-box { --c: var(--blue); position: relative; display: block; border-radius: 12px; overflow: hidden; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.tot-box { --c: var(--blue); position: relative; display: block; border-radius: 12px; overflow: hidden; background: var(--sunk); }
 .tot-box[data-s="met"] { --c: var(--green); }
 .tot-box[data-s="over"] { --c: var(--red); }
 .tot-box.pro { --c: var(--green); }
 .tot-fill {
   position: absolute; inset: 0; transform-origin: left center; transform: scaleX(var(--p, 0));
-  background: color-mix(in srgb, var(--c) 30%, transparent); box-shadow: inset 0 -4px 0 var(--c);
+  background: color-mix(in srgb, var(--c) 68%, var(--sunk));
   transition: transform 300ms var(--ease);
 }
-.tot-band { position: absolute; bottom: 0; height: 12px; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); opacity: 0.45; }
 .big-input {
   position: relative; display: block;
   font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1;
@@ -1255,15 +1254,13 @@ body.setup .nav, body.setup .top { display: none; }
     return {
       kcal: scale ? Math.min(1, k / scale) : 0, kState: calStatus(k).state,
       protein: pg ? Math.min(1, p / pg) : 0,
-      band: lose && scale ? [lo / scale, (hi - lo) / scale] : null,
     };
   }
   function foodBoxes(day) {
     const f = foodFill(day), lose = calAim() === "lose";
-    const band = f.band ? '<i class="tot-band" style="left:' + (f.band[0] * 100).toFixed(1) + "%;width:" + (f.band[1] * 100).toFixed(1) + '%"></i>' : "";
     return '<div class="totals">' +
       '<label class="tot" for="in-kcal"><span class="tot-head"><span>Calories</span><span class="num">' + (lose ? fmt(calRange()[0]) + "–" + fmt(calRange()[1]) : "of " + fmt(S().calorieGoal)) + "</span></span>" +
-        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + '"><i class="tot-fill"></i>' + band +
+        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + '"><i class="tot-fill"></i>' +
         '<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + (day.kcal ?? "") + '"></span></label>' +
       '<label class="tot" for="in-protein"><span class="tot-head"><span>Protein</span><span class="num">of ' + fmt(S().proteinGoal) + " g</span></span>" +
         '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' +

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.9.2 · Simpler strength chart and food bars
+- Calories and Protein fill with solid color: blue on the way, green when you hit it, red if you go over. No outline, stripe or range marks.
+- Strength chart: green and red line to match the shading, round numbers on the side, and one short est. 1RM line ("Best yet. Up 10 lb since day 40").
+
 ## v0.9.1 · Cleaner strength chart
 - The strength line is green where you went up or held and red where you dropped, matching the shading. No more blue.
 - Round numbers on the side (55, 60, 65) instead of odd decimals.
