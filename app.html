@@ -28,18 +28,19 @@
   /* Motion: short, small, only on a tap, and only transform/opacity (see CLAUDE.md, Design) */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --t: 200ms;
+  --fade-floor: 85%; /* how dim a food bar starts; it brightens to full color at the goal */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0F1215; --surface: #191E24; --sunk: #232A31; --ink: #E8ECF0; --muted: #96A0AB;
     --line: #2B333C; --red: #FF5263; --blue: #5E9CFF; --yellow: #FFC23A; --green: #4CC489;
-    --on-color: #0F1215; --backdrop: rgba(0, 0, 0, 0.6); color-scheme: dark;
+    --on-color: #0F1215; --backdrop: rgba(0, 0, 0, 0.6); color-scheme: dark; --fade-floor: 55%;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0F1215; --surface: #191E24; --sunk: #232A31; --ink: #E8ECF0; --muted: #96A0AB;
   --line: #2B333C; --red: #FF5263; --blue: #5E9CFF; --yellow: #FFC23A; --green: #4CC489;
-  --on-color: #0F1215; --backdrop: rgba(0, 0, 0, 0.6); color-scheme: dark;
+  --on-color: #0F1215; --backdrop: rgba(0, 0, 0, 0.6); color-scheme: dark; --fade-floor: 55%;
 }
 
 * { box-sizing: border-box; }
@@ -313,17 +314,22 @@ body.setup .nav, body.setup .top { display: none; }
 .tot-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .tot-head span:last-child { font-weight: 500; white-space: nowrap; }
 .tot-box {
-  --c: var(--blue); --h: 64px; --fs: 40px; --clip: inset(0 calc(100% - var(--p, 0) * 100%) 0 0);
+  --c: color-mix(in srgb, var(--green) calc(var(--g, 0) * 100%), var(--blue)); --h: 64px; --fs: 40px; --clip: inset(0 calc(100% - var(--p, 0) * 100%) 0 0);
   position: relative; display: block; height: var(--h); border-radius: 14px; overflow: hidden; background: var(--sunk);
 }
 .tot-box[data-s="met"] { --c: var(--green); }
 .tot-box[data-s="over"] { --c: var(--red); }
 .tot-box.pro { --c: var(--green); --h: 44px; --fs: 26px; border-radius: 11px; }
 .tot-fill, .tot-num { position: absolute; inset: 0; pointer-events: none; }
-.tot-fill { background: var(--c); clip-path: var(--clip); transition: clip-path 300ms var(--ease); }
+.tot-fill { background: color-mix(in srgb, var(--c) calc(var(--fade-floor) + (100% - var(--fade-floor)) * var(--b, 1)), var(--sunk)); clip-path: var(--clip); transition: background-color 250ms ease, opacity 150ms ease; }
+.tot-box:focus-within .tot-fill { opacity: 0.25; }
 .tot-num, .big-input { font-family: var(--font-display); font-weight: 800; font-size: var(--fs); line-height: 1; padding: 0 14px; }
 .tot-num { display: flex; align-items: center; color: var(--ink); white-space: nowrap; }
-.tot-num.on { color: var(--on-color); clip-path: var(--clip); transition: clip-path 300ms var(--ease); }
+.tot-num.on { color: var(--on-color); clip-path: var(--clip); }
+/* While you type, the plain number shows and the bar waits; it moves once you're done. */
+.tot-box:focus-within .tot-num { visibility: hidden; }
+.tot-box:focus-within .big-input { color: var(--ink); }
+.tot-box:focus-within .big-input::placeholder { color: var(--muted); }
 .tot-num.empty { color: var(--muted); opacity: 0.5; }
 .big-input {
   position: relative; display: block; height: 100%; width: 100%; min-width: 0;
@@ -1001,6 +1007,7 @@ body.setup .nav, body.setup .top { display: none; }
     document.getElementById("hdr-date").textContent = view === "today" ? fmtDate(viewDate, { weekday: "long", month: "short", day: "numeric" }) : "100 Days Hard";
     main.innerHTML = view === "today" ? renderToday() : view === "goals" ? renderGoals() : view === "progress" ? renderProgress() : renderSettings();
     if (view === "settings") drawShareQR();
+    if (view === "today") animateFood();
   }
 
   // ---------- day counter ----------
@@ -1257,22 +1264,65 @@ body.setup .nav, body.setup .top { display: none; }
     const pg = S().proteinGoal, k = day.kcal || 0, p = day.protein || 0;
     const lose = calAim() === "lose", [lo, hi] = calRange();
     const scale = lose ? hi * 1.1 : S().calorieGoal; // leave room past the range so "over" is visible
+    const target = lose ? lo : S().calorieGoal, kt = target ? Math.min(1, k / target) : 0;
     return {
       kcal: scale ? Math.min(1, k / scale) : 0, kState: calStatus(k).state,
       protein: pg ? Math.min(1, p / pg) : 0,
+      kBright: kt, kGreen: Math.max(0, (kt - 0.7) / 0.3), // brighter as it fills; blue blends to green over the last 30%
     };
   }
+  // What each day's bars currently show. A new number (typed, or from Samsung Health) counts up from here.
+  const foodShown = {};
+  let foodAnim = null;
   const totNums = (v) => '<span class="tot-num num' + (v === "" ? " empty" : "") + '" aria-hidden="true">' + (v === "" ? "0" : esc(v)) + '</span><span class="tot-num on num" aria-hidden="true">' + esc(v) + "</span>";
   function foodBoxes(day) {
-    const f = foodFill(day), lose = calAim() === "lose", k = day.kcal ?? "", p = day.protein ?? "";
+    const sh = foodShown[viewDate] || { kcal: day.kcal ?? null, protein: day.protein ?? null };
+    const f = foodFill(sh), lose = calAim() === "lose", k = day.kcal ?? "", p = day.protein ?? "";
+    const showK = sh.kcal == null ? "" : String(Math.round(sh.kcal)), showP = sh.protein == null ? "" : String(Math.round(sh.protein));
     return '<div class="totals">' +
       '<label class="tot" for="in-kcal"><span class="tot-head"><span>Calories</span><span class="num">' + (lose ? fmt(calRange()[0]) + "–" + fmt(calRange()[1]) : "of " + fmt(S().calorieGoal)) + "</span></span>" +
-        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(String(k)) +
+        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + ";--b:" + f.kBright.toFixed(3) + ";--g:" + f.kGreen.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(showK) +
         '<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + k + '"></span></label>' +
       '<label class="tot" for="in-protein"><span class="tot-head"><span>Protein</span><span class="num">of ' + fmt(S().proteinGoal) + " g</span></span>" +
-        '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(String(p)) +
+        '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + ";--b:" + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(showP) +
         '<input class="big-input num" id="in-protein" type="number" inputmode="numeric" min="0" max="1000" placeholder="0" value="' + p + '"></span></label>' +
       "</div>";
+  }
+
+  // Paint the bars for some values, straight onto the page (no redraw).
+  function paintFood(v) {
+    const kb = document.getElementById("kcal-box"), pb = document.getElementById("protein-box");
+    if (!kb || !pb) return;
+    const f = foodFill(v);
+    const set = (box, p, val, bright) => {
+      box.style.setProperty("--p", p.toFixed(4)); box.style.setProperty("--b", bright.toFixed(3));
+      const n = box.querySelectorAll(".tot-num"), txt = val == null ? "" : String(Math.round(val));
+      n[0].textContent = txt || "0"; n[0].classList.toggle("empty", !txt); n[1].textContent = txt;
+    };
+    set(kb, f.kcal, v.kcal, f.kBright); set(pb, f.protein, v.protein, f.protein);
+    kb.style.setProperty("--g", f.kGreen.toFixed(3));
+    if (kb.dataset.s !== f.kState) kb.dataset.s = f.kState;
+  }
+  // After a redraw of Today: if the day's totals changed, count up (or down) to them over about 0.7 s,
+  // with the bar and its color following the number.
+  function animateFood() {
+    const d = viewDate, day = peekDay(d), to = { kcal: day.kcal ?? null, protein: day.protein ?? null };
+    const from = foodShown[d];
+    if (!from || reduceMotion) { foodShown[d] = to; if (from) paintFood(to); return; }
+    if (foodAnim && foodAnim.d === d && foodAnim.to.kcal === to.kcal && foodAnim.to.protein === to.protein) return; // already on its way
+    if (from.kcal === to.kcal && from.protein === to.protein) return;
+    if (foodAnim) cancelAnimationFrame(foodAnim.raf);
+    const a = { d, to, from: { ...from }, t0: performance.now(), raf: 0 };
+    const lerp = (x, y, e) => (x == null && y == null ? null : (x || 0) + ((y || 0) - (x || 0)) * e);
+    const frame = (now) => {
+      const t = Math.min(1, (now - a.t0) / 700), e = 1 - Math.pow(1 - t, 3);
+      const v = t < 1 ? { kcal: lerp(a.from.kcal, a.to.kcal, e), protein: lerp(a.from.protein, a.to.protein, e) } : a.to;
+      foodShown[d] = v;
+      if (view === "today" && viewDate === d) paintFood(v);
+      if (t < 1) a.raf = requestAnimationFrame(frame); else foodAnim = null;
+    };
+    foodAnim = a;
+    a.raf = requestAnimationFrame(frame);
   }
 
   function sourceHTML(day, isToday) {
@@ -2312,18 +2362,12 @@ body.setup .nav, body.setup .top { display: none; }
     if (t.classList && t.classList.contains("inline-num") && t.value === "") { t.value = t.dataset.was || ""; t.dispatchEvent(new Event("input", { bubbles: true })); }
   });
 
-  // Live meter updates while typing totals; saved on change.
+  // Totals are saved when you leave the box; the bars then count up to the new number.
   function readTotal(id) { const v = document.getElementById(id).value.trim(); return v === "" ? null : Math.max(0, Math.round(+v)); }
   document.addEventListener("input", (ev) => {
     const t = ev.target;
     if (t.id === "in-kcal" || t.id === "in-protein") {
-      const f = foodFill({ ...peekDay(viewDate), kcal: readTotal("in-kcal"), protein: readTotal("in-protein") });
-      const kb = document.getElementById("kcal-box"), pb = document.getElementById("protein-box");
-      kb.style.setProperty("--p", f.kcal.toFixed(3)); kb.dataset.s = f.kState;
-      pb.style.setProperty("--p", f.protein.toFixed(3));
-      const box = t.id === "in-kcal" ? kb : pb, nums = box.querySelectorAll(".tot-num");
-      nums[0].textContent = t.value === "" ? "0" : t.value; nums[0].classList.toggle("empty", t.value === ""); nums[1].textContent = t.value;
-      return;
+      return; // the bars move once you leave the box (see animateFood)
     }
     if (t.id !== "wadd-name") return;
     // Picking an exercise you've done before fills in what you did last time.

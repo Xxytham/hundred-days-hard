@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.4 · Food bars that count up
+- When your totals change, from Samsung Health or after you type them, the number counts up to the new value while the bar grows and its color shifts with it.
+- While you're typing, the bar dims and waits, and your number shows plainly.
+- The bars start dim and brighten as they fill. Calories fades from blue to green over the last stretch to your goal, and red if you go over.
+
 ## v0.9.3 · Better food bars
 - Calories is one big bar across the card, with Protein as a slimmer bar under it.
 - The number starts in white and turns dark where the bar fills in behind it (the other way round in light mode), so it's always easy to read.
