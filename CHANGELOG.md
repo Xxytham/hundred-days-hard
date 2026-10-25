@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10 · Drag to reorder, rename exercises, focused progress
+- "Reorder or remove" is cleaner: hold an exercise (or grab its dots) and drag it where you want. The list scrolls if you drag near the edge. A normal swipe still just scrolls.
+- Tap an exercise's name to rename it. If it's in other workouts too, you choose: rename it everywhere, or just in this workout.
+- Renaming to a name you've used before joins the two, so their progress shows as one. If the same exercise ends up twice in one workout, the two merge, keeping every set.
+- Removing an exercise shows Undo.
+- Progress: an exercise you do on more than one day (like cable crunches on Push and Pull) shows under each of those days with its whole history, marked "also on Pull". Its session list says which day each one was.
+- The exercise you open in Progress gets a green or red outline and a soft glow behind it and its chart.
+
 ## v0.9.4 · Food bars that count up
 - When your totals change, from Samsung Health or after you type them, the number counts up to the new value while the bar grows and its color shifts with it.
 - While you're typing, the bar dims and waits, and your number shows plainly.

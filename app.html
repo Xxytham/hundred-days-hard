@@ -142,8 +142,24 @@ body.kb .fab-wrap { display: none; }
 .ex { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 10px; }
 .ex-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ex-name { font-weight: 700; font-size: 16px; min-width: 0; overflow-wrap: anywhere; }
-.ex-tools { display: flex; gap: 4px; flex: none; }
-.ex-tools .iconbtn { width: 36px; height: 36px; font-size: 15px; }
+/* Reorder / rename / remove: hold a row (or grab its dots) and drag; tap the name to rename */
+.ex-edit {
+  display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 0; background: var(--surface);
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y;
+  transition: transform 160ms var(--ease), box-shadow 160ms ease;
+}
+.grip { flex: none; width: 40px; height: 44px; display: grid; place-items: center; color: var(--muted); touch-action: none; cursor: grab; }
+.grip svg { width: 10px; height: 18px; fill: currentColor; }
+.ex-rename {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 10px 4px;
+  text-align: left; font-weight: 700; font-size: 16px; overflow-wrap: anywhere;
+}
+.ex-rename svg { flex: none; width: 14px; height: 14px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ex-edit.lifted { transition: none; position: relative; z-index: 3; scale: 1.02; border-color: var(--muted); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35); }
+.ex-edit.renaming { padding: 8px; }
+.ex-ask { display: grid; gap: 10px; }
+.ex-ask p { margin: 0; display: grid; gap: 2px; }
+.ex-ask .btn-row { align-items: center; }
 .stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; }
 .stepper-label { font-size: 12px; font-weight: 600; color: var(--muted); }
 .sbtn { height: 44px; border-radius: 10px; border: 0; background: var(--sunk); font-size: 22px; font-weight: 700; line-height: 1; }
@@ -197,6 +213,17 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .spark.up polyline { stroke: var(--green); }
 .spark.down polyline { stroke: var(--red); }
 .tick-detail { display: grid; gap: 10px; padding-bottom: 12px; }
+/* The open exercise: outlined and softly tinted in its direction's color */
+.tick-focus {
+  --fc: var(--green); margin: 4px -10px; padding: 0 10px; border-radius: 14px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fc) 75%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fc) 15%, transparent), color-mix(in srgb, var(--fc) 4%, transparent) 70%);
+  animation: focus-in var(--t) var(--ease);
+}
+.tick-focus.down { --fc: var(--red); }
+.tick-focus .tick { border-top: 0; }
+.tick-focus + .tick { border-top: 0; }
+@keyframes focus-in { from { opacity: 0.4; } to { opacity: 1; } }
 .chart .slabel { fill: var(--ink); font-weight: 700; font-size: 10px; }
 .chart .sreps { fill: var(--muted); font-size: 9px; }
 .chart .sline { fill: none; stroke: var(--green); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
@@ -411,7 +438,8 @@ body.setup .nav, body.setup .top { display: none; }
 .goal-bar.big { height: 10px; border-radius: 5px; }
 .goal-open { display: grid; gap: 12px; padding-bottom: 14px; }
 @media (prefers-reduced-motion: reduce) {
-  .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
+  .tick-focus { animation: none; }
+  .ex-edit, .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
 }
 
 /* Habits */
@@ -1597,10 +1625,10 @@ body.setup .nav, body.setup .top { display: none; }
       const w = state.days[d].workout;
       w.exercises.forEach((e, i) => {
         const k = exKey(e.name);
-        const m = map[k] || (map[k] = { k, name: e.name, type: w.type, order: i, pts: [] });
-        m.name = e.name; m.type = w.type; m.order = i;
+        const m = map[k] || (map[k] = { k, name: e.name, types: {}, pts: [] });
+        m.name = e.name; m.types[w.type] = i; // shows under every day type it was done on, in that day's order
         const wt = Math.round(toUnit(+e.weight || 0, e.unit || S().unit, S().unit) * 10) / 10;
-        m.pts.push({ date: d, n: dayNum(d), w: wt, r: +e.reps || 0, s: +e.sets || 0, rawW: +e.weight || 0, rawU: e.unit || S().unit, score: e1rm(wt, +e.reps || 0) });
+        m.pts.push({ date: d, n: dayNum(d), t: w.type, w: wt, r: +e.reps || 0, s: +e.sets || 0, rawW: +e.weight || 0, rawU: e.unit || S().unit, score: e1rm(wt, +e.reps || 0) });
       });
     });
     return Object.values(map);
@@ -1679,24 +1707,26 @@ body.setup .nav, body.setup .top { display: none; }
     const rows = m.pts.slice(-6).map((p, i, arr) => {
       const idx = m.pts.length - arr.length + i;
       const c = idx > 0 && m.pts[idx - 1].score > 0 ? ((p.score - m.pts[idx - 1].score) / m.pts[idx - 1].score) * 100 : null;
-      return '<li><span>Day ' + p.n + " · " + (p.w ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps") + " · " + p.s + ' sets</span><span class="r num">' + (bw ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
+      return '<li><span>Day ' + p.n + " · " + (Object.keys(m.types).length > 1 ? typeName(p.t) + " · " : "") + (p.w ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps") + " · " + p.s + ' sets</span><span class="r num">' + (bw ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
     }).reverse().join("");
     return '<div class="tick-detail">' + strengthNote(m, bw, unit) + s + '<ul class="sessions">' + rows + "</ul></div>";
   }
 
   function renderStrength() {
     const all = strengthData();
-    const list = all.filter((m) => m.type === strType).sort((a, b) => a.order - b.order);
+    const list = all.filter((m) => m.types[strType] != null).sort((a, b) => a.types[strType] - b.types[strType]);
     const changes = list.map((m) => pctChange(m.pts)).filter((c) => c != null);
     const avg = changes.length ? changes.reduce((a, c) => a + c, 0) / changes.length : null;
     const unit = S().unit;
     const rows = list.map((m) => {
       const last = m.pts[m.pts.length - 1], c = pctChange(m.pts), cls = chgClass(c), open = strSel === m.k;
-      return '<button class="tick" data-action="str-sel" data-k="' + esc(m.k) + '" aria-expanded="' + open + '">' +
-        '<span class="tick-name">' + esc(m.name) + "<small>" + m.pts.length + " session" + (m.pts.length === 1 ? "" : "s") + "</small></span>" +
+      const also = Object.keys(m.types).filter((t) => t !== strType).map(typeName);
+      const row = '<button class="tick" data-action="str-sel" data-k="' + esc(m.k) + '" aria-expanded="' + open + '">' +
+        '<span class="tick-name">' + esc(m.name) + "<small>" + m.pts.length + " session" + (m.pts.length === 1 ? "" : "s") + (also.length ? " · also on " + also.join(" & ") : "") + "</small></span>" +
         sparkline(m.pts, cls) +
         '<span class="tick-val num">' + (last.w > 0 ? fmtW(last.rawW) + " " + last.rawU : last.r + " reps") + "<small>" + (last.w > 0 ? "× " + last.r + " · " : "") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
-        '<span class="chg ' + cls + '">' + chgText(c) + "</span></button>" + (open ? strengthChart(m) : "");
+        '<span class="chg ' + cls + '">' + chgText(c) + "</span></button>";
+      return open ? '<div class="tick-focus ' + (cls === "down" ? "down" : "up") + '">' + row + strengthChart(m) + "</div>" : row;
     }).join("");
     const summary = avg == null ? "" : '<p class="hint">' + typeName(strType) + " strength is <b class=\"num\">" + (Math.abs(avg) < 0.05 ? "flat" : (avg > 0 ? "up " : "down ") + Math.abs(avg).toFixed(1) + "%") + "</b> since last " + typeName(strType).toLowerCase() + " day, across " + changes.length + " exercise" + (changes.length === 1 ? "" : "s") + ".</p>";
     return '<section class="panel" aria-labelledby="h-st"><div class="panel-head"><h2 id="h-st">Strength</h2>' +
@@ -1985,7 +2015,7 @@ body.setup .nav, body.setup .top { display: none; }
     openWorkout();
   }
   function openWorkout() {
-    wEdit = false; wConfirmDiscard = false;
+    wEdit = false; wConfirmDiscard = false; renaming = renameAsk = null;
     wAdding = !peekDay(viewDate).workout.exercises.length;
     sheet.classList.add("tall");
     sheet.hidden = backdrop.hidden = false;
@@ -2008,6 +2038,7 @@ body.setup .nav, body.setup .top { display: none; }
     const pm = {};
     if (prev) prev.workout.exercises.forEach((e) => (pm[exKey(e.name)] = e));
     const cards = w.exercises.map((e, i) => {
+      if (wEdit) return editRow(e);
       const p = pm[exKey(e.name)], l = ensureSets(e), ci = curIdx(e), cs = l[ci];
       const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
       const lastTxt = p ? "Last time: " + setsText(p) : "";
@@ -2019,12 +2050,10 @@ body.setup .nav, body.setup .top { display: none; }
         ? '<div class="set-chips">' + l.map((x, k) => '<button data-action="set-go" data-id="' + e.id + '" data-k="' + k + '" aria-pressed="' + (k === ci) + '"><span>' + (k + 1) + "</span> " + (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r + "</button>").join("") +
           '<button class="linkbtn" data-action="set-del" data-id="' + e.id + '">Remove set ' + (ci + 1) + "</button></div>"
         : "";
-      const tools = wEdit
-        ? '<span class="ex-tools"><button class="iconbtn" data-action="ex-move" data-id="' + e.id + '" data-d="-1" aria-label="Move up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="iconbtn" data-action="ex-move" data-id="' + e.id + '" data-d="1" aria-label="Move down"' + (i === w.exercises.length - 1 ? " disabled" : "") + '>↓</button><button class="del" data-action="ex-del" data-id="' + e.id + '" aria-label="Remove ' + esc(e.name) + '">×</button></span>'
-        : isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
+      const tools = isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
       return '<div class="ex"><div class="ex-head"><span class="ex-name">' + esc(e.name) + "</span>" + tools + "</div>" +
-        (wEdit ? "" : stepper("Weight", e, "w", fmtW(cs.w), e.unit) + '<div class="two">' + stepper("Reps", e, "r", cs.r) + setStep + "</div>" + chips +
-        (conv || lastTxt ? '<div class="ex-sub num">' + (conv ? "<span>" + conv + "</span>" : "") + (lastTxt ? "<span>" + lastTxt + "</span>" : "") + "</div>" : "")) +
+        stepper("Weight", e, "w", fmtW(cs.w), e.unit) + '<div class="two">' + stepper("Reps", e, "r", cs.r) + setStep + "</div>" + chips +
+        (conv || lastTxt ? '<div class="ex-sub num">' + (conv ? "<span>" + conv + "</span>" : "") + (lastTxt ? "<span>" + lastTxt + "</span>" : "") + "</div>" : "") +
       "</div>";
     }).join("");
     const addForm = wAdding
@@ -2036,7 +2065,8 @@ body.setup .nav, body.setup .top { display: none; }
           '<p class="hint">This is set 1. After adding, tap + next to Set for each set after it. Leave weight at 0 for bodyweight moves like dips.</p>' +
         "</form>"
       : "";
-    const intro = prev
+    const intro = wEdit ? "Hold an exercise and drag it to move it. Tap a name to rename it."
+      : prev
       ? "Loaded from your last " + typeName(w.type).toLowerCase() + " day (day " + dayNum(prev.date) + "). Adjust what changed, then save."
       : w.exercises.length ? "" : "First " + typeName(w.type).toLowerCase() + " day. Add exercises in the order you do them. Next time they'll all be here, with your weights and sets.";
     sheet.innerHTML = '<div class="sheet-inner"><div class="grab"></div>' +
@@ -2060,6 +2090,125 @@ body.setup .nav, body.setup .top { display: none; }
   sheet.addEventListener("focusout", () => {
     if (sheetDeferred) setTimeout(() => { if (!sheetDeferred || typingInSheet()) return; sheetDeferred = false; if (!sheet.hidden) drawWorkout(); }, 0);
   });
+  // ---------- reorder, rename, remove ----------
+  let renaming = null, renameAsk = null;
+  const GRIP = '<svg viewBox="0 0 10 18"><circle cx="2" cy="2" r="1.6"/><circle cx="8" cy="2" r="1.6"/><circle cx="2" cy="9" r="1.6"/><circle cx="8" cy="9" r="1.6"/><circle cx="2" cy="16" r="1.6"/><circle cx="8" cy="16" r="1.6"/></svg>';
+  const PENCIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
+  function editRow(e) {
+    if (renameAsk && renameAsk.id === e.id) {
+      const n = renameAsk.n;
+      return '<div class="ex ex-ask"><p><b>Rename “' + esc(renameAsk.from) + "” to “" + esc(renameAsk.to) + '”?</b><span class="hint">It\'s also in ' + n + " other workout" + (n === 1 ? "" : "s") + ".</span></p>" +
+        '<div class="btn-row"><button class="btn" data-action="rename-all">Everywhere</button><button class="btn secondary" data-action="rename-one">Just this workout</button><button class="linkbtn" data-action="rename-cancel">Cancel</button></div></div>';
+    }
+    if (renaming === e.id) return '<div class="ex ex-edit renaming"><input class="field" id="ex-rename-in" value="' + esc(e.name) + '" maxlength="60" autocomplete="off" enterkeyhint="done" aria-label="New name"></div>';
+    return '<div class="ex ex-edit" data-id="' + e.id + '"><span class="grip" aria-hidden="true">' + GRIP + "</span>" +
+      '<button class="ex-rename" data-action="ex-rename" data-id="' + e.id + '" aria-label="Rename ' + esc(e.name) + '"><span>' + esc(e.name) + "</span>" + PENCIL + "</button>" +
+      '<button class="del" data-action="ex-del" data-id="' + e.id + '" aria-label="Remove ' + esc(e.name) + '">×</button></div>';
+  }
+  const otherWorkoutsWith = (name) => Object.keys(state.days).filter((d) => d !== viewDate && state.days[d].workout && state.days[d].workout.exercises.some((x) => exKey(x.name) === exKey(name))).length;
+  // Two entries with the same name in one workout become one, keeping every set in order.
+  function mergeSame(wk) {
+    const seen = {};
+    wk.exercises = wk.exercises.filter((x) => {
+      const k = exKey(x.name), f = seen[k];
+      if (!f) { seen[k] = x; return true; }
+      ensureSets(f).push(...ensureSets(x).map((st) => ({ w: half(toUnit(st.w, x.unit, f.unit)), r: st.r })));
+      syncEx(f); return false;
+    });
+  }
+  // Rename one exercise, here or in every workout. Taking a name you've used before joins their history
+  // (the chart and "last time" follow the name), and uses that name's exact spelling.
+  function renameExercise(id, name, everywhere) {
+    const e = findEx(id);
+    if (!e) return;
+    const old = exKey(e.name), known = lastExercise(name, null);
+    const joins = !!known && exKey(known.e.name) !== old;
+    const to = known ? known.e.name : name;
+    let n = 0;
+    Object.keys(state.days).forEach((d) => {
+      const wk = state.days[d].workout;
+      if (!wk || (!everywhere && d !== viewDate)) return;
+      const hit = wk.exercises.filter((x) => (everywhere ? exKey(x.name) === old : x.id === id));
+      if (!hit.length) return;
+      hit.forEach((x) => (x.name = to));
+      mergeSame(wk); save(d); n++;
+    });
+    toast(joins ? "Joined with " + to + "'s history" : everywhere && n > 1 ? "Renamed in " + n + " workouts" : "Renamed to " + to);
+  }
+  function commitRename(value) {
+    const e = findEx(renaming), name = String(value || "").trim().replace(/\s+/g, " ");
+    renaming = null;
+    if (!e || !name || name === e.name) { drawWorkoutSoon(); return; }
+    const n = otherWorkoutsWith(e.name);
+    if (n) renameAsk = { id: e.id, from: e.name, to: name, n };
+    else { renameExercise(e.id, name, false); render(); }
+    drawWorkoutSoon();
+  }
+
+  // Drag to reorder: hold a row for a moment (or grab its dots straight away), then move it.
+  let drag = null, dragEnded = 0;
+  sheet.addEventListener("pointerdown", (ev) => {
+    const row = wEdit && ev.target.closest(".ex-edit[data-id]");
+    if (!row || ev.target.closest(".del") || (ev.pointerType === "mouse" && ev.button !== 0)) return;
+    drag = { row, id: row.dataset.id, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, y: ev.clientY, s0: sheet.scrollTop, active: false };
+    if (ev.target.closest(".grip")) { ev.preventDefault(); startDrag(); }
+    else drag.timer = setTimeout(startDrag, 280);
+  });
+  function startDrag() {
+    if (!drag) return;
+    const rows = [...sheet.querySelectorAll(".ex-edit[data-id]")];
+    drag.rows = rows.map((r) => { const b = r.getBoundingClientRect(); return { el: r, top: b.top + sheet.scrollTop, h: b.height }; });
+    drag.from = drag.to = rows.indexOf(drag.row);
+    drag.step = rows.length > 1 ? Math.abs(drag.rows[1].top - drag.rows[0].top) - drag.rows[0].h + drag.rows[drag.from].h : 0;
+    drag.active = true;
+    drag.row.classList.add("lifted");
+    try { drag.row.setPointerCapture(drag.pid); } catch (e) { /* ignore */ }
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) { /* ignore */ }
+    const tick = () => { // scroll the sheet while the row is held near its top or bottom edge
+      if (!drag || !drag.active) return;
+      const sr = sheet.getBoundingClientRect(), bot = Math.min(sr.bottom, innerHeight);
+      const v = drag.y < sr.top + 70 ? -8 : drag.y > bot - 70 ? 8 : 0;
+      if (v) { sheet.scrollTop += v; placeDrag(); }
+      drag.raf = requestAnimationFrame(tick);
+    };
+    drag.raf = requestAnimationFrame(tick);
+  }
+  function placeDrag() {
+    const R = drag.rows, me = R[drag.from], dy = drag.y - drag.y0 + (sheet.scrollTop - drag.s0), mid = me.top + me.h / 2 + dy;
+    let to = drag.from;
+    R.forEach((r, i) => { const c = r.top + r.h / 2; if (i < drag.from && mid < c) to = Math.min(to, i); if (i > drag.from && mid > c) to = Math.max(to, i); });
+    drag.to = to;
+    drag.row.style.transform = "translateY(" + dy.toFixed(1) + "px)";
+    R.forEach((r, i) => {
+      if (i === drag.from) return;
+      const sh = drag.from < i && i <= to ? -drag.step : to <= i && i < drag.from ? drag.step : 0;
+      r.el.style.transform = sh ? "translateY(" + sh + "px)" : "";
+    });
+  }
+  sheet.addEventListener("pointermove", (ev) => {
+    if (!drag || ev.pointerId !== drag.pid) return;
+    drag.y = ev.clientY;
+    if (!drag.active) { if (Math.hypot(ev.clientX - drag.x0, ev.clientY - drag.y0) > 8) { clearTimeout(drag.timer); drag = null; } return; }
+    placeDrag();
+  });
+  function endDrag(commit) {
+    if (!drag) return;
+    clearTimeout(drag.timer); cancelAnimationFrame(drag.raf);
+    const d = drag; drag = null;
+    if (!d.active) return;
+    dragEnded = Date.now();
+    const w = peekDay(viewDate).workout;
+    if (commit && w && d.to !== d.from) { const [x] = w.exercises.splice(d.from, 1); w.exercises.splice(d.to, 0, x); save(viewDate); render(); }
+    drawWorkout();
+  }
+  sheet.addEventListener("pointerup", () => endDrag(true));
+  sheet.addEventListener("pointercancel", () => endDrag(true));
+  // While a row is held, the finger moves the row, not the page; and the long press never opens a menu.
+  document.addEventListener("touchmove", (ev) => { if (drag && drag.active) ev.preventDefault(); }, { passive: false });
+  sheet.addEventListener("contextmenu", (ev) => { if (ev.target.closest(".ex-edit")) ev.preventDefault(); });
+  sheet.addEventListener("click", (ev) => { if (Date.now() - dragEnded < 350) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+  sheet.addEventListener("focusout", (ev) => { if (ev.target.id === "ex-rename-in" && renaming) commitRename(ev.target.value); });
+
   function findEx(id) { const w = peekDay(viewDate).workout; return w && w.exercises.find((e) => e.id === id); }
 
   // ---------- toast ----------
@@ -2213,16 +2362,27 @@ body.setup .nav, body.setup .top { display: none; }
         e.unit = u; syncEx(e);
         save(viewDate); drawWorkout(); break;
       }
-      case "ex-move": {
-        const w = day().workout, i = w.exercises.findIndex((e) => e.id === el.dataset.id), j = i + +el.dataset.d;
-        if (i < 0 || j < 0 || j >= w.exercises.length) break;
-        [w.exercises[i], w.exercises[j]] = [w.exercises[j], w.exercises[i]];
-        save(viewDate); drawWorkout(); break;
+      case "ex-del": {
+        const w = day().workout, i = w.exercises.findIndex((e) => e.id === el.dataset.id);
+        if (i < 0) break;
+        const [gone] = w.exercises.splice(i, 1);
+        save(viewDate); drawWorkout(); render();
+        toast("Removed " + gone.name, () => { const w2 = getDay(viewDate).workout; if (!w2) return; w2.exercises.splice(Math.min(i, w2.exercises.length), 0, gone); save(viewDate); render(); if (!sheet.hidden) drawWorkout(); });
+        break;
       }
-      case "ex-del": { const w = day().workout; w.exercises = w.exercises.filter((e) => e.id !== el.dataset.id); save(viewDate); drawWorkout(); render(); break; }
+      case "ex-rename": {
+        renaming = el.dataset.id; renameAsk = null; drawWorkout();
+        const f = document.getElementById("ex-rename-in");
+        if (f) { f.focus(); f.select(); }
+        break;
+      }
+      case "rename-all": case "rename-one":
+        if (renameAsk) { renameExercise(renameAsk.id, renameAsk.to, a === "rename-all"); renameAsk = null; render(); drawWorkout(); }
+        break;
+      case "rename-cancel": renameAsk = null; drawWorkout(); break;
       case "wadd-open": wAdding = true; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
       case "wadd-cancel": wAdding = false; drawWorkout(); break;
-      case "w-edit": wEdit = !wEdit; wAdding = false; drawWorkout(); break;
+      case "w-edit": wEdit = !wEdit; wAdding = false; renaming = renameAsk = null; drawWorkout(); break;
       case "w-discard":
         if (!wConfirmDiscard) { wConfirmDiscard = true; drawWorkout(); break; }
         day().workout = null; save(viewDate); closeSheet(); render(true); toast("Workout discarded");
@@ -2436,6 +2596,7 @@ body.setup .nav, body.setup .top { display: none; }
       else document.getElementById("wadd-form").requestSubmit();
     }
     if (ev.key === "Enter" && ev.target.classList && ev.target.classList.contains("sval")) { ev.preventDefault(); ev.target.blur(); }
+    if (ev.key === "Enter" && ev.target.id === "ex-rename-in") { ev.preventDefault(); ev.target.blur(); }
     if (ev.key === "Enter" && (ev.target.id === "in-kcal" || ev.target.id === "in-protein" || ev.target.id === "weight")) {
       ev.preventDefault();
       if (ev.target.id === "in-kcal") document.getElementById("in-protein").focus();
