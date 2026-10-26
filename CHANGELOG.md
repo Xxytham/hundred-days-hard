@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.16.1 · Icon tilted the other way
+- The plate on the app icon now leans clockwise.
+
 ## v0.16 · Widget, background sync and goal alerts
 - **Home-screen widget:** today's challenge day, your streak, calories and protein bars against your goals, and your next goal step. Touch and hold your home screen, tap Widgets, then 100 Days Hard. Tap it to open the app.
 - **Background sync:** about once an hour, the app reads today's Samsung Health numbers while it's closed, so the widget stays current. Allow "background updates" when Samsung Health asks.

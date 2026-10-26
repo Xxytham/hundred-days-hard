@@ -50,7 +50,7 @@ handles = slot(0, 21.0, 27.6, 27) + " " + slot(180, 21.0, 27.6, 27)
 digits = text_path("100", C, C - 19.0, 11.6)
 plate = circle(C, C, R)
 hub_r, cap_r, hole_r = 7.2, 5.6, 2.3
-TILT = -40  # the plate is turned a little, like one leaning on a rack
+TILT = 40  # turned clockwise a little, like a plate leaning on a rack
 
 # ---------- full color (dark background layer behind it) ----------
 def grad_linear(x1, y1, x2, y2, stops):
