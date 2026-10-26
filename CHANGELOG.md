@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.18 · A smarter coach you can tuck away
+- The coach now reads your daily tasks and goals, as well as your food, sleep, steps, training and weight. It still runs only on your phone.
+- It works out more before it writes: this week against last week, which task you miss most, how far over or under you are on missed days, new bests, lifts that have stalled, how fast your weight is moving, and how long since you moved up a goal.
+- Its notes are a bit longer and more specific: what's going best, one pattern, and one thing to do that names your task, goal or exercise.
+- New ⋯ menu on the coach: write a new note, minimize it to one line, or turn it off. Settings → Coach has the same On / Minimized / Off switch.
+
 ## v0.17 · Workouts follow your plan
 - Starting a workout no longer looks already filled in. Your usual exercises and sets show in grey as the plan, and you tap **Log set** as you do each one. Change the weight or reps first if they went differently.
 - Push and Pull days are split into groups: Chest, Triceps, Shoulders / Back, Biceps, Forearms, plus Abs on every day. The app sorts your exercises by name; drag one into another group in "Reorder or remove".

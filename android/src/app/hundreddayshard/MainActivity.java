@@ -428,7 +428,7 @@ public class MainActivity extends Activity {
                 GenerateContentRequest.Builder b = new GenerateContentRequest.Builder(new TextPart(prompt));
                 b.setTemperature(0.4f);
                 b.setTopK(16);
-                b.setMaxOutputTokens(160);
+                b.setMaxOutputTokens(256);
                 ListenableFuture<GenerateContentResponse> f = model().generateContent(b.build());
                 f.addListener(() -> {
                     JSONObject o = new JSONObject();

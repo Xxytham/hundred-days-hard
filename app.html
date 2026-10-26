@@ -499,7 +499,23 @@ body.setup .nav, body.setup .top { display: none; }
 .body-name { font-weight: 700; }
 /* Coach note under the streak */
 .coach-card { background: linear-gradient(160deg, color-mix(in srgb, var(--green) 16%, var(--surface)), var(--surface) 70%); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent); }
-.coach-head { display: flex; justify-content: space-between; align-items: center; min-height: 24px; }
+.coach-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }
+.coach-card { position: relative; }
+.coach-head .coach-status { margin-right: auto; }
+.coach-dots { border: 0; background: none; width: 40px; height: 32px; margin: -4px -10px -4px 0; display: grid; place-items: center; color: var(--muted); border-radius: 8px; }
+.coach-dots svg { width: 18px; height: 18px; fill: currentColor; }
+.coach-menu {
+  position: absolute; right: 10px; top: 42px; z-index: 5; display: grid; min-width: 190px; padding: 6px; border-radius: 12px;
+  background: var(--surface); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3), inset 0 0 0 1px var(--line);
+  opacity: 0; transform: translateY(-6px) scale(0.97); transform-origin: top right; visibility: hidden;
+  transition: opacity 120ms ease, transform 120ms var(--ease), visibility 0s linear 120ms;
+}
+.coach-card.menu-open .coach-menu { opacity: 1; transform: none; visibility: visible; transition: opacity var(--t) ease, transform var(--t) var(--ease); }
+.coach-menu button { border: 0; background: none; text-align: left; padding: 11px 12px; border-radius: 8px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.coach-menu button.danger { color: var(--red); }
+.coach-card.min { padding-block: 10px; gap: 4px; }
+.coach-mini { display: block; width: 100%; border: 0; background: none; padding: 0; text-align: left; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coach-mini.muted { color: var(--muted); }
 .coach-head .linkbtn { padding: 2px 0; font-size: 13px; }
 .coach-tag { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
 .coach-text { margin: 0; font-size: 15px; line-height: 1.5; }
@@ -540,7 +556,7 @@ body.setup .nav, body.setup .top { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .tick-focus { animation: none; }
   .ptr.busy .spin { animation-duration: 2.4s; }
-  .ex-edit, .ex-ghead, .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
+  .ex-edit, .ex-ghead, .coach-menu, .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
 }
 
 /* Habits */
@@ -1229,70 +1245,167 @@ body.setup .nav, body.setup .top { display: none; }
     if (view === "today") render();
   };
   const avgOf = (xs) => (xs.length ? xs.reduce((a, v) => a + v, 0) / xs.length : null);
-  // The numbers behind the note, as short plain facts.
+  const coachMode = () => (S().coach === "min" || S().coach === "off" ? S().coach : "on");
+  // The numbers behind the note. The app does the analysis (trends, patterns, what to focus on); the model
+  // only puts it into words, so everything here is worked out from the user's own data, on the phone.
   function buildFacts() {
-    const t = todayISO(), n = dayNum(t), day = peekDay(t), out = [];
-    const week = []; for (let i = 7; i >= 1; i--) week.push(addDays(t, -i));
-    const prevWeek = []; for (let i = 14; i >= 8; i--) prevWeek.push(addDays(t, -i));
-    const unit = S().unit;
-    out.push("Day " + n + " of a " + TOTAL() + "-day challenge.");
+    const t = todayISO(), n = dayNum(t), day = peekDay(t), out = [], unit = S().unit;
+    const back = (a, b) => { const l = []; for (let i = a; i >= b; i--) l.push(addDays(t, -i)); return l; };
+    const week = back(7, 1), prevWeek = back(14, 8);
+    const vals = (ds, f) => ds.map((d) => f(peekDay(d))).filter((v) => v != null && v > 0);
+    const vs = (a, b, f) => (a != null && b != null ? " (last week " + f(b) + ")" : "");
+    const wins = [], fixes = []; // [weight, text]: the app's own picks for the best thing and the thing to work on
+    out.push("Challenge: day " + n + " of " + TOTAL() + ", " + Math.max(0, TOTAL() - n) + " days left. Their aim: " + (calAim() === "build" ? "build muscle" : "lose fat") + ".");
+
+    // Daily tasks and streak
     const st = streakInfo();
-    if (st) out.push("Streak: " + st.cur + " days in a row with every daily task done (best " + st.best + "). Today " + doneOn(t) + " of " + tasksFor(t).length + " tasks are done so far.");
-    const kc = week.map((d) => peekDay(d).kcal).filter((v) => v != null);
-    if (kc.length) {
-      const ok = kc.filter((v) => calStatus(v).state === "met").length;
-      out.push("Last 7 days calories: average " + fmt(avgOf(kc)) + " (goal " + calGoalText() + "), " + (calAim() === "lose" ? "in range" : "goal reached") + " on " + ok + " of " + kc.length + " days.");
+    if (st) {
+      const rate = S().habits.map((h) => {
+        const ds = week.filter((d) => !h.addedOn || h.addedOn <= d), k = ds.filter((d) => peekDay(d).habits && peekDay(d).habits[h.id]).length;
+        return { name: h.name, k, of: ds.length };
+      }).filter((x) => x.of);
+      const perfect = week.filter(fullOn).length, todo = tasksFor(t).filter((h) => !(day.habits && day.habits[h.id])).map((h) => '"' + h.name + '"');
+      if (rate.length) out.push("Daily tasks, last 7 days: " + rate.map((x) => '"' + x.name + '" ' + x.k + " of " + x.of).join(", ") + ". Days with every task done: " + perfect + " of 7.");
+      out.push("Today's tasks " + (todo.length ? "still to do: " + todo.join(", ") : "are all done") + ".");
+      out.push("Streak: " + st.cur + " days with every task done (best ever " + st.best + ")" + (st.cur > 0 && st.cur >= st.best ? ", their longest yet" : st.best > st.cur ? ", " + (st.best - st.cur + 1) + " more days beats it" : "") + ".");
+      const worst = rate.filter((x) => x.k < x.of).sort((a, b) => a.k / a.of - b.k / b.of)[0];
+      if (worst) fixes.push([1 - worst.k / worst.of, 'the task "' + worst.name + '", done on only ' + worst.k + " of the last " + worst.of + " days"]);
+      if (st.cur >= 3) wins.push([Math.min(1, st.cur / 10), "a " + st.cur + "-day streak"]);
+      if (perfect >= 5) wins.push([perfect / 7, "every task done on " + perfect + " of the last 7 days"]);
     }
-    const pr = week.map((d) => peekDay(d).protein).filter((v) => v != null);
-    if (pr.length) out.push("Last 7 days protein: average " + fmt(avgOf(pr)) + " g (goal " + S().proteinGoal + " g), hit on " + pr.filter((v) => v >= S().proteinGoal).length + " of " + pr.length + " days.");
-    if (day.kcal != null) out.push("Today so far: " + fmt(day.kcal) + " calories and " + fmt(day.protein || 0) + " g protein.");
-    const sl = week.map((d) => hOf(peekDay(d)).sleepMin).filter((v) => v > 0);
-    if (sl.length) out.push("Last 7 nights sleep: average " + hm(avgOf(sl)) + " (goal " + S().sleepTarget + " h).");
-    const stp = week.map((d) => hOf(peekDay(d)).steps).filter((v) => v > 0);
-    if (stp.length) out.push("Last 7 days steps: average " + fmt(avgOf(stp)) + " (goal " + fmt(S().stepsTarget) + ").");
-    const lifts = week.filter((d) => peekDay(d).workout && peekDay(d).workout.saved).map((d) => typeName(peekDay(d).workout.type));
-    const cardio = week.reduce((a, d) => a + workoutParts(peekDay(d)).cardio.length, 0);
-    out.push("Last 7 days training: " + lifts.length + " lifting session" + (lifts.length === 1 ? "" : "s") + (lifts.length ? " (" + lifts.join(", ") + ")" : "") + " and " + cardio + " cardio session" + (cardio === 1 ? "" : "s") + ".");
+
+    // Food
+    const kc = vals(week, (d) => d.kcal), kc0 = vals(prevWeek, (d) => d.kcal);
+    if (kc.length) {
+      const sts = kc.map((v) => ({ v, s: calStatus(v) })), ok = sts.filter((x) => x.s.state === "met").length;
+      const over = sts.filter((x) => x.s.state === "over"), under = sts.filter((x) => x.s.state === "under");
+      const hi = calAim() === "lose" ? calRange()[1] : S().calorieGoal, lo = calAim() === "lose" ? calRange()[0] : S().calorieGoal;
+      out.push("Calories, last 7 days: food logged on " + kc.length + " days, average " + fmt(avgOf(kc)) + vs(avgOf(kc), avgOf(kc0), fmt) + ", goal " + calGoalText() + ". " +
+        (calAim() === "lose" ? "In range" : "Goal reached") + " on " + ok + " of " + kc.length + " days" +
+        (over.length && calAim() === "lose" ? "; over on " + over.length + " (by about " + fmt(avgOf(over.map((x) => x.v - hi))) + " each)" : "") +
+        (under.length ? "; under on " + under.length + " (by about " + fmt(avgOf(under.map((x) => lo - x.v))) + " each)" : "") + ".");
+      if (ok / kc.length >= 0.7) wins.push([ok / kc.length, "calories on target " + ok + " of " + kc.length + " days"]);
+      else fixes.push([1 - ok / kc.length, "calories: on target only " + ok + " of " + kc.length + " days" + (over.length > under.length && calAim() === "lose" ? ", mostly going over" : under.length ? ", mostly coming in under" : "")]);
+    }
+    const pr = vals(week, (d) => d.protein), pr0 = vals(prevWeek, (d) => d.protein), pg = S().proteinGoal;
+    if (pr.length && pg) {
+      const hit = pr.filter((v) => v >= pg).length, miss = pr.filter((v) => v < pg);
+      out.push("Protein, last 7 days: average " + fmt(avgOf(pr)) + " g" + vs(avgOf(pr), avgOf(pr0), (v) => fmt(v) + " g") + ", goal " + pg + " g, hit on " + hit + " of " + pr.length + " days" +
+        (miss.length ? "; short by about " + fmt(avgOf(miss.map((v) => pg - v))) + " g on the days missed" : "") + ".");
+      if (hit / pr.length >= 0.7) wins.push([hit / pr.length, "protein hit " + hit + " of " + pr.length + " days"]);
+      else fixes.push([1 - hit / pr.length + 0.1, "protein: hit on " + hit + " of " + pr.length + " days, about " + fmt(avgOf(miss.map((v) => pg - v))) + " g short when missed"]);
+    }
+    const todayCal = (k) => { const c = calStatus(k); return c.state === "met" ? (calAim() === "lose" ? "in range" : "goal reached") : c.state === "over" ? fmt(k - calRange()[1]) + " over the range" : fmt(c.left) + (calAim() === "lose" ? " below the range" : " to go"); };
+    if (day.kcal != null) out.push("Today so far: " + fmt(day.kcal) + " calories (" + todayCal(day.kcal) + ") and " + fmt(day.protein || 0) + " g protein" + (pg && (day.protein || 0) < pg ? " (" + fmt(pg - (day.protein || 0)) + " g to go)" : "") + ".");
+
+    // Sleep and steps
+    const sl = vals(week, (d) => hOf(d).sleepMin), sl0 = vals(prevWeek, (d) => hOf(d).sleepMin), sg = S().sleepTarget * 60;
+    if (sl.length) {
+      const short = sl.filter((v) => v < sg).length;
+      out.push("Sleep, last " + sl.length + " nights: average " + hm(avgOf(sl)) + vs(avgOf(sl), avgOf(sl0), hm) + ", goal " + S().sleepTarget + " h, under goal on " + short + " nights.");
+      if (avgOf(sl) < sg - 20) fixes.push([Math.min(1, (sg - avgOf(sl)) / 90), "sleep: averaging " + hm(avgOf(sl)) + " against a " + S().sleepTarget + " h goal"]);
+      else if (short <= 1 && sl.length >= 5) wins.push([0.7, "sleep averaging " + hm(avgOf(sl))]);
+    }
+    const sp = vals(week, (d) => hOf(d).steps), sp0 = vals(prevWeek, (d) => hOf(d).steps), sgo = S().stepsTarget;
+    if (sp.length) {
+      const hit = sp.filter((v) => v >= sgo).length;
+      out.push("Steps, last 7 days: average " + fmt(avgOf(sp)) + vs(avgOf(sp), avgOf(sp0), fmt) + ", goal " + fmt(sgo) + ", reached on " + hit + " of " + sp.length + " days.");
+      if (hit / sp.length < 0.5) fixes.push([0.5 * (1 - hit / sp.length), "steps: goal reached on " + hit + " of " + sp.length + " days"]);
+    }
+
+    // Training
+    const lifts = (ds) => ds.filter((d) => peekDay(d).workout && peekDay(d).workout.saved);
+    const lw = lifts(week), cardio = week.reduce((a, d) => a + workoutParts(peekDay(d)).cardio.length, 0);
+    const since = TYPES.map((x) => { const l = lastSession(x.id, null); return l ? x.name + " " + (l.date === t ? "today" : dayNum(t) - dayNum(l.date) + " days ago") : null; }).filter(Boolean);
+    out.push("Training, last 7 days: " + lw.length + " lifting session" + (lw.length === 1 ? "" : "s") + (lw.length ? " (" + lw.map((d) => typeName(peekDay(d).workout.type)).join(", ") + ")" : "") +
+      " (last week " + lifts(prevWeek).length + ") and " + cardio + " cardio session" + (cardio === 1 ? "" : "s") + "." + (since.length ? " Last done: " + since.join(", ") + "." : ""));
+    const lastLift = savedSessions().pop();
+    if (lastLift && dayNum(t) - dayNum(lastLift) >= 4) fixes.push([0.6, "training: no lifting for " + (dayNum(t) - dayNum(lastLift)) + " days"]);
+    const sd = strengthData().filter((m) => m.pts.length >= 2), wtxt = (p) => (p.w > 0 ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps");
+    const prs = sd.filter((m) => { const l = m.pts[m.pts.length - 1]; return l.date >= week[0] && l.score > Math.max(...m.pts.slice(0, -1).map((p) => p.score)); });
+    const stalled = sd.filter((m) => m.pts.length >= 3 && m.pts[m.pts.length - 1].date >= addDays(t, -21) && m.pts[m.pts.length - 1].score <= m.pts[m.pts.length - 3].score);
+    const gains = sd.map((m) => ({ m, g: m.pts[0].score > 0 ? (m.pts[m.pts.length - 1].score / m.pts[0].score - 1) * 100 : 0 })).filter((x) => x.g > 0.5).sort((a, b) => b.g - a.g);
     const sr = strengthTrend();
-    if (sr.all.length > 1) out.push("Strength (estimated one-rep max): " + signed(sr.all[sr.all.length - 1].v, 1, "%") + " overall since day " + sr.all[0].n +
-      TYPES.filter((x) => sr[x.id].length > 1).map((x) => "; " + x.name + " " + signed(sr[x.id][sr[x.id].length - 1].v, 1, "%")).join("") + ".");
+    if (sr.all.length > 1) out.push("Strength (estimated one-rep max): " + signed(sr.all[sr.all.length - 1].v, 1, "%") + " overall since day " + sr.all[0].n + ".");
+    if (gains.length) out.push("Biggest gains since they started: " + gains.slice(0, 3).map((x) => x.m.name + " " + signed(x.g, 0, "%")).join(", ") + ".");
+    if (prs.length) { out.push("New bests this week: " + prs.slice(0, 3).map((m) => m.name + " " + wtxt(m.pts[m.pts.length - 1])).join(", ") + "."); wins.push([0.9, "a new best on " + prs[0].name + " (" + wtxt(prs[0].pts[prs[0].pts.length - 1]) + ")"]); }
+    if (stalled.length) { out.push("Not moving lately (no gain over their last 3 sessions): " + stalled.slice(0, 3).map((m) => m.name + " at " + wtxt(m.pts[m.pts.length - 1])).join(", ") + "."); fixes.push([0.45, stalled[0].name + " has stalled at " + wtxt(stalled[0].pts[stalled[0].pts.length - 1])]); }
+
+    // Body
     const ws = Object.keys(state.days).sort().filter((d) => d >= S().startDate && state.days[d].weight);
     if (ws.length > 1) {
       const w0 = state.days[ws[0]].weight, w1 = state.days[ws[ws.length - 1]].weight;
-      const recent = ws.filter((d) => d >= addDays(t, -14)), wr = recent.length > 1 ? w1 - state.days[recent[0]].weight : null;
-      out.push("Body weight: " + w1 + " " + unit + ", " + signed(w1 - w0, 1, " " + unit) + " since day " + dayNum(ws[0]) + (wr != null ? ", " + signed(wr, 1, " " + unit) + " in the last 2 weeks" : "") + " (aim: " + (calAim() === "build" ? "build muscle" : "lose fat") + ").");
+      const r = ws.filter((d) => d >= addDays(t, -21)), days = r.length > 1 ? dayNum(r[r.length - 1]) - dayNum(r[0]) : 0;
+      const perWeek = days >= 6 ? ((w1 - state.days[r[0]].weight) / days) * 7 : null;
+      out.push("Body weight: " + w1 + " " + unit + ", " + signed(w1 - w0, 1, " " + unit) + " since day " + dayNum(ws[0]) + (perWeek != null ? ", recently " + signed(perWeek, 1, " " + unit) + " per week" : "") + ".");
+      if (perWeek != null && (calAim() === "lose" ? perWeek < -0.2 : perWeek > 0.1)) wins.push([0.75, "weight moving the right way, " + signed(perWeek, 1, " " + unit) + " per week"]);
     }
     const rhr = (ds) => avgOf(ds.map((d) => hOf(peekDay(d)).restHr || hOf(peekDay(d)).sleepHr).filter((v) => v > 0));
     const r1 = rhr(week), r0 = rhr(prevWeek);
     if (r1) out.push("Resting heart rate: " + Math.round(r1) + " bpm this week" + (r0 ? " vs " + Math.round(r0) + " the week before" : "") + ".");
-    const steps = state.goals.list.flatMap((g) => g.steps.filter((x) => x.done && x.doneDay >= n - 6).map((x) => g.name + " " + x.text));
-    if (steps.length) out.push("Goal steps reached this week: " + steps.join("; ") + ".");
+
+    // Goals (the ladders they wrote)
+    const goals = state.goals.list.filter((g) => g.steps.length);
+    if (goals.length) {
+      out.push("Their goals: " + goals.slice(0, 6).map((g) => {
+        const c = firstOpen(g), done = g.steps.filter((x) => x.done), last = done.reduce((a, x) => Math.max(a, x.doneDay || 0), 0);
+        return '"' + g.name + '" ' + done.length + " of " + g.steps.length + " steps done" + (c > 0 ? ', at "' + g.steps[c - 1].text + '"' : "") + (c < g.steps.length ? ', next "' + g.steps[c].text + '"' : ", finished") +
+          (last && c < g.steps.length ? ", last step " + (n - last === 0 ? "today" : n - last + " days ago") : "");
+      }).join("; ") + ".");
+      const recent = goals.flatMap((g) => g.steps.filter((x) => x.done && x.doneDay >= n - 6).map((x) => g.name + ": " + x.text));
+      if (recent.length) { out.push("Goal steps reached this week: " + recent.join("; ") + "."); wins.push([0.85, "a goal step this week (" + recent[0] + ")"]); }
+      const stuck = goals.filter((g) => firstOpen(g) < g.steps.length).map((g) => ({ g, last: g.steps.filter((x) => x.done).reduce((a, x) => Math.max(a, x.doneDay || 0), 0) })).filter((x) => n - x.last >= 14).sort((a, b) => a.last - b.last)[0];
+      if (stuck) fixes.push([0.4, 'the goal "' + stuck.g.name + '", next step "' + stuck.g.steps[firstOpen(stuck.g)].text + '"' + (stuck.last ? ", no step for " + (n - stuck.last) + " days" : ", not started")]);
+    }
+    const top = (l) => l.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
+    if (wins.length) out.push("The app's pick for what is going best: " + top(wins)[0] + ".");
+    if (fixes.length) out.push("The app's pick for what to work on: " + top(fixes)[0] + ".");
     return out.join("\n");
   }
   // Writes a fresh note on a new day, when the numbers have changed (at most every 2 hours), or on Refresh.
   function coachWrite(force) {
-    if (aiState !== "available" || coachBusy || !S().setupDone) return;
+    if (aiState !== "available" || coachBusy || !S().setupDone || coachMode() === "off") return;
     const facts = buildFacts(), saved = coachSaved();
     if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
     coachFacts = facts; coachBusy = true; coachErr = false;
-    const prompt = "You are the coach inside a gym challenge app. These are the user's numbers, worked out by the app:\n" + facts +
-      "\n\nWrite 2 or 3 short sentences, under 60 words in total, talking to the user as \"you\". First say what's going well, then give one specific thing to focus on next. " +
-      "Use only the numbers above, exactly as written, and don't invent any. No greeting, no lists, no emoji, no medical advice.";
+    const prompt = "You are a sharp, encouraging strength coach writing a short note inside the user's 100-day gym challenge app. " +
+      "The app has worked out these facts from their own data:\n\n" + facts + "\n\n" +
+      "Write 3 or 4 sentences, under 90 words in total, talking to the user as \"you\".\n" +
+      "First: the best thing in the facts, with its number.\n" +
+      "Then: one pattern, comparing numbers (this week against last week, or two facts that explain each other, like short sleep and missed protein).\n" +
+      "Last: one specific thing to do today or this week, naming their task, goal or exercise.\n" +
+      "Sound like a real coach who knows them: plain, direct and warm. No filler like \"Great job\" or \"Keep it up\". " +
+      "Use only these facts and copy numbers exactly; never invent one. No greeting, no lists, no markdown, no emoji, no medical advice.";
     try { bridge.aiGenerate(prompt); } catch (e) { coachBusy = false; coachErr = true; }
   }
+  const DOTS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
   function coachHTML() {
-    if (!bridge || !bridge.aiStatus || aiState === "none" || aiState === "checking" || aiState === "unavailable") return "";
+    if (!bridge || !bridge.aiStatus || aiState === "none" || aiState === "checking" || aiState === "unavailable" || coachMode() === "off") return "";
+    const min = coachMode() === "min", saved = coachSaved(), fresh = saved && saved.date === todayISO();
     let body;
-    if (aiState === "downloadable") body = '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>';
-    else if (aiState === "downloading") body = '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>';
+    if (aiState === "downloadable") body = min ? "" : '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>';
+    else if (aiState === "downloading") body = min ? "" : '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>';
+    else if (min) body = saved ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : "";
     else {
-      const saved = coachSaved(), fresh = saved && saved.date === todayISO();
       body = saved ? '<p class="coach-text' + (fresh ? "" : " muted") + '">' + esc(saved.text) + "</p>" : "";
       if (coachBusy) body += '<p class="coach-status">Reading your numbers…</p>';
       else if (coachErr) body += '<p class="coach-status">Couldn\'t write a note just now.</p>';
     }
-    return '<section class="coach-card" aria-label="Coach"><div class="coach-head"><span class="coach-tag">Coach</span>' +
-      (aiState === "available" && !coachBusy ? '<button class="linkbtn" data-action="coach-refresh">Refresh</button>' : "") + "</div>" + body + "</section>";
+    const menu = '<div class="coach-menu" role="menu">' +
+      (aiState === "available" && !coachBusy ? '<button role="menuitem" data-action="coach-refresh">Write a new note</button>' : "") +
+      '<button role="menuitem" data-action="coach-mode" data-v="' + (min ? "on" : "min") + '">' + (min ? "Show in full" : "Minimize") + "</button>" +
+      '<button role="menuitem" class="danger" data-action="coach-mode" data-v="off">Turn off coach</button></div>';
+    return '<section class="coach-card' + (min ? " min" : "") + '" aria-label="Coach"><div class="coach-head"><span class="coach-tag">Coach</span>' +
+      (min && coachBusy ? '<span class="coach-status">Reading…</span>' : "") +
+      '<button class="coach-dots" data-action="coach-menu" aria-label="Coach options" aria-haspopup="menu" aria-expanded="false">' + DOTS + "</button></div>" + menu + body + "</section>";
+  }
+  // Settings: on, minimized to one line, or off (installed app, on phones that can run the coach).
+  function coachSection() {
+    if (mode !== "apk" || !["available", "downloadable", "downloading"].includes(aiState)) return "";
+    const m = coachMode(), b = (v, l) => '<button data-action="coach-mode" data-v="' + v + '" aria-pressed="' + (m === v) + '">' + l + "</button>";
+    return '<section class="panel" aria-labelledby="h-co"><h2 id="h-co">Coach</h2>' +
+      '<div class="form"><span class="hint">A short note on Today about your week, your daily tasks and your goals. Gemini Nano writes it on this phone, so nothing leaves it.</span>' +
+      '<span class="seg" role="group" aria-label="Coach">' + b("on", "On") + b("min", "Minimized") + b("off", "Off") + "</span></div></section>";
   }
 
   // ---------- day counter ----------
@@ -2294,7 +2407,7 @@ body.setup .nav, body.setup .top { display: none; }
         '<p class="hint">Day 1 was ' + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day " + TOTAL() + " lands on " + fmtDate(addDays(s.startDate, TOTAL() - 1), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" +
         '<button class="btn secondary" data-action="new-round">Start a new round</button>' +
       "</div></section>" +
-      notifySection() +
+      notifySection() + coachSection() +
       healthSection() +
       updateSection() +
       shareSection() +
@@ -2793,10 +2906,12 @@ body.setup .nav, body.setup .top { display: none; }
 
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
-  const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
+  const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
     "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-add", "set-del", "try-heavier", "ex-swap", "swap-cancel", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard", "plan-today",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
+    const cm = document.querySelector(".coach-card.menu-open");
+    if (cm && !ev.target.closest(".coach-menu, [data-action=coach-menu]")) { cm.classList.remove("menu-open"); cm.querySelector(".coach-dots").setAttribute("aria-expanded", "false"); }
     const el = ev.target.closest("[data-action]");
     if (!el) return;
     const a = el.dataset.action;
@@ -3055,6 +3170,18 @@ body.setup .nav, body.setup .top { display: none; }
       case "watch-later": S().watchOffer = el.dataset.v; save("settings"); render(true); break;
       case "stat-sel": statSel[statTab] = statSel[statTab] === el.dataset.k ? "" : el.dataset.k; render(true); break;
       case "coach-refresh": coachWrite(true); render(true); break;
+      case "coach-menu": {
+        const c = el.closest(".coach-card"), open = !c.classList.contains("menu-open");
+        c.classList.toggle("menu-open", open); el.setAttribute("aria-expanded", String(open));
+        break;
+      }
+      case "coach-mode": {
+        const was = coachMode();
+        S().coach = el.dataset.v === "on" ? null : el.dataset.v; save("settings"); render(true);
+        if (el.dataset.v === "off" && view === "today") toast("Coach off. Turn it on again in Settings");
+        if (was === "off" && el.dataset.v !== "off") coachWrite(false);
+        break;
+      }
       case "coach-setup": if (bridge && bridge.aiDownload) { aiState = "downloading"; bridge.aiDownload(); render(true); } break;
       case "goal-notifs": {
         S().goalNotifs = el.dataset.v === "1"; save("settings"); render(true);
@@ -3246,6 +3373,8 @@ body.setup .nav, body.setup .top { display: none; }
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
   window.__appBack = function () {
     if (fabWrap.classList.contains("open")) { fabMenu(false); return true; }
+    const cm = document.querySelector(".coach-card.menu-open");
+    if (cm) { cm.classList.remove("menu-open"); return true; }
     if (!sheet.hidden) { closeSheet(); return true; }
     if (!S().setupDone && setupReady) {
       if (setupStep > 0) { setupStep--; render(true); return true; }
