@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.18.3 · Progress sorted by muscle group
+- The Strength list on the Progress tab is now split into the same groups as your workouts (Chest, Triceps, Shoulders, Back, Biceps, Forearms, Abs). Each heading shows how that group moved since last time. Moving an exercise to another group in a workout, or the coach sorting it, moves it here too.
+
 ## v0.18.2 · Workouts start from your last numbers
 - Every planned exercise starts at the weight and reps from the last time you did it, also when you log an earlier day. Before, logging an earlier day showed everything as new at 0 lb × 10.
 - Going heavier: when your top set was the same weight and reps two times in a row, the third time suggests 5 lb more (one more rep for bodyweight moves).

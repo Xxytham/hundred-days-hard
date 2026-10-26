@@ -269,6 +269,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .tick-focus.down { --fc: var(--red); }
 .tick-focus .tick { border-top: 0; }
 .tick-focus + .tick { border-top: 0; }
+.tick-group {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px 0 6px; border-top: 1px solid var(--line);
+  font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+}
+.tickers > .tick-group:first-child { padding-top: 4px; }
+.tick-group .chg { font-family: var(--font-body); letter-spacing: 0; text-transform: none; }
+.tick-group + .tick, .tick-group + .tick-focus { border-top: 0; }
 @keyframes focus-in { from { opacity: 0.4; } to { opacity: 1; } }
 .chart .slabel { fill: var(--ink); font-weight: 700; font-size: 10px; }
 .chart .sreps { fill: var(--muted); font-size: 9px; }
@@ -2218,8 +2225,9 @@ body.setup .nav, body.setup .top { display: none; }
       const w = state.days[d].workout;
       w.exercises.forEach((e, i) => {
         const k = exKey(e.name);
-        const m = map[k] || (map[k] = { k, name: e.name, types: {}, pts: [] });
+        const m = map[k] || (map[k] = { k, name: e.name, types: {}, groups: {}, pts: [] });
         m.name = e.name; m.types[w.type] = i; // shows under every day type it was done on, in that day's order
+        if (e.group != null) m.groups[w.type] = e.group; // and in the group it was last logged in
         const wt = Math.round(toUnit(+e.weight || 0, e.unit || S().unit, S().unit) * 10) / 10;
         m.pts.push({ date: d, n: dayNum(d), t: w.type, w: wt, r: +e.reps || 0, s: +e.sets || 0, rawW: +e.weight || 0, rawU: e.unit || S().unit, score: e1rm(wt, +e.reps || 0) });
       });
@@ -2308,11 +2316,15 @@ body.setup .nav, body.setup .top { display: none; }
   function renderStrength() {
     if (strType === undefined) { const last = lastSession(); strType = last && TYPES.some((t) => t.id === last.workout.type) ? last.workout.type : "push"; }
     const all = strengthData();
-    const list = all.filter((m) => m.types[strType] != null).sort((a, b) => a.types[strType] - b.types[strType]);
+    // Same groups as the workout: the plan's group, else where it was last logged on this day type, else a guess from the name.
+    const gs = groupsFor(strType), plan = storedPlan(strType) || [];
+    const gOf = (m) => { const p = plan.find((x) => exKey(x.name) === m.k), g = p ? p.group : m.groups[strType]; return gs.includes(g) ? g : guessGroup(m.name, strType); };
+    const list = all.filter((m) => m.types[strType] != null).map((m) => ((m.g = gOf(m)), m))
+      .sort((a, b) => gs.indexOf(a.g) - gs.indexOf(b.g) || a.types[strType] - b.types[strType]);
     const changes = list.map((m) => pctChange(m.pts)).filter((c) => c != null);
     const avg = changes.length ? changes.reduce((a, c) => a + c, 0) / changes.length : null;
     const unit = S().unit;
-    const rows = list.map((m) => {
+    const rows = list.map((m, i) => {
       const last = m.pts[m.pts.length - 1], c = pctChange(m.pts), cls = chgClass(c), open = strSel === m.k;
       const also = Object.keys(m.types).filter((t) => t !== strType).map(typeName);
       const row = '<button class="tick" data-action="str-sel" data-k="' + esc(m.k) + '" aria-expanded="' + open + '">' +
@@ -2320,7 +2332,11 @@ body.setup .nav, body.setup .top { display: none; }
         sparkline(m.pts, cls) +
         '<span class="tick-val num">' + (last.w > 0 ? fmtW(last.rawW) + " " + last.rawU : last.r + " reps") + "<small>" + (last.w > 0 ? "× " + last.r + " · " : "") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
         '<span class="chg ' + cls + '">' + chgText(c) + "</span></button>";
-      return open ? '<div class="tick-focus ' + (cls === "down" ? "down" : "up") + '">' + row + strengthChart(m) + "</div>" : row;
+      const item = open ? '<div class="tick-focus ' + (cls === "down" ? "down" : "up") + '">' + row + strengthChart(m) + "</div>" : row;
+      if (!m.g || (i > 0 && list[i - 1].g === m.g)) return item;
+      // A heading for each group, with how that group moved since its last session (average across its exercises).
+      const gc = list.filter((x) => x.g === m.g).map((x) => pctChange(x.pts)).filter((c) => c != null), ga = gc.length ? gc.reduce((a, c) => a + c, 0) / gc.length : null;
+      return '<div class="tick-group"><span>' + GROUP_NAME[m.g] + "</span>" + (ga == null ? "" : '<span class="chg ' + chgClass(ga) + '">' + chgText(ga) + "</span>") + "</div>" + item;
     }).join("");
     const summary = avg == null ? "" : '<p class="hint">' + typeName(strType) + " strength is <b class=\"num\">" + (Math.abs(avg) < 0.05 ? "flat" : (avg > 0 ? "up " : "down ") + Math.abs(avg).toFixed(1) + "%") + "</b> since last " + typeName(strType).toLowerCase() + " day, across " + changes.length + " exercise" + (changes.length === 1 ? "" : "s") + ".</p>";
     return '<section class="panel" aria-labelledby="h-st"><div class="panel-head"><h2 id="h-st">Strength</h2>' +
