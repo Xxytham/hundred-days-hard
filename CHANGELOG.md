@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.18.2 · Workouts start from your last numbers
+- Every planned exercise starts at the weight and reps from the last time you did it, also when you log an earlier day. Before, logging an earlier day showed everything as new at 0 lb × 10.
+- Going heavier: when your top set was the same weight and reps two times in a row, the third time suggests 5 lb more (one more rep for bodyweight moves).
+- Removed Swap, and the list of exercise names that drew over the screen while typing.
+
 ## v0.18.1 · Coach sorts new exercises
 - The first time you add an exercise you've never done, the coach checks which group it belongs in and moves it there if needed, for example a Zottman curl into Forearms. A message says what it did, with Undo. It only does this once per exercise, never moves something you've moved yourself, and doesn't run if the coach is off.
 

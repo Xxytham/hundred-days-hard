@@ -2520,6 +2520,15 @@ body.setup .nav, body.setup .top { display: none; }
     return null;
   }
 
+  // The last time you did an exercise on another day: the newest before this day, or (when you're logging an
+  // earlier day) the newest after it. This is where a planned exercise's weights and reps come from.
+  function prevExercise(name) {
+    const k = exKey(name), ds = savedSessions().filter((d) => d !== viewDate);
+    const order = ds.filter((d) => d < viewDate).reverse().concat(ds.filter((d) => d > viewDate).reverse());
+    for (const d of order) { const e = state.days[d].workout.exercises.find((x) => exKey(x.name) === k); if (e) return { date: d, e }; }
+    return null;
+  }
+
   // ---------- plans: your list for each day type ----------
   // Push and Pull are split into muscle groups; Legs isn't (for now). Abs can go on any day.
   const GROUPS = { push: ["chest", "triceps", "shoulders", "abs"], pull: ["back", "biceps", "forearms", "abs"], legs: ["", "abs"], other: ["", "abs"] };
@@ -2560,7 +2569,7 @@ body.setup .nav, body.setup .top { display: none; }
   function fixGroups(w) { w.exercises.forEach((e) => { if (!groupsFor(w.type).includes(e.group)) e.group = groupFor(e.name, w.type); }); }
   // An exercise for today, planned from the last time you did it (on any day type): same sets, none logged yet.
   function newEx(name, type, group) {
-    const last = lastExercise(name, viewDate), sets = last ? doneSets(last.e).map((x) => ({ w: x.w, r: x.r, done: false })) : [];
+    const last = prevExercise(name), sets = last ? doneSets(last.e).map((x) => ({ w: x.w, r: x.r, done: false })) : [];
     const e = { id: uid(), name: last ? last.e.name : name, unit: last ? last.e.unit || S().unit : S().unit, group: group != null ? group : groupFor(name, type),
       setList: sets.length ? sets : [{ w: 0, r: 10, done: false }] };
     syncEx(e);
@@ -2595,8 +2604,8 @@ body.setup .nav, body.setup .top { display: none; }
     const n = o.slice(i + 1).concat(o.slice(0, Math.max(0, i))).find((e) => exState(e) !== "done");
     return n ? n.id : null;
   }
-  // "Try heavier": your last two sessions of it were at the same top weight and the latest matched or beat the
-  // reps of the one before, so suggest one step up. Bodyweight moves get one more rep. Never filled in for you.
+  // "Try heavier": your last two sessions of it had the same top set (weight and reps), so on the third, suggest
+  // one step up (5 lb or 2.5 kg; one more rep for bodyweight moves). Only a suggestion: nothing changes until you tap it.
   function heavier(e) {
     const l = ensureSets(e);
     if (l.some(isDone)) return null;
@@ -2605,19 +2614,16 @@ body.setup .nav, body.setup .top { display: none; }
       const x = state.days[ds[i]].workout.exercises.find((y) => exKey(y.name) === exKey(e.name));
       if (x) hist.push(doneSets(x).map((s) => ({ w: half(toUnit(s.w, x.unit || S().unit, e.unit)), r: s.r })));
     }
-    if (hist.length < 2) return null;
-    const [a, b] = hist, top = (s) => Math.max(...s.map((x) => x.w)), ta = top(a);
-    if (ta !== top(b)) return null; // you just moved up (or down): settle in first
-    const reps = (s) => s.filter((x) => x.w === ta).map((x) => x.r), ra = reps(a), rb = reps(b);
-    if (ra.length < rb.length || rb.some((r, i) => ra[i] < r)) return null;
-    if (ta > 0) {
-      if (l.some((x) => x.w > ta)) return null;
-      const to = half(ta + stepFor(e.unit));
-      return { w: to, at: ta, text: "Try " + fmtW(to) + " " + e.unit, why: "Last time you matched or beat your reps at " + fmtW(ta) + " " + e.unit + "." };
+    if (hist.length < 2 || !hist[0].length || !hist[1].length) return null;
+    const top = (sets) => sets.reduce((b, x) => (x.w > b.w || (x.w === b.w && x.r > b.r) ? x : b)), a = top(hist[0]), b = top(hist[1]);
+    if (a.w !== b.w || a.r !== b.r) return null;
+    if (a.w > 0) {
+      if (l.some((x) => x.w > a.w)) return null;
+      const to = half(a.w + stepFor(e.unit));
+      return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit, why: "You did " + fmtW(a.w) + " " + e.unit + " × " + a.r + " two times in a row." };
     }
-    const mr = Math.max(...ra);
-    if (l.some((x) => x.r > mr)) return null;
-    return { r: mr + 1, at: mr, text: "Try " + (mr + 1) + " reps", why: "Last time you matched or beat your reps." };
+    if (l.some((x) => x.r > a.r)) return null;
+    return { r: a.r + 1, at: a.r, text: "Try " + (a.r + 1) + " reps", why: "You did " + a.r + " reps two times in a row." };
   }
 
   function workoutPanel(day) {
@@ -2652,7 +2658,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
 
   // wOpen: the one exercise shown in full. wAddGroup: the group whose add box is open (null = none; "" = Legs' list).
-  let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null, wSwap = null, wKeepAsk = null;
+  let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null, wKeepAsk = null;
   const touched = new Set(); // planned sets you've changed, shown in full ink: "exercise id:set index"
   function startWorkout(type) {
     const d = getDay(viewDate);
@@ -2665,7 +2671,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
   function openWorkout() {
     const w = peekDay(viewDate).workout;
-    wEdit = false; wConfirmDiscard = false; wSwap = wKeepAsk = null; renaming = renameAsk = null;
+    wEdit = false; wConfirmDiscard = false; wKeepAsk = null; renaming = renameAsk = null;
     fixGroups(w);
     wAddGroup = w.exercises.length ? null : groupsFor(w.type)[0];
     wOpen = w.saved ? null : nextOpen(w, null);
@@ -2695,16 +2701,11 @@ body.setup .nav, body.setup .top { display: none; }
   // What a planned exercise usually is: "3 × 30×12", or the set count and the top set when they differ.
   function planText(e) {
     const l = ensureSets(e);
-    if (!lastExercise(e.name, viewDate)) return "new";
+    if (!prevExercise(e.name)) return "new";
     const same = l.every((x) => x.w === l[0].w && x.r === l[0].r);
     return "usually " + (same ? l.length + " × " + setTxt(l[0]) : l.length + " sets, up to " + setTxt(l.reduce((b, x) => (e1rm(x.w, x.r) > e1rm(b.w, b.r) ? x : b))));
   }
   function exBlock(e, w) {
-    if (wSwap === e.id) {
-      return '<form class="form ex" id="swap-form" data-id="' + e.id + '"><label>Swap ' + esc(e.name) + " for<input class=\"field\" id=\"swap-in\" list=\"ex-names\" maxlength=\"60\" autocomplete=\"off\" enterkeyhint=\"done\" required></label>" +
-        '<div class="btn-row"><button class="btn" type="submit">Swap</button><button class="btn secondary" type="button" data-action="swap-cancel">Cancel</button></div>' +
-        '<p class="hint">Just for today, unless you keep the change when you finish.</p></form>';
-    }
     const l = ensureSets(e), st = exState(e), nd = l.filter(isDone).length;
     if (wOpen !== e.id) {
       const sub = st === "done" ? nd + (nd === 1 ? " set" : " sets") + " · best " + setTxt({ w: e.weight, r: e.reps }) + (e.weight > 0 ? " " + e.unit : "")
@@ -2714,7 +2715,6 @@ body.setup .nav, body.setup .top { display: none; }
     const ci = curIdx(e), cs = l[ci], hv = w.saved ? null : heavier(e);
     const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
     const seg = isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
-    const swap = !w.saved && nd === 0 ? '<button class="linkbtn" data-action="ex-swap" data-id="' + e.id + '">Swap</button>' : "";
     const rows = l.map((x, k) => {
       const dn = isDone(x);
       if (k !== ci) return '<button class="set ' + (dn ? "done" : "plan") + '" data-action="set-go" data-id="' + e.id + '" data-k="' + k + '">' + mark(dn ? "done" : "plan", k + 1) + '<span class="num">' + setTxt(x) + (x.w > 0 ? " <small>" + e.unit + "</small>" : "") + "</span></button>";
@@ -2722,7 +2722,7 @@ body.setup .nav, body.setup .top { display: none; }
         '<button class="log-btn' + (dn ? " on" : "") + '" data-action="set-log" data-id="' + e.id + '"' + (dn ? ' aria-label="Logged. Tap to undo"' : "") + ">" + (dn ? CHECK + " Logged" : "Log set " + CHECK) + "</button></div>" +
         '<div class="two">' + stepper("Weight", e, "w", fmtW(x.w), e.unit) + stepper("Reps", e, "r", x.r) + "</div></div>";
     }).join("");
-    return '<div class="ex open" data-id="' + e.id + '"><div class="ex-head"><button class="ex-name" data-action="ex-open" data-id="' + e.id + '" aria-expanded="true">' + esc(e.name) + "</button>" + (seg || swap ? '<span class="ex-tools">' + seg + swap + "</span>" : "") + "</div>" +
+    return '<div class="ex open" data-id="' + e.id + '"><div class="ex-head"><button class="ex-name" data-action="ex-open" data-id="' + e.id + '" aria-expanded="true">' + esc(e.name) + "</button>" + (seg ? '<span class="ex-tools">' + seg + "</span>" : "") + "</div>" +
       (hv ? '<button class="try" data-action="try-heavier" data-id="' + e.id + '"><b>' + hv.text + "?</b><span>" + hv.why + "</span></button>" : "") +
       '<div class="sets">' + rows + "</div>" +
       '<div class="set-tools"><button class="linkbtn" data-action="set-add" data-id="' + e.id + '">+ Add set</button>' + (l.length > 1 ? '<button class="linkbtn" data-action="set-del" data-id="' + e.id + '">Remove set ' + (ci + 1) + "</button>" : "") +
@@ -2730,7 +2730,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
   function addForm(w, g, empty) {
     return '<form class="form ex" id="wadd-form" data-g="' + g + '">' +
-      "<label>" + (g ? "Add to " + GROUP_NAME[g] : "Add an exercise") + '<input class="field" id="wadd-name" list="ex-names" placeholder="' + (empty ? GROUP_EG[g] || "Squat" : "") + '" maxlength="60" autocomplete="off" enterkeyhint="done" required></label>' +
+      "<label>" + (g ? "Add to " + GROUP_NAME[g] : "Add an exercise") + '<input class="field" id="wadd-name" placeholder="' + (empty ? GROUP_EG[g] || "Squat" : "") + '" maxlength="60" autocomplete="off" enterkeyhint="done" required></label>' +
       '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
       '<p class="hint">Done it before? Your last sets load in. Leave weight at 0 for bodyweight moves.</p></form>';
   }
@@ -2747,7 +2747,7 @@ body.setup .nav, body.setup .top { display: none; }
     const w = peekDay(viewDate).workout;
     if (!w) { closeSheet(); return; }
     if (wKeepAsk) { sheet.innerHTML = keepAskHTML(); return; }
-    const scroll = sheet.scrollTop, prev = lastSession(w.type, viewDate), tn = typeName(w.type).toLowerCase(), gs = groupsFor(w.type);
+    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), gs = groupsFor(w.type);
     const body = wEdit
       ? '<div class="wedit">' + gs.map((g) => (g ? '<div class="ex-ghead" data-g="' + g + '">' + GROUP_NAME[g] + "</div>" : "") + w.exercises.filter((e) => e.group === g).map(editRow).join("")).join("") + "</div>"
       : gs.map((g) => {
@@ -2764,14 +2764,12 @@ body.setup .nav, body.setup .top { display: none; }
       : nSets ? "<b>" + nEx + " of " + w.exercises.length + "</b> exercises · <b>" + nSets + "</b> " + (nSets === 1 ? "set" : "sets") + " logged"
       : prev ? "Your usual " + tn + " day. Grey is the plan: log each set as you do it, and change anything that went differently."
       : "Log each set as you do it. Next time this is your plan.";
-    const names = [...new Set(savedSessions().flatMap((d) => state.days[d].workout.exercises.map((e) => e.name)))];
     const tools = (w.exercises.length ? '<button class="btn secondary" data-action="w-edit">' + (wEdit ? "Done" : "Reorder or remove") + "</button>" : "") +
       (!w.saved ? '<button class="btn danger" data-action="w-discard">' + (wConfirmDiscard ? "Tap again to discard" : "Not " + tn + " day? Discard") + "</button>" : "");
     sheet.innerHTML = '<div class="sheet-inner"><div class="grab"></div>' +
       '<div class="panel-head"><h2>' + typeName(w.type) + ' day</h2><span class="meta">' + (viewDate === todayISO() ? "Today" : "Day " + dayNum(viewDate)) + "</span></div>" +
       (intro ? '<p class="hint">' + intro + "</p>" : "") + body +
       (tools ? '<div class="btn-row">' + tools + "</div>" : "") +
-      '<datalist id="ex-names">' + names.map((n) => '<option value="' + esc(n) + '">').join("") + "</datalist>" +
       '<div class="sheet-foot"><button class="btn wide" data-action="w-save"' + (nSets ? "" : " disabled") + ">" + (w.saved ? "Save changes" : nSets ? "Finish workout" : "Log a set to finish") + "</button></div>" +
       "</div>";
     sheet.scrollTop = scroll;
@@ -2940,7 +2938,7 @@ body.setup .nav, body.setup .top { display: none; }
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
   const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
-    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-add", "set-del", "try-heavier", "ex-swap", "swap-cancel", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard", "plan-today",
+    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-add", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard", "plan-today",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
     const cm = document.querySelector(".coach-card.menu-open");
@@ -3049,7 +3047,7 @@ body.setup .nav, body.setup .top { display: none; }
       case "fab-close": fabMenu(false); break;
       case "start-workout": fabMenu(false); startWorkout(el.dataset.type); break;
       case "open-workout": openWorkout(); break;
-      case "ex-open": wOpen = wOpen === el.dataset.id ? null : el.dataset.id; wSwap = null; drawWorkout(); showOpen(); break;
+      case "ex-open": wOpen = wOpen === el.dataset.id ? null : el.dataset.id; drawWorkout(); showOpen(); break;
       case "ex-step": {
         const e = findEx(el.dataset.id), f = el.dataset.f, dir = +el.dataset.d;
         if (!e) break;
@@ -3096,8 +3094,6 @@ body.setup .nav, body.setup .top { display: none; }
         });
         syncEx(e); save(viewDate); drawWorkout(); break;
       }
-      case "ex-swap": wSwap = el.dataset.id; wAddGroup = null; drawWorkout(); setTimeout(() => { const f = document.getElementById("swap-in"); if (f) { f.focus(); fitTyping(); } }, 30); break;
-      case "swap-cancel": wSwap = null; drawWorkout(); break;
       case "ex-unit": {
         const e = findEx(el.dataset.id), u = el.dataset.u;
         if (!e || e.unit === u) break;
@@ -3123,9 +3119,9 @@ body.setup .nav, body.setup .top { display: none; }
         if (renameAsk) { renameExercise(renameAsk.id, renameAsk.to, a === "rename-all"); renameAsk = null; render(); drawWorkout(); }
         break;
       case "rename-cancel": renameAsk = null; drawWorkout(); break;
-      case "wadd-open": wAddGroup = el.dataset.g || ""; wEdit = false; wSwap = null; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
+      case "wadd-open": wAddGroup = el.dataset.g || ""; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
       case "wadd-cancel": wAddGroup = null; drawWorkout(); break;
-      case "w-edit": wEdit = !wEdit; wAddGroup = null; wSwap = null; renaming = renameAsk = null; drawWorkout(); break;
+      case "w-edit": wEdit = !wEdit; wAddGroup = null; renaming = renameAsk = null; drawWorkout(); break;
       case "w-discard":
         if (!wConfirmDiscard) { wConfirmDiscard = true; drawWorkout(); break; }
         day().workout = null; save(viewDate); closeSheet(); render(true); toast("Workout discarded");
@@ -3245,22 +3241,23 @@ body.setup .nav, body.setup .top { display: none; }
     ev.preventDefault();
     const f = ev.target;
     const val = (id) => document.getElementById(id).value.trim();
-    if (f.id === "wadd-form" || f.id === "swap-form") {
-      const name = val(f.id === "wadd-form" ? "wadd-name" : "swap-in").replace(/\s+/g, " ");
-      const w = getDay(viewDate).workout, old = f.id === "swap-form" ? findEx(f.dataset.id) : null;
+    if (f.id === "wadd-form") {
+      const name = val("wadd-name").replace(/\s+/g, " ");
+      const w = getDay(viewDate).workout;
       if (!name || !w) return;
-      if (old && exKey(old.name) === exKey(name)) { wSwap = null; drawWorkout(); return; }
       const dup = w.exercises.find((x) => exKey(x.name) === exKey(name));
-      if (dup) { wAddGroup = wSwap = null; wOpen = dup.id; drawWorkout(); showOpen(); toast(dup.name + " is already in this workout"); return; }
-      const ne = newEx(name, w.type, old ? old.group : f.dataset.g);
-      if (old) w.exercises.splice(w.exercises.indexOf(old), 1, ne); else w.exercises.push(ne);
-      wAddGroup = wSwap = null; wOpen = ne.id;
+      if (dup) { wAddGroup = null; wOpen = dup.id; drawWorkout(); showOpen(); toast(dup.name + " is already in this workout"); return; }
+      const ne = newEx(name, w.type, f.dataset.g), known = !!prevExercise(name);
+      w.exercises.push(ne);
+      wAddGroup = null; wOpen = ne.id;
       buzz("confirm");
       save(viewDate); render(); drawWorkout(); showOpen();
-      if (old) toast("Swapped " + old.name + " for " + ne.name);
-      // Brand new to you: straight into its weight, keyboard still up.
-      if (!old && !lastExercise(name, viewDate)) aiSortExercise(ne, w.type);
-      if (!lastExercise(name, viewDate)) { const i = document.getElementById("ex-w-" + ne.id); if (i) { i.focus(); try { i.select(); } catch (e) { /* ignore */ } fitTyping(); } }
+      // Brand new to you: the coach sorts it into a group, and you go straight into its weight, keyboard still up.
+      if (!known) {
+        aiSortExercise(ne, w.type);
+        const i = document.getElementById("ex-w-" + ne.id);
+        if (i) { i.focus(); try { i.select(); } catch (e) { /* ignore */ } fitTyping(); }
+      }
     } else if (f.id.indexOf("step-form-") === 0) {
       const g = findGoal(f.dataset.goal), text = val("step-in-" + f.dataset.goal);
       if (!g || !text) return;
