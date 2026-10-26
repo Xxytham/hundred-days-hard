@@ -57,6 +57,8 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
     private static final int REQ_HEALTH = 1;
     private static final int REQ_RESTORE = 2;
+    private static final int REQ_NOTIFY = 3;
+    static volatile boolean visible = false; // goal notifications stay quiet while the app is on screen
     private static final String BACKUP_NAME = "100-days-hard-backup.json";
     private static final String BACKUP_DIR = Environment.DIRECTORY_DOWNLOADS + "/100 Days Hard";
 
@@ -111,6 +113,7 @@ public class MainActivity extends Activity {
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         readShortcut(getIntent());
+        SyncJob.schedule(this);
         if (state != null) web.restoreState(state);
         else web.loadUrl("file:///android_asset/index.html");
     }
@@ -136,8 +139,15 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        visible = false;
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        visible = true;
         if (loaded) js("window.__onResume && window.__onResume()");
     }
 
@@ -237,6 +247,10 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQ_NOTIFY) {
+            js("window.__notifyPermission && window.__notifyPermission(" + JSONObject.quote(notifyStatus()) + ")");
+            return;
+        }
         if (requestCode != REQ_HEALTH) return;
         String status = HealthReader.status(this);
         js("window.__healthPermission && window.__healthPermission(" + JSONObject.quote(status) + ")");
@@ -319,6 +333,10 @@ public class MainActivity extends Activity {
         else updateState("failed", 0, status == PackageInstaller.STATUS_FAILURE_ABORTED ? "cancelled" : intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
     }
 
+    private String notifyStatus() {
+        return checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED ? "granted" : "not_granted";
+    }
+
     // ---------- coach: Gemini Nano on the phone (AICore), through ML Kit's Prompt API ----------
     private GenerativeModelFutures model;
 
@@ -332,6 +350,22 @@ public class MainActivity extends Activity {
     }
 
     class Bridge {
+        /** The page's latest numbers for the widget and goal notifications (see Today). */
+        @JavascriptInterface
+        public void widgetUpdate(String json) {
+            io.execute(() -> Today.fromPage(MainActivity.this, json));
+        }
+
+        @JavascriptInterface
+        public String notifyStatus() {
+            return MainActivity.this.notifyStatus();
+        }
+
+        @JavascriptInterface
+        public void notifyPermission() {
+            runOnUiThread(() -> requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIFY));
+        }
+
         /** Downloads the newest release and asks Android to install it. Answers through window.__updateState. */
         @JavascriptInterface
         public void updateApp(String url) {

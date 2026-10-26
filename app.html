@@ -854,6 +854,26 @@ body.setup .nav, body.setup .top { display: none; }
 
   function persistLocal() {
     try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+    pushWidget();
+  }
+  // Today's numbers for the home-screen widget and goal notifications (installed app), a moment after any change.
+  let widgetT = null;
+  function pushWidget() {
+    if (!bridge || !bridge.widgetUpdate || !S().setupDone) return;
+    clearTimeout(widgetT);
+    widgetT = setTimeout(() => {
+      try {
+        const t = todayISO(), d = peekDay(t), st = streakInfo();
+        const g = state.goals.list.find((x) => x.steps.some((y) => !y.done));
+        const next = g ? g.name + " " + g.steps.find((y) => !y.done).text : "";
+        bridge.widgetUpdate(JSON.stringify({
+          date: t, startDate: S().startDate, total: TOTAL(), calorieGoal: S().calorieGoal, aim: calAim(), proteinGoal: S().proteinGoal,
+          stepsTarget: S().stepsTarget, sleepTarget: S().sleepTarget, kcal: d.kcal || 0, protein: d.protein || 0, kcalSrc: d.kcalSrc || "",
+          steps: (d.health && d.health.steps) || 0, sleepMin: (d.health && d.health.sleepMin) || 0, streak: st ? st.cur : 0,
+          tasksDone: doneOn(t), tasksTotal: tasksFor(t).length, nextGoal: next, notify: !!S().goalNotifs,
+        }));
+      } catch (e) { /* ignore */ }
+    }, 800);
   }
   function save(id, opts) {
     const body = docBody(id);
@@ -2187,6 +2207,20 @@ body.setup .nav, body.setup .top { display: none; }
       '<div class="btn-row">' + buttons + "</div>" + how + "</section>";
   }
 
+  // Goal notifications and the widget (installed app only).
+  function notifySection() {
+    if (mode !== "apk") return "";
+    const on = !!S().goalNotifs, allowed = bridge.notifyStatus ? bridge.notifyStatus() === "granted" : false;
+    const bg = healthMissing().includes("background updates");
+    return '<section class="panel" aria-labelledby="h-nt"><h2 id="h-nt">Notifications &amp; widget</h2>' +
+      '<div class="form"><span class="hint">Tell me when Samsung Health shows I\'ve hit my protein, calories, steps or sleep goal while the app is closed</span>' +
+      '<span class="seg" role="group"><button data-action="goal-notifs" data-v="1" aria-pressed="' + on + '">On</button><button data-action="goal-notifs" data-v="0" aria-pressed="' + !on + '">Off</button></span></div>' +
+      (on && !allowed ? '<div class="btn-row"><button class="btn" data-action="notify-allow">Allow notifications</button></div>' : "") +
+      (bg && health !== "unavailable" ? '<p class="hint">The widget and notifications update about once an hour in the background. Let Samsung Health share in the background for that:</p><div class="btn-row"><button class="btn secondary" data-action="health-connect">Allow background updates</button></div>' : "") +
+      '<p class="hint">Add the widget: touch and hold your home screen, tap <b>Widgets</b>, then <b>100 Days Hard</b>.</p></section>';
+  }
+  window.__notifyPermission = function () { if (view === "settings") render(true); };
+
   function healthSection() {
     if (mode !== "apk" || health === "unavailable") return "";
     const on = health === "granted", missing = healthMissing();
@@ -2224,6 +2258,7 @@ body.setup .nav, body.setup .top { display: none; }
         '<p class="hint">Day 1 was ' + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day " + TOTAL() + " lands on " + fmtDate(addDays(s.startDate, TOTAL() - 1), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" +
         '<button class="btn secondary" data-action="new-round">Start a new round</button>' +
       "</div></section>" +
+      notifySection() +
       healthSection() +
       updateSection() +
       shareSection() +
@@ -2575,7 +2610,7 @@ body.setup .nav, body.setup .top { display: none; }
 
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
-  const TAP_BUZZ = new Set(["tab", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
+  const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
     "fab", "fab-close", "start-workout", "open-workout", "ex-step", "set-step", "set-go", "set-del", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
@@ -2787,6 +2822,12 @@ body.setup .nav, body.setup .top { display: none; }
       case "stat-sel": statSel[statTab] = statSel[statTab] === el.dataset.k ? "" : el.dataset.k; render(true); break;
       case "coach-refresh": coachWrite(true); render(true); break;
       case "coach-setup": if (bridge && bridge.aiDownload) { aiState = "downloading"; bridge.aiDownload(); render(true); } break;
+      case "goal-notifs": {
+        S().goalNotifs = el.dataset.v === "1"; save("settings"); render(true);
+        if (S().goalNotifs && bridge && bridge.notifyStatus && bridge.notifyStatus() !== "granted") bridge.notifyPermission();
+        break;
+      }
+      case "notify-allow": if (bridge && bridge.notifyPermission) bridge.notifyPermission(); break;
       case "new-goal-toggle": newGoalOpen = !newGoalOpen; render(true); if (newGoalOpen) { const f = document.getElementById("new-goal"); if (f) f.focus(); } break;
       case "edit-goal": editingGoal = editingGoal === el.dataset.g ? null : el.dataset.g; openGoal = el.dataset.g; confirmDelete = null; render(true); break;
       case "open-goal": openGoal = openGoal === el.dataset.g ? null : el.dataset.g; if (editingGoal !== openGoal) editingGoal = null; confirmDelete = null; render(true); break;
@@ -3051,6 +3092,7 @@ body.setup .nav, body.setup .top { display: none; }
   connect().catch(() => { setupReady = true; render(); });
   checkForUpdate();
   coachCheck();
+  pushWidget();
   try { const sc = bridge && bridge.takeShortcut ? bridge.takeShortcut() : ""; if (sc) window.__shortcut(sc); } catch (e) { /* ignore */ }
 })();
 </script>

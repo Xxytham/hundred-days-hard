@@ -70,12 +70,14 @@ final class HealthReader {
     static final String BMR = "android.permission.health.READ_BASAL_METABOLIC_RATE";
     // Without this, Health Connect only gives apps about 30 days from before they were first allowed (Android 15+).
     static final String HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY";
+    // And this lets the hourly background sync (SyncJob) read while the app is closed (Android 15+).
+    static final String BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND";
     private static final boolean HAS_HISTORY = Build.VERSION.SDK_INT >= 35;
     static final String[] PERMISSIONS = HAS_HISTORY
-            ? new String[] {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2, HEART_RATE, SPO2, BMR, HISTORY}
+            ? new String[] {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2, HEART_RATE, SPO2, BMR, HISTORY, BACKGROUND}
             : new String[] {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2, HEART_RATE, SPO2, BMR};
     private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned", "distance",
-            "body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR", "older history"};
+            "body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR", "older history", "background updates"};
     // Stats sent as the day's average rather than its latest reading.
     private static final HashSet<String> AVERAGED = new HashSet<>(Arrays.asList("hrv", "sleepHr", "spo2"));
 
@@ -139,7 +141,7 @@ final class HealthReader {
         } catch (Throwable t) {
             return "unavailable";
         }
-        for (String p : PERMISSIONS) if (!HISTORY.equals(p) && has(c, p)) return "granted";
+        for (String p : PERMISSIONS) if (!HISTORY.equals(p) && !BACKGROUND.equals(p) && has(c, p)) return "granted";
         return "not_granted";
     }
 

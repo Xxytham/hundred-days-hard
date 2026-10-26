@@ -3,4 +3,12 @@
     <color name="icon_bg">#14181D</color>
     <!-- Launch screen background: the app's page color, so the page appears without a flash -->
     <color name="splash_bg">#EDF0F3</color>
+    <!-- Widget (light) -->
+    <color name="w_bg">#FFFFFF</color>
+    <color name="w_text">#14181D</color>
+    <color name="w_muted">#5B6570</color>
+    <color name="w_track">#E2E6EB</color>
+    <color name="w_red">#CF2539</color>
+    <color name="w_blue">#1D5BB8</color>
+    <color name="w_green">#2A8653</color>
 </resources>

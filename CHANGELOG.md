@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.16 · Widget, background sync and goal alerts
+- **Home-screen widget:** today's challenge day, your streak, calories and protein bars against your goals, and your next goal step. Touch and hold your home screen, tap Widgets, then 100 Days Hard. Tap it to open the app.
+- **Background sync:** about once an hour, the app reads today's Samsung Health numbers while it's closed, so the widget stays current. Allow "background updates" when Samsung Health asks.
+- **Goal alerts:** turn them on in Settings → Notifications & widget. You get a notification when Samsung Health shows you've hit your protein, calories, steps or sleep goal while the app is closed. Once per goal per day, and never while you're in the app.
+
 ## v0.15 · New icon, AI coach and one-tap updates
 - New app icon: a red bumper plate with grip handles, a steel center and "100", tilted like it's leaning on a rack. It also comes in a single-color version for Android's themed icons, and the app opens on it.
 - **Coach** under your streak on Today: a short note on what's going well and one thing to focus on, written on your phone by Gemini Nano from numbers the app works out (your last 7 days, strength, weight, resting heart rate, goals). Nothing leaves your phone. Tap Refresh for a new one.

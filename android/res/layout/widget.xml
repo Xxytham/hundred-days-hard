@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget (see Widget.java) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp" android:gravity="center_vertical"
+    android:background="@drawable/widget_bg">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="26dp" android:layout_height="26dp" android:layout_marginEnd="8dp" android:src="@drawable/ic_plate" android:scaleType="centerCrop" android:importantForAccessibility="no" />
+        <TextView android:id="@+id/w_day" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/w_text" android:textSize="20sp" android:textStyle="bold" android:fontFamily="sans-serif-condensed" android:text="Day 1" />
+        <TextView android:id="@+id/w_of" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp"
+            android:textColor="@color/w_muted" android:textSize="13sp" android:text="of 100" />
+        <TextView android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+        <TextView android:id="@+id/w_streak" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/w_red" android:textSize="13sp" android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal" android:gravity="bottom">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Calories" android:textColor="@color/w_muted" android:textSize="12sp" />
+        <TextView android:id="@+id/w_kcal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/w_text" android:textSize="14sp" android:textStyle="bold" android:fontFamily="sans-serif-condensed" />
+        <TextView android:id="@+id/w_kcal_goal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/w_muted" android:textSize="12sp" />
+    </LinearLayout>
+    <ProgressBar android:id="@+id/w_kcal_bar" style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="4dp"
+        android:max="1000" android:progressDrawable="@drawable/widget_bar" android:progressTint="@color/w_blue" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:gravity="bottom">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Protein" android:textColor="@color/w_muted" android:textSize="12sp" />
+        <TextView android:id="@+id/w_protein" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/w_text" android:textSize="14sp" android:textStyle="bold" android:fontFamily="sans-serif-condensed" />
+        <TextView android:id="@+id/w_protein_goal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/w_muted" android:textSize="12sp" />
+    </LinearLayout>
+    <ProgressBar android:id="@+id/w_protein_bar" style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent" android:layout_height="6dp" android:layout_marginTop="4dp"
+        android:max="1000" android:progressDrawable="@drawable/widget_bar" android:progressTint="@color/w_green" />
+
+    <TextView android:id="@+id/w_next" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+        android:textColor="@color/w_muted" android:textSize="12sp" android:maxLines="1" android:ellipsize="end" android:visibility="gone" />
+</LinearLayout>

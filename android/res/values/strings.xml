@@ -6,4 +6,5 @@
     <string name="sc_pull_long">Log Pull day</string>
     <string name="sc_legs_short">Legs day</string>
     <string name="sc_legs_long">Log Legs day</string>
+    <string name="widget_desc">Your day, streak, calories and protein</string>
 </resources>

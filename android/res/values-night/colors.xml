@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splash_bg">#0F1215</color>
+    <color name="w_bg">#191E24</color>
+    <color name="w_text">#E8ECF0</color>
+    <color name="w_muted">#96A0AB</color>
+    <color name="w_track">#2B333C</color>
+    <color name="w_red">#FF5263</color>
+    <color name="w_blue">#5E9CFF</color>
+    <color name="w_green">#4CC489</color>
 </resources>

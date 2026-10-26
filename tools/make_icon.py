@@ -100,6 +100,9 @@ mono = [
     ("path", dict(d=circle(C, C, hub_r) + " " + circle(C, C, hole_r), fill="#FFFFFF", evenodd=True), None),
 ]
 open(OUT_RES + "/drawable/ic_plate_mono.xml", "w").write(vector(mono))
+# status bar icon for notifications: the same single-color plate, enlarged to fill a 24dp box
+stat = vector(mono, 24).replace('android:rotation="', 'android:scaleX="1.55" android:scaleY="1.55" android:rotation="')
+open(OUT_RES + "/drawable/ic_stat_plate.xml", "w").write(stat)
 
 # ---------- SVG preview of both ----------
 def svg_layers(layers, bg):
