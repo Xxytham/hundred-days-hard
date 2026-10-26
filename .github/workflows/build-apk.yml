@@ -33,6 +33,7 @@ jobs:
           mkdir -p android/keystore
           echo "$KEYSTORE_B64" | base64 -d > android/keystore/hundred-days-hard.jks
 
+      # build.sh builds with Gradle against the SDK it sets up in $RUNNER_TEMP
       - name: Build
         run: ANDROID_SDK="$RUNNER_TEMP/android-sdk" android/build.sh
 

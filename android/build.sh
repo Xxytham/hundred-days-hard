@@ -12,6 +12,7 @@ cd "$(dirname "$0")"
 SDK=${ANDROID_SDK:-${ANDROID_HOME:-$HOME/android-sdk}}
 [ -x "$SDK/build-tools/35.0.0/aapt2" ] && [ -f "$SDK/platforms/android-35/android.jar" ] || ANDROID_SDK=$SDK ./setup-sdk.sh
 export ANDROID_HOME="$SDK"
+unset ANDROID_SDK_ROOT # GitHub's runners set this to their own SDK; Gradle refuses two different locations
 
 VN=$(sed -n 's/^name=//p' VERSION)
 KS=${KEYSTORE:-keystore/hundred-days-hard.jks}
