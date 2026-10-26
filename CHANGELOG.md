@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.17 · Workouts follow your plan
+- Starting a workout no longer looks already filled in. Your usual exercises and sets show in grey as the plan, and you tap **Log set** as you do each one. Change the weight or reps first if they went differently.
+- Push and Pull days are split into groups: Chest, Triceps, Shoulders / Back, Biceps, Forearms, plus Abs on every day. The app sorts your exercises by name; drag one into another group in "Reorder or remove".
+- Only the exercise you're on is open. The rest are one line each, and the next one opens when you finish an exercise.
+- When you matched or beat your reps at the same weight two times running, it suggests going 5 lb heavier. It's only filled in if you tap it.
+- Swap an exercise for today (machine taken), add one to any group, or skip one.
+- Finish saves only the sets you logged. If you added or skipped exercises, it asks whether to keep the changes for next time.
+
 ## v0.16.5 · Calories and protein to go
 - The line above Food is back: how many calories and grams of protein you still need today. It no longer mentions daily tasks.
 
