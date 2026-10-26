@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.16.4 · No summary line
+- Removed the line of text above Food on Today. The bars and tasks turning green already show where you are.
+
 ## v0.16.3 · Shorter summary line
 - The line under the coach no longer says how many daily tasks are done (the Daily tasks card shows that). It just says what's left for calories and protein.
 
