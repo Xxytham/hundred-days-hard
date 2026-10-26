@@ -254,7 +254,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .week i.full { background: var(--red); }
 .week i.partial { background: color-mix(in srgb, var(--blue) 55%, var(--sunk)); }
 .week i.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ink); }
-.streak-note { margin: -6px 0 0; font-size: 13px; color: var(--muted); }
 
 /* Backup status dot by the date */
 .eyebrow { display: flex; align-items: center; gap: 8px; }
@@ -1297,12 +1296,8 @@ body.setup .nav, body.setup .top { display: none; }
       const cls = (f === 1 ? "full" : f > 0 ? "partial" : "") + (i === 0 ? " today" : "");
       dots.push("<span><i class=\"" + cls + "\"></i>" + parseISO(d).toLocaleDateString(undefined, { weekday: "narrow" }) + "</span>");
     }
-    const note = st.todayDone
-      ? (st.cur >= st.best && st.cur > 1 ? "That's your best streak yet." : "Best: " + st.best + ".")
-      : (st.cur ? "Finish today's " + st.left + " task" + (st.left === 1 ? "" : "s") + " to make it " + (st.cur + 1) + "." : "Finish all of today's tasks to start a streak.") + (st.best > st.cur ? " Best: " + st.best + "." : "");
     return '<div class="streak"><div class="streak-num"><b class="num">' + st.cur + "</b><span>day streak</span></div>" +
-      '<div class="week" role="img" aria-label="Last 7 days of daily tasks">' + dots.join("") + "</div></div>" +
-      '<p class="streak-note">' + note + "</p>";
+      '<div class="week" role="img" aria-label="Last 7 days of daily tasks">' + dots.join("") + "</div></div>";
   }
 
   // ---------- app updates (installed app) ----------

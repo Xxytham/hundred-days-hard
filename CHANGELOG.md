@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.16.2 · Cleaner streak
+- Removed the small line of text under the streak counter ("Best: …").
+
 ## v0.16.1 · Icon tilted the other way
 - The plate on the app icon now leans clockwise.
 
