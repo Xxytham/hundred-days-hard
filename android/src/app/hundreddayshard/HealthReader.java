@@ -8,13 +8,16 @@ import android.health.connect.ReadRecordsRequestUsingFilters;
 import android.health.connect.ReadRecordsResponse;
 import android.health.connect.TimeInstantRangeFilter;
 import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
+import android.health.connect.datatypes.BasalMetabolicRateRecord;
 import android.health.connect.datatypes.BodyFatRecord;
 import android.health.connect.datatypes.DistanceRecord;
 import android.health.connect.datatypes.ExerciseSessionRecord;
 import android.health.connect.datatypes.ExerciseSessionType;
+import android.health.connect.datatypes.HeartRateRecord;
 import android.health.connect.datatypes.HeartRateVariabilityRmssdRecord;
 import android.health.connect.datatypes.Metadata;
 import android.health.connect.datatypes.NutritionRecord;
+import android.health.connect.datatypes.OxygenSaturationRecord;
 import android.health.connect.datatypes.Record;
 import android.health.connect.datatypes.RestingHeartRateRecord;
 import android.health.connect.datatypes.SleepSessionRecord;
@@ -33,7 +36,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -43,7 +48,9 @@ import java.util.function.Consumer;
 /**
  * Reads what Samsung Health shares through Health Connect (Android 14+): daily food totals,
  * body weight, steps, sleep and exercise sessions (with the calories burned during them), and the watch's body stats:
- * body fat, resting heart rate, heart rate variability and VO2 max. Each type is read only if its permission was granted.
+ * body fat, resting heart rate, heart rate variability, VO2 max, BMR, blood oxygen, and heart rate (averaged over each night's
+ * sleep, a resting heart rate for watches that don't share one). Sleep also brings its deep, REM and light minutes, and the
+ * day's calories burned come along. Each type is read only if its permission was granted.
  */
 final class HealthReader {
     static final String NUTRITION = "android.permission.health.READ_NUTRITION";
@@ -58,9 +65,15 @@ final class HealthReader {
     static final String RESTING_HR = "android.permission.health.READ_RESTING_HEART_RATE";
     static final String HRV = "android.permission.health.READ_HEART_RATE_VARIABILITY";
     static final String VO2 = "android.permission.health.READ_VO2_MAX";
-    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2};
+    static final String HEART_RATE = "android.permission.health.READ_HEART_RATE";
+    static final String SPO2 = "android.permission.health.READ_OXYGEN_SATURATION";
+    static final String BMR = "android.permission.health.READ_BASAL_METABOLIC_RATE";
+    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2,
+            HEART_RATE, SPO2, BMR};
     private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned", "distance",
-            "body fat", "resting heart rate", "heart rate variability", "VO2 max"};
+            "body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR"};
+    // Stats sent as the day's average rather than its latest reading.
+    private static final HashSet<String> AVERAGED = new HashSet<>(Arrays.asList("hrv", "sleepHr", "spo2"));
 
     private static final Map<Integer, String> TYPES = new HashMap<>();
     // Session types that are lifting rather than cardio. One of these on the same day as a workout saved
@@ -190,6 +203,9 @@ final class HealthReader {
         Map<String, Map<String, JSONArray>> workouts = new TreeMap<>();
         // Body stats: name -> day -> app that wrote it -> {sum, count, latest time, latest value}
         Map<String, Map<String, Map<String, double[]>>> stats = new HashMap<>();
+        // day -> app -> {deep, REM, light} sleep minutes, and day -> app -> calories burned (total, active)
+        Map<String, Map<String, double[]>> stages = new TreeMap<>();
+        Map<String, Map<String, double[]>> burned = new TreeMap<>();
 
         readAll(c, hcm, NUTRITION, NutritionRecord.class, range, ex, nutrition -> {
             for (NutritionRecord n : nutrition) {
@@ -214,8 +230,13 @@ final class HealthReader {
                         for (SleepSessionRecord n : nights) {
                             // Count sleep on the morning it ends, minus time awake.
                             double min = Duration.between(n.getStartTime(), n.getEndTime()).toMinutes();
+                            double[] stg = slot(stages, n.getEndTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 3);
                             for (SleepSessionRecord.Stage st : n.getStages()) {
                                 int type = st.getType();
+                                double sm = Duration.between(st.getStartTime(), st.getEndTime()).toMinutes();
+                                if (type == SleepSessionRecord.StageType.STAGE_TYPE_SLEEPING_DEEP) stg[0] += sm;
+                                else if (type == SleepSessionRecord.StageType.STAGE_TYPE_SLEEPING_REM) stg[1] += sm;
+                                else if (type == SleepSessionRecord.StageType.STAGE_TYPE_SLEEPING_LIGHT) stg[2] += sm;
                                 if (type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE
                                         || type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE_IN_BED
                                         || type == SleepSessionRecord.StageType.STAGE_TYPE_AWAKE_OUT_OF_BED) {
@@ -259,13 +280,31 @@ final class HealthReader {
                             readAll(c, hcm, BODY_FAT, BodyFatRecord.class, range, ex, fat ->
                             readAll(c, hcm, RESTING_HR, RestingHeartRateRecord.class, range, ex, resting ->
                             readAll(c, hcm, HRV, HeartRateVariabilityRmssdRecord.class, range, ex, hrv ->
-                            readAll(c, hcm, VO2, Vo2MaxRecord.class, range, ex, vo2 -> {
+                            readAll(c, hcm, VO2, Vo2MaxRecord.class, range, ex, vo2 ->
+                            readAll(c, hcm, SPO2, OxygenSaturationRecord.class, range, ex, spo2 ->
+                            readAll(c, hcm, BMR, BasalMetabolicRateRecord.class, range, ex, bmr ->
+                            readAll(c, hcm, HEART_RATE, HeartRateRecord.class, sleepRange, ex, hearts -> {
                                 for (BodyFatRecord r : fat) stat(stats, "bodyFat", r.getTime(), zone, r.getMetadata(), r.getPercentage().getValue());
                                 for (RestingHeartRateRecord r : resting) stat(stats, "restHr", r.getTime(), zone, r.getMetadata(), r.getBeatsPerMinute());
                                 for (HeartRateVariabilityRmssdRecord r : hrv) stat(stats, "hrv", r.getTime(), zone, r.getMetadata(), r.getHeartRateVariabilityMillis());
                                 for (Vo2MaxRecord r : vo2) stat(stats, "vo2", r.getTime(), zone, r.getMetadata(), r.getVo2MillilitersPerMinuteKilogram());
-                                done.accept(toJson(food, weightKg, steps, sleep, workouts, stats, fromIso));
-                            }))));
+                                for (OxygenSaturationRecord r : spo2) stat(stats, "spo2", r.getTime(), zone, r.getMetadata(), r.getPercentage().getValue());
+                                // Health Connect stores BMR as power; 1 watt over a day is about 20.65 kcal.
+                                for (BasalMetabolicRateRecord r : bmr) stat(stats, "bmr", r.getTime(), zone, r.getMetadata(), r.getBasalMetabolicRate().getInWatts() * 86400 / 4184.0);
+                                // Resting heart rate the way watches measure it: the average while asleep, counted on the morning the night ends.
+                                for (SleepSessionRecord n : nights) {
+                                    for (HeartRateRecord h : hearts) {
+                                        if (h.getEndTime().isBefore(n.getStartTime()) || h.getStartTime().isAfter(n.getEndTime())) continue;
+                                        for (HeartRateRecord.HeartRateSample hs : h.getSamples()) {
+                                            if (hs.getTime().isBefore(n.getStartTime()) || hs.getTime().isAfter(n.getEndTime())) continue;
+                                            stat(stats, "sleepHr", n.getEndTime(), zone, h.getMetadata(), hs.getBeatsPerMinute());
+                                        }
+                                    }
+                                }
+                                for (TotalCaloriesBurnedRecord r : total) slot(burned, r.getStartTime(), zone, r.getMetadata().getDataOrigin().getPackageName(), 2)[0] += r.getEnergy().getInCalories() / 1000.0;
+                                for (ActiveCaloriesBurnedRecord r : active) slot(burned, r.getStartTime(), zone, r.getMetadata().getDataOrigin().getPackageName(), 2)[1] += r.getEnergy().getInCalories() / 1000.0;
+                                done.accept(toJson(food, weightKg, steps, sleep, workouts, stats, stages, burned, fromIso));
+                            })))))));
                         }))));
                     });
                 });
@@ -319,7 +358,8 @@ final class HealthReader {
 
     private static String toJson(Map<String, Map<String, double[]>> food, Map<String, Double> weightKg,
                                  Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> sleep,
-                                 Map<String, Map<String, JSONArray>> workouts, Map<String, Map<String, Map<String, double[]>>> stats, String fromIso) {
+                                 Map<String, Map<String, JSONArray>> workouts, Map<String, Map<String, Map<String, double[]>>> stats,
+                                 Map<String, Map<String, double[]>> stages, Map<String, Map<String, double[]>> burned, String fromIso) {
         try {
             JSONObject days = new JSONObject();
             for (Map.Entry<String, Map<String, double[]>> e : food.entrySet()) {
@@ -339,9 +379,22 @@ final class HealthReader {
                 if (!origins.containsKey(SAMSUNG_HEALTH)) for (JSONArray a : origins.values()) for (int i = 0; i < a.length(); i++) list.put(a.get(i));
                 day(days, e.getKey()).put("sessions", list);
             }
+            for (Map.Entry<String, Map<String, double[]>> e : stages.entrySet()) {
+                if (e.getKey().compareTo(fromIso) < 0) continue;
+                double[] t = pick(e.getValue(), 3);
+                if (t[0] + t[1] + t[2] <= 0) continue; // a night without stages
+                JSONObject d = day(days, e.getKey());
+                d.put("deepMin", Math.round(t[0])); d.put("remMin", Math.round(t[1])); d.put("lightMin", Math.round(t[2]));
+            }
+            for (Map.Entry<String, Map<String, double[]>> e : burned.entrySet()) {
+                double[] t = pick(e.getValue(), 2);
+                JSONObject d = day(days, e.getKey());
+                if (t[0] > 0) d.put("burned", Math.round(t[0]));
+                if (t[1] > 0) d.put("active", Math.round(t[1]));
+            }
             // HRV is the day's average (the watch measures it through the night); the rest are the day's latest reading.
             for (Map.Entry<String, Map<String, Map<String, double[]>>> m : stats.entrySet()) {
-                boolean avg = "hrv".equals(m.getKey());
+                boolean avg = AVERAGED.contains(m.getKey());
                 for (Map.Entry<String, Map<String, double[]>> e : m.getValue().entrySet()) {
                     Map<String, double[]> origins = e.getValue();
                     double[] t = origins.containsKey(SAMSUNG_HEALTH) ? origins.get(SAMSUNG_HEALTH) : null;

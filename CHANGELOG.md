@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.14 · Stats in sections, more from your watch
+- Stats has its own row of tabs: **Strength · Body · Heart · Sleep · Energy**. A section only appears once it has data. Each one is a grid of tiles; tap a tile for its chart, and tap again to close it.
+- **Heart:** resting heart rate, worked out from your watch's heart rate while you sleep (Samsung Health doesn't share its own), blood oxygen, VO2 max and HRV when available.
+- **Sleep:** total sleep against your goal, plus deep, REM and light sleep.
+- **Energy:** calories eaten, protein, calories burned, eaten minus burned (your daily deficit or surplus), steps, and workout minutes for the week.
+- **Body:** weight, body fat and BMR (how much you burn at rest).
+- Tap **Connect** on Stats to allow heart rate, blood oxygen and BMR. "Not now" hides the card.
+
 ## v0.13 · Four tabs, less scrolling
 - Four tabs: **Today**, **Stats**, **Progress** (your exercises and the challenge calendar) and **Goals** (back in its own tab).
 - Progress opens on the type of your last workout. Tap Push, Pull or Legs again to fold the list away.
