@@ -451,9 +451,22 @@ body.setup .nav, body.setup .top { display: none; }
 .big-stat.sm b { font-size: 30px; }
 .big-stat .up, .big-stat b.up { color: var(--green); }
 .big-stat .down, .big-stat b.down { color: var(--red); }
-.body-card { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
-.body-card:first-of-type { border-top: 0; padding-top: 0; }
 .body-name { font-weight: 700; }
+.body-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.body-tile {
+  display: grid; gap: 2px; align-content: start; text-align: left; padding: 10px 12px; border: 0; border-radius: 12px; background: var(--bg);
+  font-size: 12px; color: var(--muted);
+}
+.body-tile .body-name { font-size: 13px; color: var(--ink); }
+.body-tile b { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.05; color: var(--ink); }
+.body-tile b small { font-size: 14px; color: var(--muted); margin-left: 2px; }
+.body-tile .up { color: var(--green); } .body-tile .down { color: var(--red); }
+.body-tile.open { --fc: var(--green); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fc) 75%, transparent); background: color-mix(in srgb, var(--fc) 12%, var(--bg)); }
+.body-tile.open.down { --fc: var(--red); }
+.body-detail { margin: 0; padding: 12px; display: grid; gap: 6px; }
+.mini-stats { display: flex; gap: 8px; }
+.mini-stats span { flex: 1; min-width: 0; background: var(--bg); border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--muted); display: grid; }
+.mini-stats b { font-family: var(--font-display); font-size: 24px; font-weight: 800; line-height: 1; color: var(--ink); }
 .chart .mline { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .chart .mline.up { stroke: var(--green); } .chart .mline.down { stroke: var(--red); }
 .chart .mline.thin { stroke-width: 1.6; opacity: 0.9; }
@@ -548,7 +561,7 @@ body.setup .nav, body.setup .top { display: none; }
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-.nav-inner { max-width: 560px; margin: 0 auto; height: var(--nav-h); display: grid; grid-template-columns: repeat(3, 1fr); }
+.nav-inner { max-width: 560px; margin: 0 auto; height: var(--nav-h); display: grid; grid-template-columns: repeat(4, 1fr); }
 .tab { border: 0; background: none; display: grid; place-items: center; align-content: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tab[aria-current="page"] { color: var(--ink); }
@@ -620,7 +633,10 @@ body.setup .nav, body.setup .top { display: none; }
       <svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/></svg>Stats
     </button>
     <button class="tab" data-action="tab" data-tab="progress">
-      <svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></svg>Progress
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress
+    </button>
+    <button class="tab" data-action="tab" data-tab="goals">
+      <svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></svg>Goals
     </button>
   </div>
 </nav>
@@ -1087,10 +1103,10 @@ body.setup .nav, body.setup .top { display: none; }
     document.getElementById("plate").innerHTML = gaugeSVG(n, N, true);
     document.getElementById("plate").setAttribute("aria-label", "Day " + n + " of " + N + ". Open settings.");
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === view ? "page" : "false"));
-    const title = { today: viewDate === t ? "Today" : "Day " + dayNum(viewDate), stats: "Stats", progress: "Progress", settings: "Settings" }[view];
+    const title = { today: viewDate === t ? "Today" : "Day " + dayNum(viewDate), stats: "Stats", progress: "Progress", goals: "Goals", settings: "Settings" }[view];
     document.getElementById("hdr-title").textContent = title;
     document.getElementById("hdr-date").textContent = view === "today" ? fmtDate(viewDate, { weekday: "long", month: "short", day: "numeric" }) : "100 Days Hard";
-    main.innerHTML = view === "today" ? renderToday() : view === "stats" ? renderStats() : view === "progress" ? renderProgress() : renderSettings();
+    main.innerHTML = view === "today" ? renderToday() : view === "stats" ? renderStats() : view === "progress" ? renderProgress() : view === "goals" ? renderGoals() : renderSettings();
     if (view === "settings") drawShareQR();
     if (view === "today") animateFood();
   }
@@ -1669,14 +1685,9 @@ body.setup .nav, body.setup .top { display: none; }
     const si = streakInfo();
     if (si) streak = si.cur;
     return (
-      '<div class="stats">' +
-        '<div class="stat"><b class="num">' + complete + "</b><span>Perfect days</span></div>" +
-        '<div class="stat"><b class="num">' + streak + "</b><span>Day streak</span></div>" +
-        '<div class="stat"><b class="num">' + (kcalDays ? fmt(kcalSum / kcalDays) : "–") + "</b><span>Avg kcal / day</span></div>" +
-      "</div>" +
       renderStrength() +
-      renderGoals() +
       '<section class="panel" aria-labelledby="h-g"><div class="panel-head"><h2 id="h-g">The ' + N + '</h2><span class="meta num">' + (tn >= N ? "Finished" : (N - tn) + " days to go") + "</span></div>" +
+        '<div class="mini-stats"><span><b class="num">' + complete + "</b>perfect days</span><span><b class=\"num\">" + streak + "</b>day streak</span><span><b class=\"num\">" + (kcalDays ? fmt(kcalSum / kcalDays) : "–") + "</b>avg kcal</span></div>" +
         '<div class="grid100">' + cells.join("") + "</div>" +
         '<div class="legend"><span><i style="background:var(--red)"></i>All tasks</span><span><i style="background:var(--blue)"></i>Some tasks</span><span><i style="background:var(--sunk)"></i>Nothing checked</span></div>' +
         '<p class="empty">Tap a day to view or edit it.</p>' +
@@ -1752,27 +1763,39 @@ body.setup .nav, body.setup .top { display: none; }
     { k: "hrv", name: "Heart rate variability", val: (d) => d.health && d.health.hrv, unit: () => " ms", dec: 0, better: () => 1 },
     { k: "vo2", name: "VO2 max", val: (d) => d.health && d.health.vo2, unit: () => "", dec: 1, better: () => 1 },
   ];
-  function bodyCard(m) {
+  let bodySel = null;
+  function bodyData(m) {
     const pts = Object.keys(state.days).sort().filter((d) => m.val(state.days[d]) != null && +m.val(state.days[d]) > 0).slice(-60).map((d) => ({ n: dayNum(d), v: +m.val(state.days[d]) }));
-    if (!pts.length) return "";
-    const last = pts[pts.length - 1], ch = last.v - pts[0].v, good = ch * m.better() >= 0;
-    return '<div class="body-card"><div class="panel-head"><span class="body-name">' + m.name + '</span><span class="meta">day ' + last.n + "</span></div>" +
-      '<div class="big-stat sm"><b class="num">' + last.v.toFixed(m.dec) + "<small>" + m.unit() + "</small></b>" +
-      (pts.length > 1 ? '<span class="num ' + (Math.abs(ch) < 1e-9 ? "" : good ? "up" : "down") + '">' + signed(ch, m.dec, m.unit()) + " since day " + pts[0].n + "</span>" : "<span>First reading</span>") + "</div>" +
-      (pts.length > 1 ? lineChart([{ pts, cls: good ? "up" : "down", fill: true }], { label: m.name, minSpan: m.dec ? 1 : 2, h: 120 }) : "") + "</div>";
+    if (!pts.length) return null;
+    const last = pts[pts.length - 1], ch = last.v - pts[0].v;
+    return { m, pts, last, ch, good: ch * m.better() >= 0, flat: Math.abs(ch) < 1e-9 };
+  }
+  function bodyTile(b) {
+    const open = bodySel === b.m.k;
+    return '<button class="body-tile' + (open ? " open " + (b.good ? "up" : "down") : "") + '" data-action="body-sel" data-k="' + b.m.k + '" aria-expanded="' + open + '">' +
+      '<span class="body-name">' + b.m.name + "</span>" +
+      '<b class="num">' + b.last.v.toFixed(b.m.dec) + "<small>" + b.m.unit() + "</small></b>" +
+      '<span class="num ' + (b.pts.length < 2 || b.flat ? "" : b.good ? "up" : "down") + '">' + (b.pts.length > 1 ? signed(b.ch, b.m.dec, b.m.unit()) + " since day " + b.pts[0].n : "First reading") + "</span></button>";
+  }
+  function bodyDetail(b) {
+    return '<div class="body-detail tick-focus ' + (b.good ? "up" : "down") + '" data-action="body-sel" data-k="' + b.m.k + '">' +
+      '<div class="panel-head"><span class="body-name">' + b.m.name + '</span><span class="meta">day ' + b.pts[0].n + "–" + b.last.n + "</span></div>" +
+      (b.pts.length > 1 ? lineChart([{ pts: b.pts, cls: b.good ? "up" : "down", fill: true }], { label: b.m.name, minSpan: b.m.dec ? 1 : 2, h: 140 }) : '<p class="empty">One reading so far. The chart starts with the second.</p>') + "</div>";
   }
   const BODY_STATS = ["body fat", "resting heart rate", "heart rate variability", "VO2 max"];
   function renderStats() {
     const missing = bridge && health !== "unavailable" ? healthMissing().filter((x) => BODY_STATS.includes(x)) : [];
     const offer = missing.length ? '<div class="notice"><b>Add your watch\'s body stats</b><span class="hint">Let Samsung Health share ' + missing.join(", ") + " and they'll chart here.</span><div class=\"btn-row\"><button class=\"btn\" data-action=\"health-connect\">Connect</button></div></div>" : "";
-    const cards = BODY.map(bodyCard).filter(Boolean);
+    const bodies = BODY.map(bodyData).filter(Boolean), sel = bodies.find((b) => b.m.k === bodySel);
+    if (!sel) bodySel = null;
     return offer + strengthStats() +
-      '<section class="panel" aria-labelledby="h-body"><h2 id="h-body">Body</h2>' +
-        (cards.length ? cards.join("") : '<p class="empty">Log your weight on Today' + (bridge ? ", or let Samsung Health share it," : "") + " and it charts here.</p>") +
+      '<section class="panel" aria-labelledby="h-body"><div class="panel-head"><h2 id="h-body">Body</h2>' + (bodies.length ? '<span class="meta">Tap one for its chart</span>' : "") + "</div>" +
+        (bodies.length ? '<div class="body-grid">' + bodies.map(bodyTile).join("") + "</div>" + (sel ? bodyDetail(sel) : "")
+          : '<p class="empty">Log your weight on Today' + (bridge ? ", or let Samsung Health share it," : "") + " and it charts here.</p>") +
       "</section>" + trendsPanel(todayISO());
   }
 
-  let strType = "push", strSel = null;
+  let strType, strSel = null; // strType null = list folded away; undefined = not chosen yet (opens on the last workout's type)
   function strengthData() {
     const map = {};
     savedSessions().forEach((d) => {
@@ -1867,6 +1890,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
 
   function renderStrength() {
+    if (strType === undefined) { const last = lastSession(); strType = last && TYPES.some((t) => t.id === last.workout.type) ? last.workout.type : "push"; }
     const all = strengthData();
     const list = all.filter((m) => m.types[strType] != null).sort((a, b) => a.types[strType] - b.types[strType]);
     const changes = list.map((m) => pctChange(m.pts)).filter((c) => c != null);
@@ -1885,8 +1909,8 @@ body.setup .nav, body.setup .top { display: none; }
     const summary = avg == null ? "" : '<p class="hint">' + typeName(strType) + " strength is <b class=\"num\">" + (Math.abs(avg) < 0.05 ? "flat" : (avg > 0 ? "up " : "down ") + Math.abs(avg).toFixed(1) + "%") + "</b> since last " + typeName(strType).toLowerCase() + " day, across " + changes.length + " exercise" + (changes.length === 1 ? "" : "s") + ".</p>";
     return '<section class="panel" aria-labelledby="h-st"><div class="panel-head"><h2 id="h-st">Strength</h2>' +
       '<span class="seg sm" role="group" aria-label="Workout type">' + TYPES.map((t) => '<button data-action="str-type" data-type="' + t.id + '" aria-pressed="' + (strType === t.id) + '">' + t.name + "</button>").join("") + "</span></div>" +
-      summary +
-      (list.length ? '<div class="tickers">' + rows + "</div>" : '<p class="empty">Save a ' + typeName(strType).toLowerCase() + " workout on the Today tab and its exercises show up here, with whether each one is going up or down.</p>") +
+      (!strType ? '<p class="hint">Tap Push, Pull or Legs to see each exercise.</p>'
+        : summary + (list.length ? '<div class="tickers">' + rows + "</div>" : '<p class="empty">Save a ' + typeName(strType).toLowerCase() + " workout on the Today tab and its exercises show up here, with whether each one is going up or down.</p>")) +
     "</section>";
   }
 
@@ -2357,14 +2381,14 @@ body.setup .nav, body.setup .top { display: none; }
   // A tick on the Goals tab slides that goal's steps, then redraws once they've settled.
   let gsBusy = false;
   function slideThenRender(g, dir) {
-    if (view !== "progress" || reduceMotion || !slideStrip(g, dir)) { render(true); return; }
+    if (view !== "goals" || reduceMotion || !slideStrip(g, dir)) { render(true); return; }
     gsBusy = true;
     setTimeout(() => { gsBusy = false; render(true); }, 260);
   }
 
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
-  const TAP_BUZZ = new Set(["tab", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
+  const TAP_BUZZ = new Set(["tab", "body-sel", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
     "fab", "fab-close", "start-workout", "open-workout", "ex-step", "set-step", "set-go", "set-del", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "trend", "toast-undo"]);
   document.addEventListener("click", (ev) => {
@@ -2375,7 +2399,7 @@ body.setup .nav, body.setup .top { display: none; }
     const day = () => getDay(viewDate);
     switch (a) {
       case "tab": {
-        const order = ["today", "stats", "progress"], from = order.indexOf(view), to = order.indexOf(el.dataset.tab);
+        const order = ["today", "stats", "progress", "goals"], from = order.indexOf(view), to = order.indexOf(el.dataset.tab);
         view = el.dataset.tab; if (view === "today") viewDate = todayISO(); render(true); window.scrollTo(0, 0);
         slideIn(from < 0 || from === to ? 0 : to > from ? 1 : -1);
         break;
@@ -2541,7 +2565,7 @@ body.setup .nav, body.setup .top { display: none; }
         toast(typeName(w.type) + " day " + (first ? "saved" : "updated"));
         break;
       }
-      case "str-type": strType = el.dataset.type; strSel = null; render(true); break;
+      case "str-type": strType = strType === el.dataset.type ? null : el.dataset.type; strSel = null; render(true); break;
       case "str-sel": strSel = strSel === el.dataset.k ? null : el.dataset.k; render(true); break;
       case "close-sheet": closeSheet(); break;
       case "unit": S().unit = el.dataset.unit; save("settings"); render(true); break;
@@ -2572,6 +2596,7 @@ body.setup .nav, body.setup .top { display: none; }
         break;
       }
       case "toast-undo": { const f = toastUndo; hideToast(); if (f) f(); break; }
+      case "body-sel": bodySel = bodySel === el.dataset.k ? null : el.dataset.k; render(true); break;
       case "new-goal-toggle": newGoalOpen = !newGoalOpen; render(true); if (newGoalOpen) { const f = document.getElementById("new-goal"); if (f) f.focus(); } break;
       case "edit-goal": editingGoal = editingGoal === el.dataset.g ? null : el.dataset.g; openGoal = el.dataset.g; confirmDelete = null; render(true); break;
       case "open-goal": openGoal = openGoal === el.dataset.g ? null : el.dataset.g; if (editingGoal !== openGoal) editingGoal = null; confirmDelete = null; render(true); break;
@@ -2759,7 +2784,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (setupStep > 0) { setupStep--; render(true); return true; }
       return false;
     }
-    if (editingGoal || openGoal || strSel) { editingGoal = confirmDelete = openGoal = strSel = null; render(true); return true; }
+    if (editingGoal || openGoal || strSel || bodySel) { editingGoal = confirmDelete = openGoal = strSel = bodySel = null; render(true); return true; }
     if (view !== "today" || viewDate !== todayISO()) { view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0); return true; }
     return false;
   };

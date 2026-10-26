@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13 · Four tabs, less scrolling
+- Four tabs: **Today**, **Stats**, **Progress** (your exercises and the challenge calendar) and **Goals** (back in its own tab).
+- Progress opens on the type of your last workout. Tap Push, Pull or Legs again to fold the list away.
+- Body stats on Stats are small tiles, two to a row. Tap one to open its chart, and tap again to close it.
+- Perfect days, streak and average calories sit inside the calendar panel instead of above it.
+
 ## v0.12 · New Stats tab and watch body stats
 - New **Stats** tab where Goals used to be. It has your overall strength as one number and chart, with Push, Pull and Legs lines beside it, plus body charts: weight, body fat, resting heart rate, heart rate variability and VO2 max, and the last 14 days of calories, sleep and steps.
 - Body fat, resting heart rate, HRV and VO2 max now come in from Samsung Health. Tap **Connect** on the Stats tab to allow them. They're also saved in your backup file.
