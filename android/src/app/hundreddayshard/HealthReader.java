@@ -8,15 +8,19 @@ import android.health.connect.ReadRecordsRequestUsingFilters;
 import android.health.connect.ReadRecordsResponse;
 import android.health.connect.TimeInstantRangeFilter;
 import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
+import android.health.connect.datatypes.BodyFatRecord;
 import android.health.connect.datatypes.DistanceRecord;
 import android.health.connect.datatypes.ExerciseSessionRecord;
 import android.health.connect.datatypes.ExerciseSessionType;
+import android.health.connect.datatypes.HeartRateVariabilityRmssdRecord;
 import android.health.connect.datatypes.Metadata;
 import android.health.connect.datatypes.NutritionRecord;
 import android.health.connect.datatypes.Record;
+import android.health.connect.datatypes.RestingHeartRateRecord;
 import android.health.connect.datatypes.SleepSessionRecord;
 import android.health.connect.datatypes.StepsRecord;
 import android.health.connect.datatypes.TotalCaloriesBurnedRecord;
+import android.health.connect.datatypes.Vo2MaxRecord;
 import android.health.connect.datatypes.WeightRecord;
 import android.os.Build;
 import android.os.OutcomeReceiver;
@@ -38,7 +42,8 @@ import java.util.function.Consumer;
 
 /**
  * Reads what Samsung Health shares through Health Connect (Android 14+): daily food totals,
- * body weight, steps, sleep and exercise sessions (with the calories burned during them). Each type is read only if its permission was granted.
+ * body weight, steps, sleep and exercise sessions (with the calories burned during them), and the watch's body stats:
+ * body fat, resting heart rate, heart rate variability and VO2 max. Each type is read only if its permission was granted.
  */
 final class HealthReader {
     static final String NUTRITION = "android.permission.health.READ_NUTRITION";
@@ -49,8 +54,13 @@ final class HealthReader {
     static final String ACTIVE_CAL = "android.permission.health.READ_ACTIVE_CALORIES_BURNED";
     static final String TOTAL_CAL = "android.permission.health.READ_TOTAL_CALORIES_BURNED";
     static final String DISTANCE = "android.permission.health.READ_DISTANCE";
-    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE};
-    private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned", "distance"};
+    static final String BODY_FAT = "android.permission.health.READ_BODY_FAT";
+    static final String RESTING_HR = "android.permission.health.READ_RESTING_HEART_RATE";
+    static final String HRV = "android.permission.health.READ_HEART_RATE_VARIABILITY";
+    static final String VO2 = "android.permission.health.READ_VO2_MAX";
+    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2};
+    private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned", "distance",
+            "body fat", "resting heart rate", "heart rate variability", "VO2 max"};
 
     private static final Map<Integer, String> TYPES = new HashMap<>();
     // Session types that are lifting rather than cardio. One of these on the same day as a workout saved
@@ -178,6 +188,8 @@ final class HealthReader {
         Map<String, Double> weightKg = new HashMap<>();
         // day -> app that wrote it -> sessions
         Map<String, Map<String, JSONArray>> workouts = new TreeMap<>();
+        // Body stats: name -> day -> app that wrote it -> {sum, count, latest time, latest value}
+        Map<String, Map<String, Map<String, double[]>>> stats = new HashMap<>();
 
         readAll(c, hcm, NUTRITION, NutritionRecord.class, range, ex, nutrition -> {
             for (NutritionRecord n : nutrition) {
@@ -244,7 +256,16 @@ final class HealthReader {
                                     workouts.computeIfAbsent(day, k -> new HashMap<>()).computeIfAbsent(origin == null ? "" : origin, k -> new JSONArray()).put(o);
                                 } catch (Exception ignored) { }
                             }
-                            done.accept(toJson(food, weightKg, steps, sleep, workouts, fromIso));
+                            readAll(c, hcm, BODY_FAT, BodyFatRecord.class, range, ex, fat ->
+                            readAll(c, hcm, RESTING_HR, RestingHeartRateRecord.class, range, ex, resting ->
+                            readAll(c, hcm, HRV, HeartRateVariabilityRmssdRecord.class, range, ex, hrv ->
+                            readAll(c, hcm, VO2, Vo2MaxRecord.class, range, ex, vo2 -> {
+                                for (BodyFatRecord r : fat) stat(stats, "bodyFat", r.getTime(), zone, r.getMetadata(), r.getPercentage().getValue());
+                                for (RestingHeartRateRecord r : resting) stat(stats, "restHr", r.getTime(), zone, r.getMetadata(), r.getBeatsPerMinute());
+                                for (HeartRateVariabilityRmssdRecord r : hrv) stat(stats, "hrv", r.getTime(), zone, r.getMetadata(), r.getHeartRateVariabilityMillis());
+                                for (Vo2MaxRecord r : vo2) stat(stats, "vo2", r.getTime(), zone, r.getMetadata(), r.getVo2MillilitersPerMinuteKilogram());
+                                done.accept(toJson(food, weightKg, steps, sleep, workouts, stats, fromIso));
+                            }))));
                         }))));
                     });
                 });
@@ -269,6 +290,14 @@ final class HealthReader {
         return sum;
     }
 
+    private static void stat(Map<String, Map<String, Map<String, double[]>>> stats, String name, Instant when, ZoneId zone, Metadata meta, double value) {
+        String day = when.atZone(zone).toLocalDate().toString(), origin = meta.getDataOrigin().getPackageName();
+        double[] t = stats.computeIfAbsent(name, k -> new HashMap<>()).computeIfAbsent(day, k -> new HashMap<>())
+                .computeIfAbsent(origin == null ? "" : origin, k -> new double[4]);
+        t[0] += value; t[1]++;
+        if (when.toEpochMilli() >= t[2]) { t[2] = when.toEpochMilli(); t[3] = value; }
+    }
+
     private static double[] slot(Map<String, Map<String, double[]>> map, Instant when, ZoneId zone, String origin, int size) {
         String day = when.atZone(zone).toLocalDate().toString();
         return map.computeIfAbsent(day, k -> new HashMap<>()).computeIfAbsent(origin == null ? "" : origin, k -> new double[size]);
@@ -290,7 +319,7 @@ final class HealthReader {
 
     private static String toJson(Map<String, Map<String, double[]>> food, Map<String, Double> weightKg,
                                  Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> sleep,
-                                 Map<String, Map<String, JSONArray>> workouts, String fromIso) {
+                                 Map<String, Map<String, JSONArray>> workouts, Map<String, Map<String, Map<String, double[]>>> stats, String fromIso) {
         try {
             JSONObject days = new JSONObject();
             for (Map.Entry<String, Map<String, double[]>> e : food.entrySet()) {
@@ -309,6 +338,18 @@ final class HealthReader {
                 JSONArray list = origins.containsKey(SAMSUNG_HEALTH) ? origins.get(SAMSUNG_HEALTH) : new JSONArray();
                 if (!origins.containsKey(SAMSUNG_HEALTH)) for (JSONArray a : origins.values()) for (int i = 0; i < a.length(); i++) list.put(a.get(i));
                 day(days, e.getKey()).put("sessions", list);
+            }
+            // HRV is the day's average (the watch measures it through the night); the rest are the day's latest reading.
+            for (Map.Entry<String, Map<String, Map<String, double[]>>> m : stats.entrySet()) {
+                boolean avg = "hrv".equals(m.getKey());
+                for (Map.Entry<String, Map<String, double[]>> e : m.getValue().entrySet()) {
+                    Map<String, double[]> origins = e.getValue();
+                    double[] t = origins.containsKey(SAMSUNG_HEALTH) ? origins.get(SAMSUNG_HEALTH) : null;
+                    if (t == null) for (double[] o : origins.values()) if (t == null || o[2] > t[2]) t = o;
+                    if (t == null || t[1] == 0) continue;
+                    double v = avg ? t[0] / t[1] : t[3];
+                    day(days, e.getKey()).put(m.getKey(), Math.round(v * 10) / 10.0);
+                }
             }
             JSONObject out = new JSONObject();
             out.put("ok", true);

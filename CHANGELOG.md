@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.12 · New Stats tab and watch body stats
+- New **Stats** tab where Goals used to be. It has your overall strength as one number and chart, with Push, Pull and Legs lines beside it, plus body charts: weight, body fat, resting heart rate, heart rate variability and VO2 max, and the last 14 days of calories, sleep and steps.
+- Body fat, resting heart rate, HRV and VO2 max now come in from Samsung Health. Tap **Connect** on the Stats tab to allow them. They're also saved in your backup file.
+- **Goals** moved into Progress, under your workouts, as one panel. "+ New goal" opens the form when you need it.
+- Anything you open closes the same way. Tap an exercise, its chart, or a goal's row again to close it, or press Back.
+- More buzzes: every tap while logging a workout, opening an exercise's progress, switching tabs, and opening Settings.
+- Removed "pull down to refresh" and "Today counted" from the screen. Pulling down still refreshes.
+
 ## v0.11 · Feels more like an app
 - Light buzzes: ticking a task or goal step, saving a workout, hitting your calorie or protein goal, and picking up, passing and dropping an exercise while you drag it.
 - Tabs slide in from the side they sit on.

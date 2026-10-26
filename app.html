@@ -440,6 +440,33 @@ body.setup .nav, body.setup .top { display: none; }
 .goal-bar i { display: block; height: 100%; background: var(--green); transform-origin: left center; transition: transform 240ms var(--ease); }
 .goal-bar.big { height: 10px; border-radius: 5px; }
 .goal-open { display: grid; gap: 12px; padding-bottom: 14px; }
+.goal-group-head { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.goal-row { cursor: pointer; }
+.goal-new { display: grid; gap: 12px; }
+/* Stats */
+.big-stat { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.big-stat b { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 0.9; }
+.big-stat b small { font-size: 18px; font-weight: 700; margin-left: 2px; color: var(--muted); }
+.big-stat span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.big-stat.sm b { font-size: 30px; }
+.big-stat .up, .big-stat b.up { color: var(--green); }
+.big-stat .down, .big-stat b.down { color: var(--red); }
+.body-card { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.body-card:first-of-type { border-top: 0; padding-top: 0; }
+.body-name { font-weight: 700; }
+.chart .mline { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart .mline.up { stroke: var(--green); } .chart .mline.down { stroke: var(--red); }
+.chart .mline.thin { stroke-width: 1.6; opacity: 0.9; }
+.chart .mline.t-push, .leg-push i { stroke: var(--red); background: var(--red); }
+.chart .mline.t-pull, .leg-pull i { stroke: var(--blue); background: var(--blue); }
+.chart .mline.t-legs, .leg-legs i { stroke: var(--yellow); background: var(--yellow); }
+.chart .mdot { fill: var(--surface); stroke-width: 2.5; stroke: var(--ink); }
+.chart .mdot.up { stroke: var(--green); } .chart .mdot.down { stroke: var(--red); }
+.chart .gridl.zero { stroke: var(--muted); stroke-dasharray: 3 3; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.chart-legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: 3px; }
+.chart-legend b { color: var(--ink); }
+.leg-all i { background: var(--ink); height: 4px; }
 @media (prefers-reduced-motion: reduce) {
   .tick-focus { animation: none; }
   .ptr.busy .spin { animation-duration: 2.4s; }
@@ -589,11 +616,11 @@ body.setup .nav, body.setup .top { display: none; }
     <button class="tab" data-action="tab" data-tab="today" aria-current="page">
       <svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg>Today
     </button>
-    <button class="tab" data-action="tab" data-tab="goals">
-      <svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></svg>Goals
+    <button class="tab" data-action="tab" data-tab="stats">
+      <svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/></svg>Stats
     </button>
     <button class="tab" data-action="tab" data-tab="progress">
-      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress
+      <svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></svg>Progress
     </button>
   </div>
 </nav>
@@ -977,7 +1004,7 @@ body.setup .nav, body.setup .top { display: none; }
       }
       const hv = { ...(day.health || {}) };
       let hc = false;
-      ["steps", "sleepMin"].forEach((k) => { if (h[k] != null && h[k] !== hv[k]) { hv[k] = h[k]; hc = true; } });
+      ["steps", "sleepMin", "bodyFat", "restHr", "hrv", "vo2"].forEach((k) => { if (h[k] != null && h[k] !== hv[k]) { hv[k] = h[k]; hc = true; } });
       if (h.sessions && JSON.stringify(h.sessions) !== JSON.stringify(hv.sessions || [])) { hv.sessions = h.sessions; hc = true; }
       if (hc) { next.health = hv; changed = true; }
       if (autoMetricHabits(next, d)) changed = true;
@@ -1060,10 +1087,10 @@ body.setup .nav, body.setup .top { display: none; }
     document.getElementById("plate").innerHTML = gaugeSVG(n, N, true);
     document.getElementById("plate").setAttribute("aria-label", "Day " + n + " of " + N + ". Open settings.");
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === view ? "page" : "false"));
-    const title = { today: viewDate === t ? "Today" : "Day " + dayNum(viewDate), goals: "Goals", progress: "Progress", settings: "Settings" }[view];
+    const title = { today: viewDate === t ? "Today" : "Day " + dayNum(viewDate), stats: "Stats", progress: "Progress", settings: "Settings" }[view];
     document.getElementById("hdr-title").textContent = title;
     document.getElementById("hdr-date").textContent = view === "today" ? fmtDate(viewDate, { weekday: "long", month: "short", day: "numeric" }) : "100 Days Hard";
-    main.innerHTML = view === "today" ? renderToday() : view === "goals" ? renderGoals() : view === "progress" ? renderProgress() : renderSettings();
+    main.innerHTML = view === "today" ? renderToday() : view === "stats" ? renderStats() : view === "progress" ? renderProgress() : renderSettings();
     if (view === "settings") drawShareQR();
     if (view === "today") animateFood();
   }
@@ -1119,7 +1146,7 @@ body.setup .nav, body.setup .top { display: none; }
       dots.push("<span><i class=\"" + cls + "\"></i>" + parseISO(d).toLocaleDateString(undefined, { weekday: "narrow" }) + "</span>");
     }
     const note = st.todayDone
-      ? "Today counted." + (st.cur >= st.best && st.cur > 1 ? " That's your best streak yet." : " Best: " + st.best + ".")
+      ? (st.cur >= st.best && st.cur > 1 ? "That's your best streak yet." : "Best: " + st.best + ".")
       : (st.cur ? "Finish today's " + st.left + " task" + (st.left === 1 ? "" : "s") + " to make it " + (st.cur + 1) + "." : "Finish all of today's tasks to start a streak.") + (st.best > st.cur ? " Best: " + st.best + "." : "");
     return '<div class="streak"><div class="streak-num"><b class="num">' + st.cur + "</b><span>day streak</span></div>" +
       '<div class="week" role="img" aria-label="Last 7 days of daily tasks">' + dots.join("") + "</div></div>" +
@@ -1396,7 +1423,7 @@ body.setup .nav, body.setup .top { display: none; }
   function sourceHTML(day, isToday) {
     if (health === "granted") {
       if (day.kcalSrc === "manual") return '<div class="source"><span>Typed in by you.</span><button class="linkbtn" data-action="use-health">Use Samsung Health numbers</button></div>';
-      return '<div class="source"><span>' + (day.kcalSrc === "health" ? "From Samsung Health" : "Waiting for Samsung Health") + (healthSyncedAt ? " · checked " + fmtTime(healthSyncedAt) : "") + (isToday ? " · pull down to refresh" : "") + "</span></div>";
+      return '<div class="source"><span>' + (day.kcalSrc === "health" ? "From Samsung Health" : "Waiting for Samsung Health") + (healthSyncedAt ? " · checked " + fmtTime(healthSyncedAt) : "") + "</span></div>";
     }
     if (health === "not_granted" || health === "denied") return '<div class="source"><button class="linkbtn" data-action="health-connect">Fill these in automatically from Samsung Health</button></div>';
     return isToday ? '<div class="source"><span>Copy the day\'s totals from Samsung Health.</span></div>' : "";
@@ -1522,13 +1549,14 @@ body.setup .nav, body.setup .top { display: none; }
   function goalRow(g) {
     const done = g.steps.filter((x) => x.done).length, n = g.steps.length, open = openGoal === g.id;
     const pct = n ? done / n : 0;
-    return '<div class="goal' + (open ? " open" : "") + '"><div class="goal-row">' +
+    return '<div class="goal' + (open ? " open" : "") + '"><div class="goal-row" data-action="open-goal" data-g="' + g.id + '">' +
       '<button class="goal-head" data-action="open-goal" data-g="' + g.id + '" aria-expanded="' + open + '"><span class="goal-name">' + esc(g.name) + "</span>" +
       '<span class="goal-count num">' + done + "/" + n + '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>' +
       (n ? goalStrip(g) : '<span class="goal-next">No steps yet</span>') +
       '<span class="goal-bar" role="img" aria-label="' + Math.round(pct * 100) + '% of steps reached"><i style="transform:scaleX(' + pct.toFixed(3) + ')"></i></span></div>' +
       (open ? goalLadder(g) : "") + "</div>";
   }
+  let newGoalOpen = false;
   function renderGoals() {
     const list = state.goals.list;
     const total = list.reduce((a, g) => a + g.steps.length, 0);
@@ -1538,19 +1566,18 @@ body.setup .nav, body.setup .top { display: none; }
       const gs = list.filter((g) => groupOf(g) === k).sort((a, b) => allDone(a) - allDone(b));
       if (!gs.length) return "";
       const d = gs.reduce((a, g) => a + g.steps.filter((x) => x.done).length, 0), t = gs.reduce((a, g) => a + g.steps.length, 0);
-      return '<section class="panel goals-group" aria-labelledby="h-gg-' + k + '"><div class="panel-head"><h2 id="h-gg-' + k + '">' + name + '</h2><span class="meta num">' + d + " / " + t + " steps</span></div>" +
-        '<div class="goal-list">' + gs.map(goalRow).join("") + "</div></section>";
+      return '<div class="goal-group-head"><span>' + name + '</span><span class="num">' + d + " / " + t + "</span></div>" + '<div class="goal-list">' + gs.map(goalRow).join("") + "</div>";
     }).join("");
-    const summary = list.length
-      ? '<div class="goals-sum"><div class="goals-sum-top"><b class="num">' + reached + "</b><span>of " + total + " steps reached</span></div>" +
-        '<span class="goal-bar big" role="img" aria-label="' + Math.round(total ? (reached / total) * 100 : 0) + '% of all steps"><i style="transform:scaleX(' + (total ? reached / total : 0).toFixed(3) + ')"></i></span>' +
-        '<p class="hint">Tap the next step the day you hit it. Tap a goal\'s name to see its whole ladder.</p></div>'
-      : '<p class="coach">Set goals as ladders: small steps up to something hard, like 10 push-ups in one go, then 20, then 50. Start from an idea below or make your own.</p>';
     const templates = GOAL_TEMPLATES.filter(([name]) => !list.some((g) => g.name.toLowerCase() === name.toLowerCase()));
-    return summary + groups +
-      '<section class="panel" aria-labelledby="h-ng"><h2 id="h-ng">New goal</h2>' +
-      (templates.length ? '<div class="pick">' + templates.map(([name]) => '<button data-action="add-template" data-name="' + esc(name) + '">+ ' + esc(name) + "</button>").join("") + "</div>" : "") +
-      '<form class="inline" id="goal-form"><input class="field" id="new-goal" placeholder="e.g. Plank, bench press" maxlength="40" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>';
+    const adder = (templates.length ? '<div class="pick">' + templates.map(([name]) => '<button data-action="add-template" data-name="' + esc(name) + '">+ ' + esc(name) + "</button>").join("") + "</div>" : "") +
+      '<form class="inline" id="goal-form"><input class="field" id="new-goal" placeholder="e.g. Plank, bench press" maxlength="40" autocomplete="off"><button class="btn" type="submit">Add</button></form>';
+    return '<section class="panel" aria-labelledby="h-gl"><div class="panel-head"><h2 id="h-gl">Goals</h2>' + (list.length ? '<span class="meta num">' + reached + " / " + total + " steps</span>" : "") + "</div>" +
+      (list.length
+        ? '<span class="goal-bar big" role="img" aria-label="' + Math.round(total ? (reached / total) * 100 : 0) + '% of all steps"><i style="transform:scaleX(' + (total ? reached / total : 0).toFixed(3) + ')"></i></span>' + groups +
+          (newGoalOpen ? '<div class="goal-new">' + adder + "</div>" : "") +
+          '<button class="linkbtn" data-action="new-goal-toggle">' + (newGoalOpen ? "Close" : "+ New goal") + "</button>"
+        : '<p class="coach">Set goals as ladders: small steps up to something hard, like 10 push-ups in one go, then 20, then 50. Start from an idea below or make your own.</p>' + adder) +
+      "</section>";
   }
   const findGoal = (id) => state.goals.list.find((g) => g.id === id);
 
@@ -1647,15 +1674,102 @@ body.setup .nav, body.setup .top { display: none; }
         '<div class="stat"><b class="num">' + streak + "</b><span>Day streak</span></div>" +
         '<div class="stat"><b class="num">' + (kcalDays ? fmt(kcalSum / kcalDays) : "–") + "</b><span>Avg kcal / day</span></div>" +
       "</div>" +
+      renderStrength() +
+      renderGoals() +
       '<section class="panel" aria-labelledby="h-g"><div class="panel-head"><h2 id="h-g">The ' + N + '</h2><span class="meta num">' + (tn >= N ? "Finished" : (N - tn) + " days to go") + "</span></div>" +
         '<div class="grid100">' + cells.join("") + "</div>" +
         '<div class="legend"><span><i style="background:var(--red)"></i>All tasks</span><span><i style="background:var(--blue)"></i>Some tasks</span><span><i style="background:var(--sunk)"></i>Nothing checked</span></div>' +
         '<p class="empty">Tap a day to view or edit it.</p>' +
-      "</section>" +
-      trendsPanel(t) +
-      '<section class="panel" aria-labelledby="h-wt"><div class="panel-head"><h2 id="h-wt">Body weight</h2><span class="meta">' + S().unit + "</span></div>" + weightChart() + "</section>" +
-      renderStrength()
+      "</section>"
     );
+  }
+
+  // ---------- Stats: charts of how you're changing ----------
+  // Strength as one number: each exercise's est. 1RM compared with its first session, averaged over every
+  // exercise you do (overall) and over each day type's exercises. Uses the latest session of each exercise so far.
+  function strengthTrend() {
+    const first = {}, latest = {}, types = {}, series = { all: [], push: [], pull: [], legs: [] };
+    savedSessions().forEach((d) => {
+      const w = state.days[d].workout;
+      w.exercises.forEach((e) => {
+        const k = exKey(e.name), sc = e1rm(toUnit(+e.weight || 0, e.unit || S().unit, "lb"), +e.reps || 0);
+        if (!(sc > 0)) return;
+        if (first[k] == null) first[k] = sc;
+        latest[k] = sc / first[k];
+        (types[k] = types[k] || new Set()).add(w.type);
+      });
+      Object.keys(series).forEach((g) => {
+        const ks = Object.keys(latest).filter((k) => g === "all" || types[k].has(g));
+        if (ks.length && (g === "all" || w.type === g)) series[g].push({ n: dayNum(d), v: (ks.reduce((a, k) => a + latest[k], 0) / ks.length - 1) * 100 });
+      });
+    });
+    return series;
+  }
+  const signed = (v, dec, unit) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(dec) + (unit || "");
+  // A line over time with shading, colored by whether it moved the good way (green) or not (red).
+  function lineChart(lines, opts) {
+    const all = lines.flatMap((l) => l.pts);
+    if (!all.length) return "";
+    const W = 340, H = opts.h || 150, L = 34, R = 12, T = 12, B = 22, pw = W - L - R, ph = H - T - B;
+    let lo = Math.min(...all.map((p) => p.v)), hi = Math.max(...all.map((p) => p.v));
+    if (opts.zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+    const span = Math.max(hi - lo, opts.minSpan || 1), step = [0.5, 1, 2, 5, 10, 20, 25, 50, 100].find((k) => span / k <= 3) || 100;
+    lo = Math.floor((lo - span * 0.08) / step) * step; hi = Math.ceil((hi + span * 0.08) / step) * step;
+    const n0 = Math.min(...all.map((p) => p.n)), n1 = Math.max(...all.map((p) => p.n));
+    const x = (n) => L + (n1 === n0 ? pw / 2 : ((n - n0) / (n1 - n0)) * pw), y = (v) => T + ph * (1 - (v - lo) / (hi - lo));
+    let s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(opts.label) + '">';
+    for (let v = lo; v <= hi + 1e-9; v += step) s += '<line class="gridl' + (opts.zero && Math.abs(v) < 1e-9 ? " zero" : "") + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + (opts.fmt ? opts.fmt(v) : +v.toFixed(1)) + "</text>";
+    const gid = "lg" + uid();
+    lines.forEach((l, li) => {
+      if (!l.pts.length) return;
+      const path = l.pts.map((p, i) => (i ? "L" : "M") + x(p.n).toFixed(1) + " " + y(p.v).toFixed(1)).join(" ");
+      if (l.fill && l.pts.length > 1) {
+        s += '<defs><linearGradient id="' + gid + li + '" class="g-' + l.cls + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + Math.min(...l.pts.map((p) => y(p.v))).toFixed(1) + '" x2="0" y2="' + (T + ph) + '"><stop offset="0" stop-opacity="0.4"/><stop offset="1" stop-opacity="0.04"/></linearGradient></defs>';
+        s += '<path fill="url(#' + gid + li + ')" d="' + path + " L" + x(l.pts[l.pts.length - 1].n).toFixed(1) + " " + (T + ph) + " L" + x(l.pts[0].n).toFixed(1) + " " + (T + ph) + ' Z"/>';
+      }
+      s += '<path class="mline ' + l.cls + (l.thin ? " thin" : "") + '" d="' + path + '"/>';
+      const last = l.pts[l.pts.length - 1];
+      if (!l.thin) s += '<circle class="mdot ' + l.cls + '" cx="' + x(last.n).toFixed(1) + '" cy="' + y(last.v).toFixed(1) + '" r="3.5"/>';
+    });
+    s += '<text x="' + L + '" y="' + (H - 6) + '">day ' + n0 + '</text><text x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">day ' + n1 + "</text></svg>";
+    return s;
+  }
+  function strengthStats() {
+    const sr = strengthTrend(), all = sr.all;
+    if (all.length < 2) return '<section class="panel" aria-labelledby="h-ss"><h2 id="h-ss">Strength</h2><p class="empty">Save a few workouts and your overall strength shows here, with Push, Pull and Legs side by side.</p></section>';
+    const now = all[all.length - 1].v, dir = (v) => (v >= -0.05 ? "up" : "down");
+    const parts = TYPES.filter((t) => sr[t.id].length).map((t) => '<span class="leg-' + t.id + '"><i></i>' + t.name + ' <b class="num">' + signed(sr[t.id][sr[t.id].length - 1].v, 0, "%") + "</b></span>").join("");
+    return '<section class="panel" aria-labelledby="h-ss"><div class="panel-head"><h2 id="h-ss">Strength</h2><span class="meta">est. 1RM</span></div>' +
+      '<div class="big-stat"><b class="num ' + dir(now) + '">' + signed(now, 1, "%") + '</b><span>overall since day ' + all[0].n + "</span></div>" +
+      lineChart([{ pts: all, cls: dir(now), fill: true }].concat(TYPES.map((t) => ({ pts: sr[t.id], cls: "t-" + t.id, thin: true }))), { label: "Strength over time", zero: true, minSpan: 4, fmt: (v) => signed(v, 0, "%"), h: 170 }) +
+      '<div class="chart-legend"><span class="leg-all"><i></i>Overall</span>' + parts + "</div></section>";
+  }
+  // Body stats. "better" says which way is good, so the change reads green or red.
+  const BODY = [
+    { k: "weight", name: "Body weight", val: (d) => d.weight, unit: () => " " + S().unit, dec: 1, better: () => (calAim() === "build" ? 1 : -1) },
+    { k: "bodyFat", name: "Body fat", val: (d) => d.health && d.health.bodyFat, unit: () => "%", dec: 1, better: () => -1 },
+    { k: "restHr", name: "Resting heart rate", val: (d) => d.health && d.health.restHr, unit: () => " bpm", dec: 0, better: () => -1 },
+    { k: "hrv", name: "Heart rate variability", val: (d) => d.health && d.health.hrv, unit: () => " ms", dec: 0, better: () => 1 },
+    { k: "vo2", name: "VO2 max", val: (d) => d.health && d.health.vo2, unit: () => "", dec: 1, better: () => 1 },
+  ];
+  function bodyCard(m) {
+    const pts = Object.keys(state.days).sort().filter((d) => m.val(state.days[d]) != null && +m.val(state.days[d]) > 0).slice(-60).map((d) => ({ n: dayNum(d), v: +m.val(state.days[d]) }));
+    if (!pts.length) return "";
+    const last = pts[pts.length - 1], ch = last.v - pts[0].v, good = ch * m.better() >= 0;
+    return '<div class="body-card"><div class="panel-head"><span class="body-name">' + m.name + '</span><span class="meta">day ' + last.n + "</span></div>" +
+      '<div class="big-stat sm"><b class="num">' + last.v.toFixed(m.dec) + "<small>" + m.unit() + "</small></b>" +
+      (pts.length > 1 ? '<span class="num ' + (Math.abs(ch) < 1e-9 ? "" : good ? "up" : "down") + '">' + signed(ch, m.dec, m.unit()) + " since day " + pts[0].n + "</span>" : "<span>First reading</span>") + "</div>" +
+      (pts.length > 1 ? lineChart([{ pts, cls: good ? "up" : "down", fill: true }], { label: m.name, minSpan: m.dec ? 1 : 2, h: 120 }) : "") + "</div>";
+  }
+  const BODY_STATS = ["body fat", "resting heart rate", "heart rate variability", "VO2 max"];
+  function renderStats() {
+    const missing = bridge && health !== "unavailable" ? healthMissing().filter((x) => BODY_STATS.includes(x)) : [];
+    const offer = missing.length ? '<div class="notice"><b>Add your watch\'s body stats</b><span class="hint">Let Samsung Health share ' + missing.join(", ") + " and they'll chart here.</span><div class=\"btn-row\"><button class=\"btn\" data-action=\"health-connect\">Connect</button></div></div>" : "";
+    const cards = BODY.map(bodyCard).filter(Boolean);
+    return offer + strengthStats() +
+      '<section class="panel" aria-labelledby="h-body"><h2 id="h-body">Body</h2>' +
+        (cards.length ? cards.join("") : '<p class="empty">Log your weight on Today' + (bridge ? ", or let Samsung Health share it," : "") + " and it charts here.</p>") +
+      "</section>" + trendsPanel(todayISO());
   }
 
   let strType = "push", strSel = null;
@@ -1749,7 +1863,7 @@ body.setup .nav, body.setup .top { display: none; }
       const c = idx > 0 && m.pts[idx - 1].score > 0 ? ((p.score - m.pts[idx - 1].score) / m.pts[idx - 1].score) * 100 : null;
       return '<li><span>Day ' + p.n + " · " + (Object.keys(m.types).length > 1 ? typeName(p.t) + " · " : "") + (p.w ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps") + " · " + p.s + ' sets</span><span class="r num">' + (bw ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
     }).reverse().join("");
-    return '<div class="tick-detail">' + strengthNote(m, bw, unit) + s + '<ul class="sessions">' + rows + "</ul></div>";
+    return '<div class="tick-detail" data-action="str-sel" data-k="' + esc(m.k) + '">' + strengthNote(m, bw, unit) + s + '<ul class="sessions">' + rows + "</ul></div>";
   }
 
   function renderStrength() {
@@ -1822,28 +1936,6 @@ body.setup .nav, body.setup .top { display: none; }
       const hit = logged.filter((v) => (tr.cal ? calStatus(v).state === "met" : v >= goal)).length;
       s += '<p class="hint num">Average ' + (key === "sleep" ? fmtSleep(avg * 60) : tr.fmtv(avg) + " " + tr.unit) + " · " + (tr.cal && calAim() === "lose" ? "in range" : "goal met") + " on " + hit + " of " + logged.length + " days.</p>";
     }
-    return s;
-  }
-
-  function weightChart() {
-    const pts = Object.keys(state.days).filter((d) => state.days[d].weight).sort().map((d) => ({ n: dayNum(d), w: +state.days[d].weight }));
-    if (pts.length < 2) return '<p class="empty">Enter your weight on at least two days to see the trend.' + (pts.length ? " One entry so far: " + pts[0].w + " " + S().unit + " on day " + pts[0].n + "." : "") + "</p>";
-    const W = 340, H = 140, L = 38, R = 10, T = 12, B = 22, pw = W - L - R, ph = H - T - B;
-    let lo = Math.min(...pts.map((p) => p.w)), hi = Math.max(...pts.map((p) => p.w));
-    if (hi - lo < 2) { lo -= 1; hi += 1; }
-    lo = Math.floor(lo); hi = Math.ceil(hi);
-    const n0 = pts[0].n, n1 = pts[pts.length - 1].n;
-    const x = (n) => L + (n1 === n0 ? pw / 2 : ((n - n0) / (n1 - n0)) * pw);
-    const y = (w) => T + ph * (1 - (w - lo) / (hi - lo));
-    const line = pts.map((p, i) => (i ? "L" : "M") + x(p.n).toFixed(1) + " " + y(p.w).toFixed(1)).join(" ");
-    let s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Body weight from day ' + n0 + " to day " + n1 + '">';
-    [lo, (lo + hi) / 2, hi].forEach((v) => { s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v.toFixed(v % 1 ? 1 : 0) + "</text>"; });
-    s += '<path class="warea" d="' + line + " L" + x(n1).toFixed(1) + " " + y(lo) + " L" + x(n0).toFixed(1) + " " + y(lo) + ' Z"/><path class="wline" d="' + line + '"/>';
-    const last = pts[pts.length - 1];
-    s += '<circle class="wdot" cx="' + x(last.n) + '" cy="' + y(last.w) + '" r="4"/>';
-    s += '<text x="' + L + '" y="' + (H - 6) + '">day ' + n0 + '</text><text x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">day ' + n1 + "</text></svg>";
-    const d = last.w - pts[0].w;
-    s += '<p class="hint num">' + (d > 0 ? "+" : "") + d.toFixed(1) + " " + S().unit + " since day " + n0 + ".</p>";
     return s;
   }
 
@@ -2265,20 +2357,25 @@ body.setup .nav, body.setup .top { display: none; }
   // A tick on the Goals tab slides that goal's steps, then redraws once they've settled.
   let gsBusy = false;
   function slideThenRender(g, dir) {
-    if (view !== "goals" || reduceMotion || !slideStrip(g, dir)) { render(true); return; }
+    if (view !== "progress" || reduceMotion || !slideStrip(g, dir)) { render(true); return; }
     gsBusy = true;
     setTimeout(() => { gsBusy = false; render(true); }, 260);
   }
 
   // ---------- events ----------
+  // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
+  const TAP_BUZZ = new Set(["tab", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
+    "fab", "fab-close", "start-workout", "open-workout", "ex-step", "set-step", "set-go", "set-del", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
+    "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "trend", "toast-undo"]);
   document.addEventListener("click", (ev) => {
     const el = ev.target.closest("[data-action]");
     if (!el) return;
     const a = el.dataset.action;
+    if (TAP_BUZZ.has(a)) buzz("tick");
     const day = () => getDay(viewDate);
     switch (a) {
       case "tab": {
-        const order = ["today", "goals", "progress"], from = order.indexOf(view), to = order.indexOf(el.dataset.tab);
+        const order = ["today", "stats", "progress"], from = order.indexOf(view), to = order.indexOf(el.dataset.tab);
         view = el.dataset.tab; if (view === "today") viewDate = todayISO(); render(true); window.scrollTo(0, 0);
         slideIn(from < 0 || from === to ? 0 : to > from ? 1 : -1);
         break;
@@ -2306,7 +2403,7 @@ body.setup .nav, body.setup .top { display: none; }
         const tpl = GOAL_TEMPLATES.find(([name]) => name === el.dataset.name);
         if (!tpl) break;
         const ng = { id: uid(), name: tpl[0], focus: "", steps: tpl[1].map((t) => ({ id: uid(), text: t, done: false, doneDay: null })) };
-        state.goals.list.push(ng); openGoal = ng.id;
+        state.goals.list.push(ng); openGoal = ng.id; newGoalOpen = false;
         save("goals"); render(true); toast(tpl[0] + " added");
         break;
       }
@@ -2475,6 +2572,7 @@ body.setup .nav, body.setup .top { display: none; }
         break;
       }
       case "toast-undo": { const f = toastUndo; hideToast(); if (f) f(); break; }
+      case "new-goal-toggle": newGoalOpen = !newGoalOpen; render(true); if (newGoalOpen) { const f = document.getElementById("new-goal"); if (f) f.focus(); } break;
       case "edit-goal": editingGoal = editingGoal === el.dataset.g ? null : el.dataset.g; openGoal = el.dataset.g; confirmDelete = null; render(true); break;
       case "open-goal": openGoal = openGoal === el.dataset.g ? null : el.dataset.g; if (editingGoal !== openGoal) editingGoal = null; confirmDelete = null; render(true); break;
       case "goal-group": { const g = findGoal(el.dataset.g); if (g) { g.group = el.dataset.v; save("goals"); render(true); } break; }
@@ -2506,6 +2604,7 @@ body.setup .nav, body.setup .top { display: none; }
       const ne = { id: uid(), name: known ? known.e.name : name, unit, setList: [{ w: half(+val("wadd-weight") || 0), r: Math.max(0, Math.round(+val("wadd-reps") || 0)) }] };
       syncEx(ne);
       w.exercises.push(ne);
+      buzz("confirm");
       save(viewDate); render();
       drawWorkout();
       const n = document.getElementById("wadd-name");
@@ -2660,7 +2759,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (setupStep > 0) { setupStep--; render(true); return true; }
       return false;
     }
-    if (editingGoal || openGoal) { editingGoal = confirmDelete = openGoal = null; render(true); return true; }
+    if (editingGoal || openGoal || strSel) { editingGoal = confirmDelete = openGoal = strSel = null; render(true); return true; }
     if (view !== "today" || viewDate !== todayISO()) { view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0); return true; }
     return false;
   };
