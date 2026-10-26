@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.18.1 · Coach sorts new exercises
+- The first time you add an exercise you've never done, the coach checks which group it belongs in and moves it there if needed, for example a Zottman curl into Forearms. A message says what it did, with Undo. It only does this once per exercise, never moves something you've moved yourself, and doesn't run if the coach is off.
+
 ## v0.18 · A smarter coach you can tuck away
 - The coach now reads your daily tasks and goals, as well as your food, sleep, steps, training and weight. It still runs only on your phone.
 - It works out more before it writes: this week against last week, which task you miss most, how far over or under you are on missed days, new bests, lifts that have stalled, how fast your weight is moving, and how long since you moved up a goal.

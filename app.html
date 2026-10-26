@@ -1234,7 +1234,18 @@ body.setup .nav, body.setup .top { display: none; }
     if (st === "available") coachWrite(false);
     if (was !== st && view === "today") render();
   };
-  window.__aiResult = function (res) {
+  // Gemini Nano takes one request at a time: the coach's note and exercise sorting queue up, and each answer
+  // (through window.__aiResult) goes back to whoever asked.
+  const aiQueue = [];
+  let aiCur = null;
+  function aiAsk(prompt, cb) { aiQueue.push({ prompt, cb }); aiNext(); }
+  function aiNext() {
+    if (aiCur || !aiQueue.length) return;
+    aiCur = aiQueue.shift();
+    try { bridge.aiGenerate(aiCur.prompt); } catch (e) { const c = aiCur; aiCur = null; c.cb({ ok: false }); aiNext(); }
+  }
+  window.__aiResult = function (res) { const c = aiCur; aiCur = null; if (c) c.cb(res || { ok: false }); aiNext(); };
+  function coachDone(res) {
     coachBusy = false;
     if (res && res.ok) {
       // Small models sometimes add markdown or a label; keep plain sentences only.
@@ -1376,7 +1387,7 @@ body.setup .nav, body.setup .top { display: none; }
       "Last: one specific thing to do today or this week, naming their task, goal or exercise.\n" +
       "Sound like a real coach who knows them: plain, direct and warm. No filler like \"Great job\" or \"Keep it up\". " +
       "Use only these facts and copy numbers exactly; never invent one. No greeting, no lists, no markdown, no emoji, no medical advice.";
-    try { bridge.aiGenerate(prompt); } catch (e) { coachBusy = false; coachErr = true; }
+    aiAsk(prompt, coachDone);
   }
   const DOTS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
   function coachHTML() {
@@ -2555,6 +2566,28 @@ body.setup .nav, body.setup .top { display: none; }
     syncEx(e);
     return e;
   }
+  // A brand-new exercise gets sorted once by the coach (Gemini Nano, on the phone): if it thinks the exercise
+  // belongs in another group, it moves it and says so, with Undo. Never again after that, and never over a move you made.
+  const AI_GROUP = { chest: /\bchest|\bpec/, triceps: /tricep/, shoulders: /shoulder|\bdelt/, back: /\bback\b|\blats?\b/, biceps: /bicep/, forearms: /forearm|\bgrip/,
+    abs: /\babs?\b|abdominal|\bcore\b/, "": /\blegs?\b|quad|hamstring|glute|\bcalf|calves/ };
+  const aiSorted = new Set();
+  function aiSortExercise(e, type) {
+    if (aiState !== "available" || coachMode() === "off" || !GROUPS[type] || aiSorted.has(exKey(e.name))) return;
+    aiSorted.add(exKey(e.name));
+    const gs = groupsFor(type), names = gs.map((g) => g || "legs"), d = viewDate, from = e.group;
+    const prompt = 'Which muscle group does the gym exercise "' + e.name + '" mainly work? It is done on a ' + typeName(type).toLowerCase() + " day. " +
+      "Choose one of: " + names.join(", ") + ". Answer with that one word only.";
+    aiAsk(prompt, (res) => {
+      if (!res || !res.ok) return;
+      const a = String(res.text).toLowerCase();
+      const hit = gs.map((g) => ({ g, at: a.search(AI_GROUP[g]) })).filter((x) => x.at >= 0).sort((x, y) => x.at - y.at)[0];
+      const w = peekDay(d).workout, ex = w && w.exercises.find((x) => x.id === e.id);
+      if (!hit || !ex || hit.g === from || ex.group !== from) return;
+      const move = (g) => { const w2 = peekDay(d).workout, x = w2 && w2.exercises.find((y) => y.id === e.id); if (!x) return; x.group = g; save(d); if (!sheet.hidden && viewDate === d) drawWorkoutSoon(); };
+      move(hit.g);
+      toast("Coach moved " + ex.name + " to " + (GROUP_NAME[hit.g] || typeName(type)), () => move(from));
+    });
+  }
   const exState = (e) => { const l = ensureSets(e), n = l.filter(isDone).length; return n === 0 ? "plan" : n === l.length ? "done" : "part"; };
   // The next exercise still to do, after the one you just finished (wrapping round to any you skipped past).
   function nextOpen(w, after) {
@@ -3226,6 +3259,7 @@ body.setup .nav, body.setup .top { display: none; }
       save(viewDate); render(); drawWorkout(); showOpen();
       if (old) toast("Swapped " + old.name + " for " + ne.name);
       // Brand new to you: straight into its weight, keyboard still up.
+      if (!old && !lastExercise(name, viewDate)) aiSortExercise(ne, w.type);
       if (!lastExercise(name, viewDate)) { const i = document.getElementById("ex-w-" + ne.id); if (i) { i.focus(); try { i.select(); } catch (e) { /* ignore */ } fitTyping(); } }
     } else if (f.id.indexOf("step-form-") === 0) {
       const g = findGoal(f.dataset.goal), text = val("step-in-" + f.dataset.goal);
@@ -3294,13 +3328,6 @@ body.setup .nav, body.setup .top { display: none; }
     if (t.id === "in-kcal" || t.id === "in-protein") {
       return; // the bars move once you leave the box (see animateFood)
     }
-    if (t.id !== "wadd-name") return;
-    // Picking an exercise you've done before fills in what you did last time.
-    const k = lastExercise(t.value, viewDate);
-    if (!k) return;
-    document.getElementById("wadd-weight").value = k.e.weight || "";
-    document.getElementById("wadd-unit").textContent = k.e.unit;
-    document.getElementById("wadd-reps").value = k.e.reps;
   });
 
   // A change fires as you leave a box, before the next box you tapped has focus. Redrawing right then would
