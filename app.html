@@ -1528,8 +1528,6 @@ body.setup .nav, body.setup .top { display: none; }
       const prot = pLeft > 0 ? "<strong>" + fmt(pLeft) + " g</strong> protein to go." : "protein goal hit.";
       parts.push("<strong>" + c.short + "</strong>" + (c.state === "met" ? ", " : ". ") + (c.state === "met" ? prot : prot.charAt(0).toUpperCase() + prot.slice(1)));
     }
-    const done = doneOn(viewDate), total = tasksFor(viewDate).length;
-    if (total) parts.push(done === total ? "All daily tasks done." : done + " of " + total + " daily tasks done.");
     return parts.join(" ");
   }
 

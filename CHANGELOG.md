@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.16.3 · Shorter summary line
+- The line under the coach no longer says how many daily tasks are done (the Daily tasks card shows that). It just says what's left for calories and protein.
+
 ## v0.16.2 · Cleaner streak
 - Removed the small line of text under the streak counter ("Best: …").
 
