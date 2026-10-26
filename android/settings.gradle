@@ -1,0 +1,8 @@
+// The Android app is built with Gradle (Android Gradle Plugin), from this folder.
+pluginManagement {
+    repositories { google(); mavenCentral(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = "hundred-days-hard"

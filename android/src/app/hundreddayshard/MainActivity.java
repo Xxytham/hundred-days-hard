@@ -3,8 +3,11 @@ package app.hundreddayshard;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -13,9 +16,12 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
@@ -24,11 +30,26 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.mlkit.genai.common.DownloadCallback;
+import com.google.mlkit.genai.common.FeatureStatus;
+import com.google.mlkit.genai.common.GenAiException;
+import com.google.mlkit.genai.prompt.GenerateContentRequest;
+import com.google.mlkit.genai.prompt.GenerateContentResponse;
+import com.google.mlkit.genai.prompt.Generation;
+import com.google.mlkit.genai.prompt.TextPart;
+import com.google.mlkit.genai.prompt.java.GenerativeModelFutures;
+
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,6 +79,16 @@ public class MainActivity extends Activity {
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         applyTheme();
+        // Keep the launch screen (the plate) up until the page has loaded, at most 2 seconds.
+        final long shownAt = SystemClock.uptimeMillis();
+        root.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                if (!loaded && SystemClock.uptimeMillis() - shownAt < 2000) return false;
+                root.getViewTreeObserver().removeOnPreDrawListener(this);
+                return true;
+            }
+        });
 
         // Keep the page clear of the status bar, navigation bar and keyboard.
         root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -95,6 +126,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (ACTION_INSTALLED.equals(intent.getAction())) { installStatus(intent); return; }
         readShortcut(intent);
         if (loaded && !shortcut.isEmpty()) {
             String type = shortcut;
@@ -210,7 +242,176 @@ public class MainActivity extends Activity {
         js("window.__healthPermission && window.__healthPermission(" + JSONObject.quote(status) + ")");
     }
 
+    // ---------- updates: download inside the app, then Android's own "Update this app?" prompt ----------
+    private static final String ACTION_INSTALLED = "app.hundreddayshard.INSTALL_STATUS";
+    private volatile boolean updating = false;
+
+    private void updateState(String state, int pct, String error) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("state", state);
+            o.put("pct", pct);
+            if (error != null) o.put("error", error);
+            js("window.__updateState && window.__updateState(" + o + ")");
+        } catch (Exception ignored) { }
+    }
+
+    private void downloadAndInstall(String url) {
+        if (updating) return;
+        updating = true;
+        io.execute(() -> {
+            File dir = new File(getCacheDir(), "updates");
+            File apk = new File(dir, "update.apk");
+            try {
+                dir.mkdirs();
+                HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection(); // follows GitHub's redirects
+                c.setConnectTimeout(15000);
+                c.setReadTimeout(30000);
+                if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+                long total = c.getContentLengthLong(), got = 0;
+                int last = -1;
+                try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(apk)) {
+                    byte[] buf = new byte[65536];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        out.write(buf, 0, n);
+                        got += n;
+                        int pct = total > 0 ? (int) (got * 100 / total) : -1;
+                        if (pct != last && (pct - last >= 2 || pct == 100)) { last = pct; updateState("downloading", pct, null); }
+                    }
+                }
+                // Only hand over a newer version of this same app.
+                PackageInfo next = getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
+                PackageInfo now = getPackageManager().getPackageInfo(getPackageName(), 0);
+                if (next == null || !getPackageName().equals(next.packageName)) throw new Exception("not this app");
+                if (next.getLongVersionCode() <= now.getLongVersionCode()) { updating = false; updateState("current", 100, null); return; }
+                updateState("installing", 100, null);
+                PackageInstaller pi = getPackageManager().getPackageInstaller();
+                PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                params.setAppPackageName(getPackageName());
+                int id = pi.createSession(params);
+                try (PackageInstaller.Session session = pi.openSession(id)) {
+                    try (InputStream in = new FileInputStream(apk); OutputStream out = session.openWrite("base.apk", 0, apk.length())) {
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        session.fsync(out);
+                    }
+                    Intent done = new Intent(this, MainActivity.class).setAction(ACTION_INSTALLED);
+                    PendingIntent pi2 = PendingIntent.getActivity(this, 7, done, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+                    session.commit(pi2.getIntentSender());
+                }
+            } catch (Exception e) {
+                updating = false;
+                updateState("failed", 0, String.valueOf(e.getMessage()));
+            }
+        });
+    }
+
+    private void installStatus(Intent intent) {
+        int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
+            if (confirm != null) { updateState("confirm", 100, null); startActivity(confirm); return; }
+        }
+        updating = false;
+        if (status == PackageInstaller.STATUS_SUCCESS) updateState("done", 100, null); // Android restarts the app with the new version
+        else updateState("failed", 0, status == PackageInstaller.STATUS_FAILURE_ABORTED ? "cancelled" : intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
+    }
+
+    // ---------- coach: Gemini Nano on the phone (AICore), through ML Kit's Prompt API ----------
+    private GenerativeModelFutures model;
+
+    private GenerativeModelFutures model() {
+        if (model == null) model = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
+        return model;
+    }
+
+    private void aiStatusTo(String status) {
+        js("window.__aiStatus && window.__aiStatus(" + JSONObject.quote(status) + ")");
+    }
+
     class Bridge {
+        /** Downloads the newest release and asks Android to install it. Answers through window.__updateState. */
+        @JavascriptInterface
+        public void updateApp(String url) {
+            if (url == null || !url.startsWith("https://")) return;
+            if (!getPackageManager().canRequestPackageInstalls()) {
+                // One time only: let this app install its own updates.
+                updateState("permission", 0, null);
+                runOnUiThread(() -> {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+                    } catch (Exception ignored) { }
+                });
+                return;
+            }
+            downloadAndInstall(url);
+        }
+
+        @JavascriptInterface
+        public boolean canInstallUpdates() {
+            return getPackageManager().canRequestPackageInstalls();
+        }
+
+        /** Answers through window.__aiStatus: "available", "downloadable", "downloading" or "unavailable". */
+        @JavascriptInterface
+        public void aiStatus() {
+            try {
+                ListenableFuture<Integer> f = model().checkStatus();
+                f.addListener(() -> {
+                    String st = "unavailable";
+                    try {
+                        int v = f.get();
+                        st = v == FeatureStatus.AVAILABLE ? "available" : v == FeatureStatus.DOWNLOADABLE ? "downloadable"
+                                : v == FeatureStatus.DOWNLOADING ? "downloading" : "unavailable";
+                    } catch (Exception ignored) { }
+                    aiStatusTo(st);
+                }, io);
+            } catch (Throwable t) { // no AICore or Play services on this phone
+                aiStatusTo("unavailable");
+            }
+        }
+
+        /** Fetches Gemini Nano when the phone has it but hasn't downloaded it yet. */
+        @JavascriptInterface
+        public void aiDownload() {
+            try {
+                model().download(new DownloadCallback() {
+                    @Override public void onDownloadStarted(long bytes) { aiStatusTo("downloading"); }
+                    @Override public void onDownloadCompleted() { aiStatusTo("available"); }
+                    @Override public void onDownloadFailed(GenAiException e) { aiStatusTo("downloadable"); }
+                });
+            } catch (Throwable t) {
+                aiStatusTo("unavailable");
+            }
+        }
+
+        /** Writes a short reply to the prompt; answers through window.__aiResult({ok, text}). */
+        @JavascriptInterface
+        public void aiGenerate(String prompt) {
+            try {
+                GenerateContentRequest.Builder b = new GenerateContentRequest.Builder(new TextPart(prompt));
+                b.setTemperature(0.4f);
+                b.setTopK(16);
+                b.setMaxOutputTokens(160);
+                ListenableFuture<GenerateContentResponse> f = model().generateContent(b.build());
+                f.addListener(() -> {
+                    JSONObject o = new JSONObject();
+                    try {
+                        String text = f.get().getCandidates().get(0).getText();
+                        o.put("ok", text != null && !text.trim().isEmpty());
+                        o.put("text", text == null ? "" : text.trim());
+                    } catch (Exception e) {
+                        try { o.put("ok", false); o.put("error", String.valueOf(e.getMessage())); } catch (Exception ignored) { }
+                    }
+                    js("window.__aiResult && window.__aiResult(" + o + ")");
+                }, io);
+            } catch (Throwable t) {
+                js("window.__aiResult && window.__aiResult({ok:false,error:'unavailable'})");
+            }
+        }
+
         // The page asks once it's ready, in case the app was opened from a shortcut.
         @JavascriptInterface
         public String takeShortcut() {

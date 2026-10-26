@@ -68,10 +68,14 @@ final class HealthReader {
     static final String HEART_RATE = "android.permission.health.READ_HEART_RATE";
     static final String SPO2 = "android.permission.health.READ_OXYGEN_SATURATION";
     static final String BMR = "android.permission.health.READ_BASAL_METABOLIC_RATE";
-    static final String[] PERMISSIONS = {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2,
-            HEART_RATE, SPO2, BMR};
+    // Without this, Health Connect only gives apps about 30 days from before they were first allowed (Android 15+).
+    static final String HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY";
+    private static final boolean HAS_HISTORY = Build.VERSION.SDK_INT >= 35;
+    static final String[] PERMISSIONS = HAS_HISTORY
+            ? new String[] {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2, HEART_RATE, SPO2, BMR, HISTORY}
+            : new String[] {NUTRITION, WEIGHT, STEPS, SLEEP, EXERCISE, ACTIVE_CAL, TOTAL_CAL, DISTANCE, BODY_FAT, RESTING_HR, HRV, VO2, HEART_RATE, SPO2, BMR};
     private static final String[] NAMES = {"food", "weight", "steps", "sleep", "workouts", "active calories", "calories burned", "distance",
-            "body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR"};
+            "body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR", "older history"};
     // Stats sent as the day's average rather than its latest reading.
     private static final HashSet<String> AVERAGED = new HashSet<>(Arrays.asList("hrv", "sleepHr", "spo2"));
 
@@ -135,7 +139,7 @@ final class HealthReader {
         } catch (Throwable t) {
             return "unavailable";
         }
-        for (String p : PERMISSIONS) if (has(c, p)) return "granted";
+        for (String p : PERMISSIONS) if (!HISTORY.equals(p) && has(c, p)) return "granted";
         return "not_granted";
     }
 

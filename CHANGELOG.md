@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.15 · New icon, AI coach and one-tap updates
+- New app icon: a red bumper plate with grip handles, a steel center and "100", tilted like it's leaning on a rack. It also comes in a single-color version for Android's themed icons, and the app opens on it.
+- **Coach** under your streak on Today: a short note on what's going well and one thing to focus on, written on your phone by Gemini Nano from numbers the app works out (your last 7 days, strength, weight, resting heart rate, goals). Nothing leaves your phone. Tap Refresh for a new one.
+- **Updates happen inside the app.** Tap Update, watch it download in the banner, then confirm on Android's "Update this app?" prompt. The first time, Android asks you to allow updates from this app. No more browser, repeated downloads or digging through notifications. (This applies from the next update on.)
+- Stats charts and Samsung Health data now run from day 1 to today, not just the last 14 to 30 days. Allow "older history" when the app asks so it can read back to day 1.
+
 ## v0.14 · Stats in sections, more from your watch
 - Stats has its own row of tabs: **Strength · Body · Heart · Sleep · Energy**. A section only appears once it has data. Each one is a grid of tiles; tap a tile for its chart, and tap again to close it.
 - **Heart:** resting heart rate, worked out from your watch's heart rate while you sleep (Samsung Health doesn't share its own), blood oxygen, VO2 max and HRV when available.

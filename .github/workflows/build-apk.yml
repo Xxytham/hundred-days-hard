@@ -23,6 +23,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Restore signing key
         env:

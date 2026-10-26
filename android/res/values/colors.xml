@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="icon_bg">#14181D</color>
+    <!-- Launch screen background: the app's page color, so the page appears without a flash -->
+    <color name="splash_bg">#EDF0F3</color>
 </resources>

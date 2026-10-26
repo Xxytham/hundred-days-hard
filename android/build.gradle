@@ -1,0 +1,63 @@
+// Builds 100 Days Hard. Run through build.sh, which first wraps app.html into assets/index.html.
+// Version comes from VERSION. Release builds are signed with the real key (keystore/hundred-days-hard.jks,
+// restored from the KEYSTORE_B64 secret in CI); -PtestSign signs with Android's throwaway debug key instead.
+plugins {
+    id 'com.android.application' version '8.13.2'
+}
+
+def ver = [:]
+file('VERSION').eachLine { line -> def kv = line.split('=', 2); if (kv.length == 2) ver[kv[0].trim()] = kv[1].trim() }
+
+android {
+    namespace 'app.hundreddayshard'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+
+    defaultConfig {
+        applicationId 'app.hundreddayshard'
+        minSdk 30
+        targetSdk 35
+        versionCode ver.code as Integer
+        versionName ver.name
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KEYSTORE') ?: 'keystore/hundred-days-hard.jks')
+            storePassword System.getenv('KEYSTORE_PASS') ?: 'hundreddays'
+            keyAlias 'app'
+            keyPassword System.getenv('KEYSTORE_PASS') ?: 'hundreddays'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false // the page calls Java methods by name through AndroidBridge
+            signingConfig project.hasProperty('testSign') ? signingConfigs.debug : signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+dependencies {
+    // Gemini Nano on the phone (AICore), for the coach on Today
+    implementation 'com.google.mlkit:genai-prompt:1.0.0-beta4'
+}

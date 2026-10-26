@@ -1,5 +1,7 @@
 # Build output (APKs are published as GitHub Releases, not committed)
 android/build/
+android/.gradle/
+android/local.properties
 android/*.apk
 android/assets/index.html
 # The signing key lives in the KEYSTORE_B64 Actions secret and in the owner's own safe copy.
