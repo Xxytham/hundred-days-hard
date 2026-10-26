@@ -1519,6 +1519,18 @@ body.setup .nav, body.setup .top { display: none; }
   }
   main.addEventListener("focusout", () => { if (deferred) setTimeout(() => render(), 0); });
 
+  function coachLine(day, isToday) {
+    const parts = [];
+    if (day.kcal == null) {
+      parts.push(isToday ? (health === "granted" ? "Today's food will show up here as you log it in Samsung Health." : "Enter today's totals from Samsung Health when you're done eating.") : "No calories were entered for this day.");
+    } else {
+      const c = calStatus(day.kcal), pLeft = S().proteinGoal - (day.protein || 0);
+      const prot = pLeft > 0 ? "<strong>" + fmt(pLeft) + " g</strong> protein to go." : "protein goal hit.";
+      parts.push("<strong>" + c.short + "</strong>" + (c.state === "met" ? ", " : ". ") + (c.state === "met" ? prot : prot.charAt(0).toUpperCase() + prot.slice(1)));
+    }
+    return parts.join(" ");
+  }
+
   // The calorie and protein boxes double as bars: each fills toward its goal (blue under, green met, red over).
   function foodFill(day) {
     const pg = S().proteinGoal, k = day.kcal || 0, p = day.protein || 0;
@@ -1636,6 +1648,7 @@ body.setup .nav, body.setup .top { display: none; }
       (isToday ? offerHTML() || workoutOfferHTML() : "") +
       (isToday ? streakHTML() : "") +
       (isToday ? coachHTML() : "") +
+      '<p class="coach">' + coachLine(day, isToday) + "</p>" +
       restoreCard +
 
       '<section class="panel" aria-labelledby="h-cal">' +

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.16.5 · Calories and protein to go
+- The line above Food is back: how many calories and grams of protein you still need today. It no longer mentions daily tasks.
+
 ## v0.16.4 · No summary line
 - Removed the line of text above Food on Today. The bars and tasks turning green already show where you are.
 
