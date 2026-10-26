@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_push_short">Push day</string>
+    <string name="sc_push_long">Log Push day</string>
+    <string name="sc_pull_short">Pull day</string>
+    <string name="sc_pull_long">Log Pull day</string>
+    <string name="sc_legs_short">Legs day</string>
+    <string name="sc_legs_long">Log Legs day</string>
+</resources>

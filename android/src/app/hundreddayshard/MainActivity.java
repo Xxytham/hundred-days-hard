@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -43,6 +44,7 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private boolean loaded = false;
+    private String shortcut = ""; // workout type from a home-screen shortcut, waiting for the page
 
     @Override
     protected void onCreate(Bundle state) {
@@ -77,8 +79,28 @@ public class MainActivity extends Activity {
         });
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
+        readShortcut(getIntent());
         if (state != null) web.restoreState(state);
         else web.loadUrl("file:///android_asset/index.html");
+    }
+
+    // Long-pressing the app icon offers "Log Push day" and so on (res/xml/shortcuts.xml).
+    private void readShortcut(Intent i) {
+        Uri d = i == null ? null : i.getData();
+        if (d == null || !"hundreddayshard".equals(d.getScheme()) || !"log".equals(d.getHost())) return;
+        String type = d.getLastPathSegment();
+        if ("push".equals(type) || "pull".equals(type) || "legs".equals(type)) shortcut = type;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        readShortcut(intent);
+        if (loaded && !shortcut.isEmpty()) {
+            String type = shortcut;
+            shortcut = "";
+            js("window.__shortcut && window.__shortcut(" + JSONObject.quote(type) + ")");
+        }
     }
 
     @Override
@@ -189,6 +211,29 @@ public class MainActivity extends Activity {
     }
 
     class Bridge {
+        // The page asks once it's ready, in case the app was opened from a shortcut.
+        @JavascriptInterface
+        public String takeShortcut() {
+            String type = shortcut;
+            shortcut = "";
+            return type;
+        }
+
+        // A light buzz through the phone's own haptics (no vibration permission needed).
+        @JavascriptInterface
+        public void haptic(String kind) {
+            int k;
+            switch (kind == null ? "" : kind) {
+                case "confirm": k = HapticFeedbackConstants.CONFIRM; break;
+                case "start": k = HapticFeedbackConstants.GESTURE_START; break;
+                case "end": k = HapticFeedbackConstants.GESTURE_END; break;
+                case "reject": k = HapticFeedbackConstants.REJECT; break;
+                default: k = HapticFeedbackConstants.CLOCK_TICK;
+            }
+            final int effect = k;
+            runOnUiThread(() -> web.performHapticFeedback(effect));
+        }
+
         @JavascriptInterface
         public void saveBackup(String json) {
             io.execute(() -> writeBackup(json));

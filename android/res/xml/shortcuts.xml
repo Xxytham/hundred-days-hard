@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon to start a workout straight away. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="log_push" android:enabled="true" android:icon="@drawable/sc_push"
+        android:shortcutShortLabel="@string/sc_push_short" android:shortcutLongLabel="@string/sc_push_long">
+        <intent android:action="android.intent.action.VIEW" android:data="hundreddayshard://log/push"
+            android:targetPackage="app.hundreddayshard" android:targetClass="app.hundreddayshard.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="log_pull" android:enabled="true" android:icon="@drawable/sc_pull"
+        android:shortcutShortLabel="@string/sc_pull_short" android:shortcutLongLabel="@string/sc_pull_long">
+        <intent android:action="android.intent.action.VIEW" android:data="hundreddayshard://log/pull"
+            android:targetPackage="app.hundreddayshard" android:targetClass="app.hundreddayshard.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="log_legs" android:enabled="true" android:icon="@drawable/sc_legs"
+        android:shortcutShortLabel="@string/sc_legs_short" android:shortcutLongLabel="@string/sc_legs_long">
+        <intent android:action="android.intent.action.VIEW" android:data="hundreddayshard://log/legs"
+            android:targetPackage="app.hundreddayshard" android:targetClass="app.hundreddayshard.MainActivity" />
+    </shortcut>
+</shortcuts>

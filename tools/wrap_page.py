@@ -16,7 +16,7 @@ src = open(root + "/app.html").read()
 src = re.sub(r'<link rel="preconnect"[^>]*>\n', "", src)
 src = re.sub(r'<link rel="stylesheet" href="https://fonts.googleapis.com[^"]*">', '<link rel="stylesheet" href="fonts.css">', src)
 head = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">')
+        '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">')
 if pwa:
     head += ('<link rel="manifest" href="manifest.webmanifest">'
              '<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">'

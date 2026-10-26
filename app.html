@@ -54,7 +54,10 @@ body {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 12px calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 28px);
   -webkit-tap-highlight-color: transparent;
+  /* An app, not a page: no text selection or long-press menus, except where you type */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
+input, textarea, .share-link { -webkit-user-select: text; user-select: text; }
 .app { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
 #main { width: 100%; min-width: 0; }
 button, input, select { font: inherit; color: inherit; }
@@ -439,6 +442,7 @@ body.setup .nav, body.setup .top { display: none; }
 .goal-open { display: grid; gap: 12px; padding-bottom: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .tick-focus { animation: none; }
+  .ptr.busy .spin { animation-duration: 2.4s; }
   .ex-edit, .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
 }
 
@@ -523,6 +527,23 @@ body.setup .nav, body.setup .top { display: none; }
 .tab[aria-current="page"] { color: var(--ink); }
 .tab[aria-current="page"] svg { stroke: var(--red); }
 
+/* Pull down on Today to refresh from Samsung Health */
+.ptr {
+  position: fixed; z-index: 26; top: 6px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
+  border-radius: 50%; background: var(--surface); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  display: grid; place-items: center; color: var(--muted); pointer-events: none;
+  opacity: 0; transform: translateY(-56px);
+}
+.ptr.back { transition: transform var(--t) var(--ease), opacity var(--t) ease; }
+.ptr svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform 150ms ease; }
+.ptr.armed { color: var(--green); }
+.ptr.armed .arrow { transform: rotate(180deg); }
+.ptr .spin { display: none; }
+.ptr.busy { color: var(--green); }
+.ptr.busy .arrow { display: none; }
+.ptr.busy .spin { display: block; animation: ptr-spin 0.8s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+
 /* Bottom sheet */
 .backdrop { position: fixed; inset: 0; background: var(--backdrop); z-index: 30; }
 .sheet {
@@ -544,7 +565,7 @@ body.setup .nav, body.setup .top { display: none; }
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 40;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 12px);
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
-  font-size: 14px; font-weight: 600; max-width: calc(100% - 32px);
+  font-size: 14px; font-weight: 600; width: max-content; max-width: calc(100% - 32px);
   display: flex; align-items: center; gap: 14px;
 }
 .toast[hidden] { display: none; }
@@ -577,6 +598,7 @@ body.setup .nav, body.setup .top { display: none; }
   </div>
 </nav>
 
+<div class="ptr" id="ptr" aria-hidden="true"><svg class="arrow" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg><svg class="spin" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2"/></svg></div>
 <div class="fab-wrap" id="fab-wrap">
   <div class="fab-scrim" data-action="fab-close"></div>
   <div class="fab-menu" id="fab-menu" aria-label="Pick a workout"></div>
@@ -937,6 +959,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
   window.__healthResult = function (res) {
     healthBusy = false;
+    if (ptrBusy) ptrDone(res && res.ok ? "Updated from Samsung Health" : "Couldn't reach Samsung Health");
     if (!res || !res.ok) { if (res && res.error === "permission") { health = "not_granted"; render(); } return; }
     healthSyncedAt = Date.now();
     Object.keys(res.days || {}).forEach((d) => {
@@ -1008,6 +1031,13 @@ body.setup .nav, body.setup .top { display: none; }
   // ---------- rendering ----------
   const main = document.getElementById("main");
   let deferred = false;
+  // A light buzz: "tick" for small things, "confirm" for something done, "start"/"end" around a drag.
+  function buzz(kind) {
+    try {
+      if (bridge && bridge.haptic) bridge.haptic(kind);
+      else if (navigator.vibrate) navigator.vibrate(kind === "confirm" ? 14 : 6);
+    } catch (e) { /* no haptics here */ }
+  }
   const reduceMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   // When the page last scrolled. A tap that lands right after (say, to stop a fling) never ticks a goal step.
   let lastScroll = 0;
@@ -1036,6 +1066,12 @@ body.setup .nav, body.setup .top { display: none; }
     main.innerHTML = view === "today" ? renderToday() : view === "goals" ? renderGoals() : view === "progress" ? renderProgress() : renderSettings();
     if (view === "settings") drawShareQR();
     if (view === "today") animateFood();
+  }
+
+  // A new tab slides in from the side it sits on (a plain fade when coming from Settings).
+  function slideIn(dir) {
+    if (reduceMotion || !main.animate) return;
+    main.animate([{ opacity: 0.35, transform: "translateX(" + dir * 14 + "px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
   }
 
   // ---------- day counter ----------
@@ -1340,12 +1376,16 @@ body.setup .nav, body.setup .top { display: none; }
     if (foodAnim && foodAnim.d === d && foodAnim.to.kcal === to.kcal && foodAnim.to.protein === to.protein) return; // already on its way
     if (from.kcal === to.kcal && from.protein === to.protein) return;
     if (foodAnim) cancelAnimationFrame(foodAnim.raf);
-    const a = { d, to, from: { ...from }, t0: performance.now(), raf: 0 };
+    const met = (v) => [v.kcal != null && calStatus(v.kcal).state === "met", v.protein != null && v.protein >= S().proteinGoal];
+    const a = { d, to, from: { ...from }, t0: performance.now(), raf: 0, met: met(from) };
     const lerp = (x, y, e) => (x == null && y == null ? null : (x || 0) + ((y || 0) - (x || 0)) * e);
     const frame = (now) => {
       const t = Math.min(1, (now - a.t0) / 700), e = 1 - Math.pow(1 - t, 3);
       const v = t < 1 ? { kcal: lerp(a.from.kcal, a.to.kcal, e), protein: lerp(a.from.protein, a.to.protein, e) } : a.to;
       foodShown[d] = v;
+      const m = met(v);
+      if ((m[0] && !a.met[0]) || (m[1] && !a.met[1])) buzz("confirm"); // just hit a goal
+      a.met = m;
       if (view === "today" && viewDate === d) paintFood(v);
       if (t < 1) a.raf = requestAnimationFrame(frame); else foodAnim = null;
     };
@@ -1356,7 +1396,7 @@ body.setup .nav, body.setup .top { display: none; }
   function sourceHTML(day, isToday) {
     if (health === "granted") {
       if (day.kcalSrc === "manual") return '<div class="source"><span>Typed in by you.</span><button class="linkbtn" data-action="use-health">Use Samsung Health numbers</button></div>';
-      return '<div class="source"><span>' + (day.kcalSrc === "health" ? "From Samsung Health" : "Waiting for Samsung Health") + (healthSyncedAt ? " · checked " + fmtTime(healthSyncedAt) : "") + '</span><button class="linkbtn" data-action="health-sync">Check now</button></div>';
+      return '<div class="source"><span>' + (day.kcalSrc === "health" ? "From Samsung Health" : "Waiting for Samsung Health") + (healthSyncedAt ? " · checked " + fmtTime(healthSyncedAt) : "") + (isToday ? " · pull down to refresh" : "") + "</span></div>";
     }
     if (health === "not_granted" || health === "denied") return '<div class="source"><button class="linkbtn" data-action="health-connect">Fill these in automatically from Samsung Health</button></div>';
     return isToday ? '<div class="source"><span>Copy the day\'s totals from Samsung Health.</span></div>' : "";
@@ -2163,7 +2203,7 @@ body.setup .nav, body.setup .top { display: none; }
     drag.active = true;
     drag.row.classList.add("lifted");
     try { drag.row.setPointerCapture(drag.pid); } catch (e) { /* ignore */ }
-    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) { /* ignore */ }
+    buzz("start");
     const tick = () => { // scroll the sheet while the row is held near its top or bottom edge
       if (!drag || !drag.active) return;
       const sr = sheet.getBoundingClientRect(), bot = Math.min(sr.bottom, innerHeight);
@@ -2177,6 +2217,7 @@ body.setup .nav, body.setup .top { display: none; }
     const R = drag.rows, me = R[drag.from], dy = drag.y - drag.y0 + (sheet.scrollTop - drag.s0), mid = me.top + me.h / 2 + dy;
     let to = drag.from;
     R.forEach((r, i) => { const c = r.top + r.h / 2; if (i < drag.from && mid < c) to = Math.min(to, i); if (i > drag.from && mid > c) to = Math.max(to, i); });
+    if (to !== drag.to) buzz("tick"); // a click each time the row passes another
     drag.to = to;
     drag.row.style.transform = "translateY(" + dy.toFixed(1) + "px)";
     R.forEach((r, i) => {
@@ -2197,6 +2238,7 @@ body.setup .nav, body.setup .top { display: none; }
     const d = drag; drag = null;
     if (!d.active) return;
     dragEnded = Date.now();
+    buzz("end");
     const w = peekDay(viewDate).workout;
     if (commit && w && d.to !== d.from) { const [x] = w.exercises.splice(d.from, 1); w.exercises.splice(d.to, 0, x); save(viewDate); render(); }
     drawWorkout();
@@ -2205,7 +2247,6 @@ body.setup .nav, body.setup .top { display: none; }
   sheet.addEventListener("pointercancel", () => endDrag(true));
   // While a row is held, the finger moves the row, not the page; and the long press never opens a menu.
   document.addEventListener("touchmove", (ev) => { if (drag && drag.active) ev.preventDefault(); }, { passive: false });
-  sheet.addEventListener("contextmenu", (ev) => { if (ev.target.closest(".ex-edit")) ev.preventDefault(); });
   sheet.addEventListener("click", (ev) => { if (Date.now() - dragEnded < 350) { ev.stopPropagation(); ev.preventDefault(); } }, true);
   sheet.addEventListener("focusout", (ev) => { if (ev.target.id === "ex-rename-in" && renaming) commitRename(ev.target.value); });
 
@@ -2236,12 +2277,17 @@ body.setup .nav, body.setup .top { display: none; }
     const a = el.dataset.action;
     const day = () => getDay(viewDate);
     switch (a) {
-      case "tab": view = el.dataset.tab; if (view === "today") viewDate = todayISO(); render(true); window.scrollTo(0, 0); break;
+      case "tab": {
+        const order = ["today", "goals", "progress"], from = order.indexOf(view), to = order.indexOf(el.dataset.tab);
+        view = el.dataset.tab; if (view === "today") viewDate = todayISO(); render(true); window.scrollTo(0, 0);
+        slideIn(from < 0 || from === to ? 0 : to > from ? 1 : -1);
+        break;
+      }
       case "go-today": view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0); break;
       case "prev-day": viewDate = addDays(viewDate, -1); render(true); break;
       case "next-day": if (viewDate < todayISO()) viewDate = addDays(viewDate, 1); render(true); break;
       case "open-day": viewDate = el.dataset.date; view = "today"; render(true); window.scrollTo(0, 0); break;
-      case "toggle-habit": { const d = day(); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; d.autoTicks = { ...d.autoTicks, [el.dataset.id]: false }; save(viewDate); render(true); break; }
+      case "toggle-habit": { const d = day(); buzz(d.habits[el.dataset.id] ? "tick" : "confirm"); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; d.autoTicks = { ...d.autoTicks, [el.dataset.id]: false }; save(viewDate); render(true); break; }
       case "open-settings": {
         view = "settings"; render(true);
         const to = el.dataset.to && document.getElementById(el.dataset.to);
@@ -2394,6 +2440,7 @@ body.setup .nav, body.setup .top { display: none; }
         w.saved = true; w.savedAt = Date.now();
         autoMetricHabits(d, viewDate);
         save(viewDate); closeSheet(); render(true);
+        buzz("confirm");
         toast(typeName(w.type) + " day " + (first ? "saved" : "updated"));
         break;
       }
@@ -2407,6 +2454,7 @@ body.setup .nav, body.setup .top { display: none; }
         if (!st) break;
         st.done = !st.done;
         st.doneDay = st.done ? dayNum(todayISO()) : null;
+        buzz(st.done ? "confirm" : "tick");
         save("goals"); render(true);
         if (st.done) toast(g.name + ": " + st.text + " reached");
         break;
@@ -2416,13 +2464,13 @@ body.setup .nav, body.setup .top { display: none; }
         const g = findGoal(el.dataset.g), st = g && g.steps.find((x) => x.id === el.dataset.s);
         if (!st || st.done) break;
         st.done = true; st.doneDay = dayNum(todayISO());
-        save("goals"); slideThenRender(g, 1);
+        buzz("confirm"); save("goals"); slideThenRender(g, 1);
         const gid = g.id, sid = st.id;
         toast(g.name + ": " + st.text + " reached", () => {
           const g2 = findGoal(gid), st2 = g2 && g2.steps.find((x) => x.id === sid);
           if (!st2 || !st2.done) return;
           st2.done = false; st2.doneDay = null;
-          save("goals"); slideThenRender(g2, -1);
+          buzz("tick"); save("goals"); slideThenRender(g2, -1);
         });
         break;
       }
@@ -2617,6 +2665,65 @@ body.setup .nav, body.setup .top { display: none; }
     return false;
   };
 
+  // Pull down at the top of Today to refresh from Samsung Health (installed app, once connected).
+  const ptrEl = document.getElementById("ptr");
+  let ptr = null, ptrBusy = false, ptrT = null;
+  const PTR_AT = 64;
+  function ptrDone(msg) {
+    clearTimeout(ptrT); ptrBusy = false;
+    ptrEl.classList.add("back"); ptrEl.classList.remove("busy", "armed");
+    ptrEl.style.transform = ""; ptrEl.style.opacity = "";
+    if (msg) toast(msg);
+  }
+  document.addEventListener("touchstart", (ev) => {
+    ptr = null;
+    if (view !== "today" || health !== "granted" || ptrBusy || !sheet.hidden || fabWrap.classList.contains("open") || ev.touches.length !== 1 || window.scrollY > 0) return;
+    if (ev.target.closest("input")) return;
+    ptr = { x0: ev.touches[0].clientX, y0: ev.touches[0].clientY, on: false, d: 0, armed: false };
+  }, { passive: true });
+  document.addEventListener("touchmove", (ev) => {
+    if (!ptr || ev.touches.length !== 1) return;
+    const dy = ev.touches[0].clientY - ptr.y0, dx = ev.touches[0].clientX - ptr.x0;
+    if (!ptr.on) {
+      if (dy > 8 && dy > Math.abs(dx) * 1.5 && window.scrollY <= 0) { ptr.on = true; ptrEl.classList.remove("back"); }
+      else { if (dy < -4 || Math.abs(dx) > 12) ptr = null; return; }
+    }
+    ev.preventDefault();
+    ptr.d = Math.min(120, Math.max(0, dy - 8) * 0.55);
+    ptrEl.style.transform = "translateY(" + (ptr.d - 50).toFixed(1) + "px)";
+    ptrEl.style.opacity = String(Math.min(1, ptr.d / 40));
+    const armed = ptr.d >= PTR_AT;
+    if (armed !== ptr.armed) { ptr.armed = armed; ptrEl.classList.toggle("armed", armed); if (armed) buzz("tick"); }
+  }, { passive: false });
+  const ptrEnd = () => {
+    if (!ptr || !ptr.on) { ptr = null; return; }
+    const go = ptr.armed;
+    ptr = null;
+    ptrEl.classList.add("back");
+    if (!go) { ptrDone(); return; }
+    ptrBusy = true;
+    ptrEl.classList.remove("armed"); ptrEl.classList.add("busy");
+    ptrEl.style.transform = "translateY(" + (PTR_AT - 50) + "px)"; ptrEl.style.opacity = "1";
+    buzz("confirm");
+    ptrT = setTimeout(() => ptrDone(), 8000); // never spin forever
+    if (healthBusy) return; // a check is already on its way; its answer ends this one too
+    healthSync();
+  };
+  document.addEventListener("touchend", ptrEnd);
+  document.addEventListener("touchcancel", ptrEnd);
+
+  // Long-press menus and text selection are for web pages; keep them only where you type.
+  document.addEventListener("contextmenu", (ev) => { if (!ev.target.closest("input, textarea")) ev.preventDefault(); });
+
+  // Opened from a home-screen shortcut ("Log Push day"): go to Today and start that workout, or open today's.
+  window.__shortcut = function (type) {
+    if (!TYPES.some((t) => t.id === type) || !S().setupDone) return;
+    fabMenu(false);
+    if (!sheet.hidden) closeSheet();
+    view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0);
+    if (peekDay(viewDate).workout) openWorkout(); else startWorkout(type);
+  };
+
   // Roll over to the new day if the app stays open past midnight.
   let lastToday = todayISO();
   setInterval(() => { const t = todayISO(); if (t !== lastToday) { if (viewDate === lastToday) viewDate = t; lastToday = t; render(); } }, 60000);
@@ -2628,5 +2735,6 @@ body.setup .nav, body.setup .top { display: none; }
   scheduleFileBackup();
   connect().catch(() => { setupReady = true; render(); });
   checkForUpdate();
+  try { const sc = bridge && bridge.takeShortcut ? bridge.takeShortcut() : ""; if (sc) window.__shortcut(sc); } catch (e) { /* ignore */ }
 })();
 </script>

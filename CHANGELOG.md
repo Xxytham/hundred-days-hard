@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.11 · Feels more like an app
+- Light buzzes: ticking a task or goal step, saving a workout, hitting your calorie or protein goal, and picking up, passing and dropping an exercise while you drag it.
+- Tabs slide in from the side they sit on.
+- Pull down at the top of Today to refresh from Samsung Health. The arrow turns green when you've pulled far enough, then spins until it's done. The "Check now" link is gone.
+- Little notices at the bottom fit on one line.
+- No more text selection, long-press menus or pinch-zoom anywhere except the boxes you type in.
+- Long-press the app icon for Push day, Pull day and Legs day shortcuts. Each one opens the app straight into that workout (or today's workout, if you've already started one).
+
 ## v0.10 · Drag to reorder, rename exercises, focused progress
 - "Reorder or remove" is cleaner: hold an exercise (or grab its dots) and drag it where you want. The list scrolls if you drag near the edge. A normal swipe still just scrolls.
 - Tap an exercise's name to rename it. If it's in other workouts too, you choose: rename it everywhere, or just in this workout.
