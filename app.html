@@ -539,19 +539,24 @@ body.setup .nav, body.setup .top { display: none; }
 .coach-text.muted, .coach-status { color: var(--muted); }
 .coach-text.muted b { color: inherit; }
 .coach-status { margin: 6px 0 0; font-size: 13px; }
-/* While it writes (usually a second or two): a small barbell loaded plate by plate (red, blue, yellow, green), with a
-   line about what it's reading. Only transform and opacity move. */
+/* While it writes (usually a second or two): a barbell with three red 45s a side. They slide on from the ends one at a
+   time (innermost first), sit for a moment, then slide off (outermost first). Only transform and opacity move. */
 .coach-load { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 4px 0; }
-.bb { position: relative; flex: none; width: 116px; height: 40px; }
+.bb { position: relative; flex: none; width: 116px; height: 44px; }
 .bb-shaft { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 60%, transparent); }
-.bb i { position: absolute; top: 50%; width: 7px; border-radius: 2px; opacity: 0; --dx: -12px; animation: bb-load 2.4s var(--ease) infinite; animation-delay: calc(var(--k) * 0.14s); }
-.bb i.l { left: calc(32px - var(--k) * 8px); }
-.bb i.r { right: calc(32px - var(--k) * 8px); --dx: 12px; }
-.bb .bb-r { height: 38px; margin-top: -19px; background: var(--red); }
-.bb .bb-b { height: 33px; margin-top: -16.5px; background: var(--blue); }
-.bb .bb-y { height: 28px; margin-top: -14px; background: var(--yellow); }
-.bb .bb-g { height: 23px; margin-top: -11.5px; background: var(--green); }
-@keyframes bb-load { 0% { opacity: 0; transform: translateX(var(--dx)); } 14%, 72% { opacity: 1; transform: none; } 88%, 100% { opacity: 0; transform: none; } }
+.bb i {
+  position: absolute; top: 50%; width: 8px; height: 40px; margin-top: -20px; border-radius: 2px; opacity: 0;
+  background: var(--red); box-shadow: inset -2px 0 0 color-mix(in srgb, #000 22%, transparent);
+  animation: 2.8s cubic-bezier(0.45, 0, 0.25, 1) infinite both;
+}
+.bb i.l { left: calc(34px - var(--k) * 9px); --dx: calc(-20px - (2 - var(--k)) * 9px); }
+.bb i.r { right: calc(34px - var(--k) * 9px); --dx: calc(20px + (2 - var(--k)) * 9px); box-shadow: inset 2px 0 0 color-mix(in srgb, #000 22%, transparent); }
+.bb i[style*="--k:0"] { animation-name: bb-0; }
+.bb i[style*="--k:1"] { animation-name: bb-1; }
+.bb i[style*="--k:2"] { animation-name: bb-2; }
+@keyframes bb-0 { 0% { opacity: 0; transform: translateX(var(--dx)); } 18%, 76% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; transform: translateX(var(--dx)); } }
+@keyframes bb-1 { 0%, 9% { opacity: 0; transform: translateX(var(--dx)); } 27%, 67% { opacity: 1; transform: none; } 83%, 100% { opacity: 0; transform: translateX(var(--dx)); } }
+@keyframes bb-2 { 0%, 18% { opacity: 0; transform: translateX(var(--dx)); } 36%, 58% { opacity: 1; transform: none; } 74%, 100% { opacity: 0; transform: translateX(var(--dx)); } }
 .load-cap { font-size: 14px; color: var(--muted); transition: opacity 180ms ease; }
 .load-cap.out { opacity: 0; }
 .coach-actions { margin-top: 12px; }
@@ -1466,7 +1471,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
   function stopCaptions() { clearInterval(capT); capT = 0; }
   const coachLoader = () => '<div class="coach-load" role="status" aria-label="' + (capKind === "intro" ? "Your coach is getting ready" : "Writing your note") + '"><span class="bb" aria-hidden="true"><b class="bb-shaft"></b>' +
-    ["r", "b", "y", "g"].map((c, k) => '<i class="bb-' + c + ' l" style="--k:' + k + '"></i><i class="bb-' + c + ' r" style="--k:' + k + '"></i>').join("") +
+    [0, 1, 2].map((k) => '<i class="l" style="--k:' + k + '"></i><i class="r" style="--k:' + k + '"></i>').join("") +
     '</span><span class="load-cap">' + CAPTIONS[capKind][capI % CAPTIONS[capKind].length] + "</span></div>";
   const avgOf = (xs) => (xs.length ? xs.reduce((a, v) => a + v, 0) / xs.length : null);
   const coachMode = () => (S().coach === "min" || S().coach === "off" ? S().coach : "on");

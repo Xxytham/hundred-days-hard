@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.22.1 · Red 45s on the loader
+- The coach's loading barbell now has three red 45 lb plates a side. They slide smoothly onto the bar one at a time, then slide back off, so it looks like a real bar instead of a toy.
+
 ## v0.22 · Meet your coach
 - **A hello first:** the first time you use the coach, it introduces itself in its own words, a little different for everyone. It tells you it runs on your phone's own processor, so your numbers never leave the phone, and asks if you're ready. Tap **I'm ready** and it goes straight into its first look at your data, starting with something natural like "Well then, let's have a look at your charts."
 - **New loading animation:** while the coach writes, a small barbell gets loaded plate by plate in the app's plate colors, with a line about what it's reading ("Checking calories and protein", "Looking at your lifts"). It replaces the pulsing bars.
