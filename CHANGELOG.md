@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.22.2 · A pace goal for fat loss
+- **Pace goal:** when your aim is to lose fat, the coach now aims for 1.5 to 3 lb a week, judged on your weight trend over the last three weeks. It tells you when you're right in the sweet spot, when you're near the slow end and could lose a bit more, when you're close to the fast end, when you're slower than the goal (with a suggested calorie goal), and when you're losing too fast (with a suggestion to eat a bit more). For people under 200 lb the range scales down, so it never pushes a lighter friend too hard.
+- **Tap to minimize:** tap the coach's note to shrink it to one line, and tap the line to open it again.
+
 ## v0.22.1 · Red 45s on the loader
 - The coach's loading barbell now has three red 45 lb plates a side. They slide smoothly onto the bar one at a time, then slide back off, so it looks like a real bar instead of a toy.
 

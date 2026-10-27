@@ -1414,6 +1414,7 @@ body.setup .nav, body.setup .top { display: none; }
     return '<p class="coach-text">' + coachRich(t.slice(0, cut)) + tail + "</p>";
   };
   function paintTyped() {
+    if (coachMode() === "min") return; // minimized mid-note: it carries on writing out of sight
     const el = document.getElementById("coach-body");
     if (el && typer.target) el.innerHTML = typedHTML();
   }
@@ -1578,7 +1579,22 @@ body.setup .nav, body.setup .top { display: none; }
         out.push("Weight trend, last " + weeks + " weeks (" + win.length + " weigh-ins): " + signed(perWeek, 1, " " + unit) + " a week.");
         const calDays = []; for (let d = win[0]; d < t; d = addDays(d, 1)) if (peekDay(d).kcal != null) calDays.push(d);
         const onCal = calDays.filter((d) => { const k = peekDay(d).kcal, g = TG(d).calorieGoal, tol = Math.max(50, g * 0.02), [lo, hi] = calAim(d) === "lose" ? calRange(d) : [g, Infinity]; return k >= lo - tol && k <= hi + tol; }).length;
-        if (lose ? lb <= -0.4 : lb >= 0.2) wins.push([0.95, "weight trending the right way, " + signed(perWeek, 1, " " + unit) + " a week"]);
+        // Fat loss has a pace goal: 1.5 to 3 lb a week from 200 lb up; lighter people scale down (0.75% to 1.5% of body weight a week).
+        const bwLb = unit === "kg" ? w1 * KG_TO_LB : w1, pLo = Math.min(1.5, bwLb * 0.0075), pHi = Math.min(3, bwLb * 0.015), rate = -lb;
+        const inU = (v) => (unit === "kg" ? v / KG_TO_LB : v), paceTxt = fmtW(Math.round(inU(pLo) * 10) / 10) + " to " + fmtW(Math.round(inU(pHi) * 10) / 10) + " " + unit + " a week";
+        const ng = (d) => Math.round((S().calorieGoal + d) / 50) * 50, rangeOf = (g) => fmt(g - 100) + "–" + fmt(g + 100);
+        if (lose) out.push("Pace goal for fat loss: " + paceTxt + ". Current pace: " + (rate > 0 ? "losing " + fmtW(Math.round(inU(rate) * 10) / 10) + " " + unit + " a week" : "not losing") + ".");
+        if (lose && rate > pHi) {
+          out.push("Pace check: faster than the " + paceTxt + " goal. Losing this fast can cost muscle and energy. A fix: eat about 150 to 250 more a day, for example a calorie goal of " + fmt(ng(200)) + " (a range of " + rangeOf(ng(200)) + ").");
+          fixes.push([0.98, "losing faster than the " + paceTxt + " goal; suggest a calorie goal of about " + fmt(ng(200))]);
+        } else if (lose && rate >= pLo) {
+          const nearTop = rate >= pHi - (pHi - pLo) * 0.2, nearBottom = rate <= pLo + (pHi - pLo) * 0.2;
+          out.push("Pace check: inside the " + paceTxt + " goal" + (nearTop ? ", close to the fast end, so it's worth not cutting any deeper" : nearBottom ? ", near the slow end, so there's room to lose a little more if they want (for example a calorie goal of " + fmt(ng(-100)) + ")" : ", right in the sweet spot") + ".");
+          wins.push([0.96, "weight coming down at " + fmtW(Math.round(inU(rate) * 10) / 10) + " " + unit + " a week, inside the " + paceTxt + " goal"]);
+        } else if (lose && rate >= 0.25) {
+          out.push("Pace check: slower than the " + paceTxt + " goal, so there's room to lose more. A fix: lower the calorie goal by about 150, to " + fmt(ng(-150)) + " (a range of " + rangeOf(ng(-150)) + "), or add about 2,000 steps a day.");
+          fixes.push([0.9, "weight coming down slower than the " + paceTxt + " goal; suggest a calorie goal of about " + fmt(ng(-150)) + " or 2,000 more steps a day"]);
+        } else if (!lose && lb >= 0.2) wins.push([0.95, "weight trending the right way, " + signed(perWeek, 1, " " + unit) + " a week"]);
         else if ((lose ? lb > -0.25 : lb < 0.1) && calDays.length >= 7 && onCal / calDays.length >= 0.6) {
           // Why it might be: how eaten compares with burned over the same days, and whether resting burn has dropped
           burnSetup();
@@ -1636,7 +1652,8 @@ body.setup .nav, body.setup .top { display: none; }
       "- Progress over perfection. Missed days are normal; point to the next small step, not the slip.\n" +
       "- Be specific: name their exercise, task or goal.\n" +
       "- One idea at a time, never a lecture.\n" +
-      "- If the facts show a plateau, say so plainly but kindly, give the likely reason, and suggest the course correction they give. That's coaching, not criticism.\n\n" +
+      "- If the facts show a plateau, say so plainly but kindly, give the likely reason, and suggest the course correction they give. That's coaching, not criticism.\n" +
+      "- If the facts give a pace check, use it: celebrate a pace inside the goal, nudge kindly when there's room to lose more, and warn gently when it's too fast.\n\n" +
       "What the app worked out from their data:\n" + facts + "\n\n" +
       (coachFirst ? "This is your first look at their data, right after they told you they're ready. Open with one short, natural lead-in in your own words, something like \"Well then, let's have a look at your charts.\", then go straight into the note. " : "") +
       "Write them a short note: 2 to 4 sentences, under " + (coachFirst ? 95 : 80) + " words, talking to them as \"you\". You decide what's most worth saying today; the app's picks are only suggestions. " +
@@ -1664,7 +1681,7 @@ body.setup .nav, body.setup .top { display: none; }
     }
     else if (hello) { shown = "loading"; body = min ? "" : coachLoader(); }
     else if (min) { shown = "mini"; body = saved ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : ""; }
-    else { shown = "note"; body = (saved ? '<p class="coach-text' + (fresh ? "" : " muted") + '">' + coachRich(saved.text) + "</p>" : "") + (coachErr ? '<p class="coach-status">Couldn\'t write a note just now.</p>' : ""); }
+    else { shown = "note"; body = (saved ? '<p class="coach-text tap' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="min" role="button" aria-label="Minimize the coach">' + coachRich(saved.text) + "</p>" : "") + (coachErr ? '<p class="coach-status">Couldn\'t write a note just now.</p>' : ""); }
     const enter = shown !== coachShown && coachShown !== "" && shown !== "typing" && coachShown !== "typing";
     coachShown = shown;
     const menu = '<div class="coach-menu" role="menu">' +
