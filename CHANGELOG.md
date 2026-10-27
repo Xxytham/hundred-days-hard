@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.21 · A coach that spots plateaus, and changes that only count from today
+- **Plateaus:** if your weight has barely moved for about three weeks while your calories were on target, the coach says so and explains why it might be. Maybe eaten and burned are nearly the same, or your resting burn has dropped as you got lighter. It then suggests a fix, like lowering the calorie goal by about 150 or adding about 2,000 steps a day. When your weight is trending the right way, that's the first thing it celebrates.
+- **Changes count from today:** changing a target (calories, protein, steps, sleep, workouts a day) or a task now applies from today on. Past days keep the targets and tasks they had, so a streak or a perfect day can't change after the fact. Before this, raising your step goal could untick past days. Also, a task you delete still counts on the days it existed, and a task you add in Settings counts from today, not from day 1.
+- **Stats colors:** the Body charts are colored by the overall trend, so one odd reading can't flip them. A flat trend is neutral. Resting burn (BMR) going down is green while you're losing fat, and going up is green when you're building muscle.
+
 ## v0.20 · Easier workout logging and a friendlier coach
 **Workouts**
 - No more Log set button. Tap the exercise you're doing and it starts at set 1, with the numbers from last time. Change whatever was different.
