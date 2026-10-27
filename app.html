@@ -1441,7 +1441,7 @@ body.setup .nav, body.setup .top { display: none; }
   function coachStream(text) { const t = coachClean(text); if (t) typer.to(t); }
   function coachDone(res) {
     const ok = res && res.ok, text = ok ? coachClean(res.text) : "";
-    if (ok) { try { localStorage.setItem(COACH_KEY, JSON.stringify({ date: todayISO(), at: Date.now(), facts: coachFacts, text })); } catch (e) { /* ignore */ } }
+    if (ok) { try { localStorage.setItem(COACH_KEY, JSON.stringify({ date: todayISO(), at: Date.now(), facts: coachFacts, text, picks: coachPicked })); } catch (e) { /* ignore */ } }
     coachErr = !ok; coachFirst = false;
     const end = () => { coachBusy = false; coachTask = ""; stopCaptions(); typer.reset(); if (view === "today") render(); };
     if (ok && typer.target) typer.to(text, end); else end(); // let the typing finish before the card settles
@@ -1664,10 +1664,25 @@ body.setup .nav, body.setup .top { display: none; }
       const stuck = goals.filter((g) => firstOpen(g) < g.steps.length).map((g) => ({ g, last: g.steps.filter((x) => x.done).reduce((a, x) => Math.max(a, x.doneDay || 0), 0) })).filter((x) => n - x.last >= 14).sort((a, b) => a.last - b.last)[0];
       if (stuck) fixes.push([0.4, 'the goal "' + stuck.g.name + '", next step "' + stuck.g.steps[firstOpen(stuck.g)].text + '"' + (stuck.last ? ", no step for " + (n - stuck.last) + " days" : ", not started")]);
     }
-    const top = (l) => l.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
-    if (wins.length) out.push("Worth celebrating (the app's pick): " + top(wins)[0] + ".");
-    if (fixes.length) out.push("One thing to nudge, if you want (the app's pick): " + top(fixes)[0] + ".");
+    factPicks = { wins, fixes }; // chosen from when a note is written (choosePicks), so the facts themselves stay the same
     return out.join("\n");
+  }
+  // What a note leads with and nudges: picked at random among the strongest few, so notes don't all open the same way,
+  // and never the same lead (or nudge) as the last note when there's another to choose. A nudge the app ranks as
+  // important (losing too fast, a plateau, a pace check) always stays.
+  let factPicks = { wins: [], fixes: [] }, secPicks = { wins: [], fixes: [] }, coachPicked = {};
+  const topicKey = (t) => String(t || "").replace(/[\d.,+−%-]+/g, "#").slice(0, 48);
+  function choosePicks(p, last) {
+    const by = (l) => l.slice().sort((a, b) => b[0] - a[0]);
+    const pick = (l, n, avoid) => {
+      let c = by(l).slice(0, n);
+      const other = c.filter((x) => topicKey(x[1]) !== avoid);
+      if (other.length) c = other;
+      return c.length ? c[Math.floor(Math.random() * c.length)][1] : "";
+    };
+    const fx = by(p.fixes);
+    const lead = pick(p.wins, 4, last && last.lead), nudge = fx.length && fx[0][0] >= 0.9 ? fx[0][1] : pick(p.fixes, 3, last && last.nudge);
+    return { lead, nudge, keys: { lead: topicKey(lead), nudge: topicKey(nudge) } };
   }
   // Writes a fresh note on a new day, when the numbers have changed (at most every 2 hours), or on Refresh.
   function coachWrite(force) {
@@ -1688,6 +1703,8 @@ body.setup .nav, body.setup .top { display: none; }
       }
     }
     coachFacts = facts; coachBusy = true; coachErr = false;
+    const pk = choosePicks(factPicks, saved && saved.picks);
+    coachPicked = pk.keys;
     // The coach's values, then the facts, then room to choose what to say. The numbers all come from the app.
     const prompt = "You're the coach inside the user's 100-day gym challenge app: an upbeat strength coach who's genuinely in their corner.\n" +
       "How you coach:\n" +
@@ -1699,8 +1716,10 @@ body.setup .nav, body.setup .top { display: none; }
       "- If the facts show a plateau, say so plainly but kindly, give the likely reason, and suggest the course correction they give. That's coaching, not criticism.\n" +
       "- If the facts give a pace check, use it: celebrate a pace inside the goal, nudge kindly when there's room to lose more, and warn gently when it's too fast.\n\n" +
       "What the app worked out from their data:\n" + facts + "\n\n" +
+      (pk.lead ? "Open with this today (the app picks a different one each time, so your notes stay fresh): " + pk.lead + ". " : "") +
+      (pk.nudge ? "If it fits, one thing to nudge: " + pk.nudge + ". " : "") + "After that, say whatever else you think matters most.\n\n" +
       (coachFirst ? "This is your first look at their data, right after they told you they're ready. Open with one short, natural lead-in in your own words, something like \"Well then, let's have a look at your charts.\", then go straight into the note. " : "") +
-      "Write them a short note: 2 to 4 sentences, under " + (coachFirst ? 95 : 80) + " words, talking to them as \"you\". You decide what's most worth saying today; the app's picks are only suggestions. " +
+      "Write them a short note: 2 to 4 sentences, under " + (coachFirst ? 95 : 80) + " words, talking to them as \"you\". " +
       "Make them feel good about how far they've come and keen for what's next. A little personality and energy is welcome. " +
       "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice, and never use em dashes.";
     coachTask = "note"; typer.reset(); startCaptions();
@@ -2708,7 +2727,10 @@ body.setup .nav, body.setup .top { display: none; }
       const per = TYPES.filter((x) => sr[x.id].length > 1).map((x) => x.name + " " + signed(sr[x.id][sr[x.id].length - 1].v, 1, "%"));
       if (per.length) out.push("Strength by day type since their first session of each: " + per.join(", ") + ".");
       const best = sd.map((m) => ({ m, g: m.pts[0].score > 0 ? (m.pts[m.pts.length - 1].score / m.pts[0].score - 1) * 100 : 0 })).sort((a, b) => b.g - a.g);
-      if (best.length && best[0].g > 0.5) wins.push([0.8, best[0].m.name + " up " + signed(best[0].g, 0, "%") + " since they started"]);
+      // One candidate per exercise that's gone up, and per new best this week, so the note can be about any of them
+      best.filter((x) => x.g > 0.5).forEach((x, i) => wins.push([0.8 - i * 0.02, x.m.name + " up " + signed(x.g, 0, "%") + " since they started"]));
+      sd.filter((m) => { const l = m.pts[m.pts.length - 1]; return l.date >= addDays(t, -6) && l.score > Math.max(...m.pts.slice(0, -1).map((q) => q.score)); })
+        .forEach((m) => { const l = m.pts[m.pts.length - 1]; wins.push([0.78, "a new best on " + m.name + " this week (" + (l.w > 0 ? fmtW(l.w) + " " + S().unit + " × " + l.r : l.r + " reps") + ")"]); });
       const n = savedSessions().filter((d) => d >= addDays(t, -6)).length;
       if (n >= 3) wins.push([0.7, n + " lifting sessions this week"]);
       const stalled = sd.filter((m) => m.pts.length >= 3 && m.pts[m.pts.length - 1].score <= m.pts[m.pts.length - 3].score)[0];
@@ -2728,9 +2750,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (sp) out.push("Calories came from protein " + sp.p + "%, carbs " + sp.c + "% and fat " + sp.f + "% (over " + sp.days + " days). Typical healthy ranges: protein 10 to 35%, carbs 45 to 65%, fat 20 to 35%; more protein and fewer carbs is normal on a gym plan.");
       out.push("Only foods logged with their full label count, so a quick calories-only entry adds nothing here.");
     }
-    const top = (l) => l.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
-    if (wins.length) out.push("Worth celebrating (the app's pick): " + top(wins)[0] + ".");
-    if (fixes.length) out.push(sec === "food" ? "What they need more of, or less of (the app's pick): " + top(fixes).slice(0, 2).join("; and ") + "." : "One thing to work on, if they want (the app's pick): " + top(fixes)[0] + ".");
+    secPicks = { wins, fixes }; // chosen when the note is written (choosePicks)
     return out.join("\n");
   }
   function scoachWrite(sec, list, force) {
@@ -2739,7 +2759,9 @@ body.setup .nav, body.setup .top { display: none; }
     const facts = sectionFacts(sec, list), saved = scoachAll()[sec];
     if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
     scoach.busy = sec; scoach.err = ""; scoach.next = "";
-    const label = STAT_TABS.find(([k]) => k === sec)[1];
+    const label = STAT_TABS.find(([k]) => k === sec)[1], pk = choosePicks(secPicks, saved && saved.picks);
+    // Food always names what they're shortest on (the top two); the lead still varies
+    const nudge = sec === "food" && secPicks.fixes.length ? secPicks.fixes.slice().sort((a, b) => b[0] - a[0]).slice(0, 2).map((x) => x[1]).join("; and ") : pk.nudge;
     const prompt = "You're the coach inside the user's 100-day gym challenge app: an upbeat coach who's genuinely in their corner. " +
       "This note sits right under their " + label + " charts in the Stats tab, so talk only about their " + SECTION_NAME[sec] + ".\n" +
       "How you coach:\n" +
@@ -2749,12 +2771,14 @@ body.setup .nav, body.setup .top { display: none; }
       "- Be specific, and give one clear idea for what to do next, never a lecture.\n" +
       (sec === "food" ? "- Say what they're doing well, then what they need more of (or less of, for a limit). You may name one or two everyday foods rich in what they need more of.\n" : "") +
       "\nWhat the app worked out from their data:\n" + facts + "\n\n" +
-      "Write a short note: 2 or 3 sentences, under 70 words, talking to them as \"you\". You decide what's most worth saying; the app's picks are only suggestions. " +
+      (pk.lead ? "Open with this (the app picks a different one each time, so your notes stay fresh): " + pk.lead + ". " : "") +
+      (nudge ? (sec === "food" ? "Then what they need more of, or less of: " : "If it fits, one thing to work on: ") + nudge + ". " : "") + "After that, say whatever else you think matters.\n\n" +
+      "Write a short note: 2 or 3 sentences, under 70 words, talking to them as \"you\". " +
       "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice, and never use em dashes.";
     styper.reset(); startCaptions();
     aiAsk(prompt, (res) => {
       const ok = res && res.ok, text = ok ? coachClean(res.text) : "";
-      if (ok && text) { const all = scoachAll(); all[sec] = { date: todayISO(), at: Date.now(), facts, text }; try { localStorage.setItem(SCOACH_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ } }
+      if (ok && text) { const all = scoachAll(); all[sec] = { date: todayISO(), at: Date.now(), facts, text, picks: pk.keys }; try { localStorage.setItem(SCOACH_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ } }
       else scoach.err = sec;
       const end = () => {
         scoach.busy = ""; styper.reset();

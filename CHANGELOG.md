@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.23.3 · Fresher coach notes
+- The coach no longer opens with the same thing every time. The app now picks what it leads with at random from your few best things right now (a new best, your streak, calories on target, your weight trend, and so on), and never the same one twice in a row. The thing it nudges you on varies the same way.
+- Important nudges, like losing weight too fast or a plateau, still always come through.
+- The Strength note under Stats can now be about any exercise that's gone up or hit a new best, not just the top one.
+
 ## v0.23.2 · The coach syncs first
 - When the coach writes a new note on its own (a new day, or your numbers changed), it first syncs everything from Samsung Health, the same full set the Stats tab reads, so its note uses your latest numbers. While it syncs, the card shows the barbell and "Getting your latest numbers…". It waits at most 20 seconds, and if Samsung Health can't be reached it writes with what it has.
 - Tapping **Write a new note** still writes straight away.
