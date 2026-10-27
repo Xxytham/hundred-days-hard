@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.19.2 · Each exercise in one place
+- On the Progress tab, each exercise now shows under one tab only, by its muscle group. Chest, triceps and shoulders go under Push; back, biceps, forearms and abs under Pull; legs under Legs. Push-ups stay under Push even when you do them on a pull day, and it says "also on Pull" under the name.
+- In a workout, an exercise from another day's group gets that group's heading. For example, push-ups on a pull day show under Chest instead of Back.
+- Adding an exercise puts it where you've had it before, or where its name says it goes, whichever "+ Add" you tapped, and tells you where it went.
+- For brand-new exercises the coach picks from the day's own groups first, and from the other groups only if the exercise clearly belongs there. It never makes up new groups.
+- Exercises that had landed in Chest or Back only because nothing else fit were moved once to where their names say.
+
 ## v0.19.1 · Workout calories counted more honestly
 - Watches tend to overestimate workout calories, especially lifting and "Other workout", where your heart rate stays up while you rest between sets. Calories burned now counts workout calories 20% lower for cardio and 35% lower for lifting. Your resting burn and everyday walking aren't changed.
 

@@ -1027,6 +1027,7 @@ body.setup .nav, body.setup .top { display: none; }
       }
       sync = "ok";
       setupReady = true;
+      regroupOnce();
       persistLocal();
       render();
     }, () => { setupReady = true; setSync("err"); render(); });
@@ -2296,7 +2297,7 @@ body.setup .nav, body.setup .top { display: none; }
         const k = exKey(e.name);
         const m = map[k] || (map[k] = { k, name: e.name, types: {}, groups: {}, pts: [] });
         m.name = e.name; m.types[w.type] = i; // shows under every day type it was done on, in that day's order
-        if (e.group != null) m.groups[w.type] = e.group; // and in the group it was last logged in
+        if (validGroup(e.group)) { m.groups[w.type] = e.group; m.lastGroup = e.group; } // and the group it was last logged in
         const wt = Math.round(toUnit(+e.weight || 0, e.unit || S().unit, S().unit) * 10) / 10;
         m.pts.push({ date: d, n: dayNum(d), t: w.type, w: wt, r: +e.reps || 0, s: +e.sets || 0, rawW: +e.weight || 0, rawU: e.unit || S().unit, score: e1rm(wt, +e.reps || 0) });
       });
@@ -2382,14 +2383,28 @@ body.setup .nav, body.setup .top { display: none; }
     return '<div class="tick-detail" data-action="str-sel" data-k="' + esc(m.k) + '">' + strengthNote(m, bw, unit) + s + '<ul class="sessions">' + rows + "</ul></div>";
   }
 
+  // Each exercise shows under one day type: the home of its group (push-ups under Push even when done on a pull day,
+  // abs under Pull). Its group: the one your plans and workouts agree on; when they differ, the one its name points to,
+  // else the latest; with nothing saved, a guess from the name; with no guess, the day type it's done on most.
+  function homeOf(m) {
+    const cands = [];
+    Object.keys(GROUPS).forEach((t) => { const p = (storedPlan(t) || []).find((x) => exKey(x.name) === m.k); if (p && validGroup(p.group)) cands.push(p.group); });
+    Object.values(m.groups).forEach((g) => cands.push(g));
+    const uniq = [...new Set(cands)], guess = guessAny(m.name);
+    let g = uniq.length === 1 ? uniq[0] : uniq.length ? (uniq.includes(guess) ? guess : validGroup(m.lastGroup) ? m.lastGroup : uniq[0]) : guess;
+    if (g == null) {
+      const n = {}; m.pts.forEach((x) => (n[x.t] = (n[x.t] || 0) + 1));
+      const t = Object.keys(n).filter((x) => TYPES.some((y) => y.id === x)).sort((a, b) => n[b] - n[a])[0] || "push";
+      g = groupsFor(t)[0];
+    }
+    return { g, home: GROUP_HOME[g] };
+  }
   function renderStrength() {
     if (strType === undefined) { const last = lastSession(); strType = last && TYPES.some((t) => t.id === last.workout.type) ? last.workout.type : "push"; }
     const all = strengthData();
-    // Same groups as the workout: the plan's group, else where it was last logged on this day type, else a guess from the name.
-    const gs = groupsFor(strType), plan = storedPlan(strType) || [];
-    const gOf = (m) => { const p = plan.find((x) => exKey(x.name) === m.k), g = p ? p.group : m.groups[strType]; return gs.includes(g) ? g : guessGroup(m.name, strType); };
-    const list = all.filter((m) => m.types[strType] != null).map((m) => ((m.g = gOf(m)), m))
-      .sort((a, b) => gs.indexOf(a.g) - gs.indexOf(b.g) || a.types[strType] - b.types[strType]);
+    const gs = groupsFor(strType);
+    const list = all.map((m) => Object.assign(m, homeOf(m))).filter((m) => m.home === strType)
+      .sort((a, b) => gs.indexOf(a.g) - gs.indexOf(b.g) || (a.types[strType] != null ? a.types[strType] : 99) - (b.types[strType] != null ? b.types[strType] : 99));
     const changes = list.map((m) => pctChange(m.pts)).filter((c) => c != null);
     const avg = changes.length ? changes.reduce((a, c) => a + c, 0) / changes.length : null;
     const unit = S().unit;
@@ -2405,7 +2420,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (!m.g || (i > 0 && list[i - 1].g === m.g)) return item;
       // A heading for each group, with how that group moved since its last session (average across its exercises).
       const gc = list.filter((x) => x.g === m.g).map((x) => pctChange(x.pts)).filter((c) => c != null), ga = gc.length ? gc.reduce((a, c) => a + c, 0) / gc.length : null;
-      return '<div class="tick-group"><span>' + GROUP_NAME[m.g] + "</span>" + (ga == null ? "" : '<span class="chg ' + chgClass(ga) + '">' + chgText(ga) + "</span>") + "</div>" + item;
+      return '<div class="tick-group"><span>' + groupLabel(m.g, strType) + "</span>" + (ga == null ? "" : '<span class="chg ' + chgClass(ga) + '">' + chgText(ga) + "</span>") + "</div>" + item;
     }).join("");
     const summary = avg == null ? "" : '<p class="hint">' + typeName(strType) + " strength is <b class=\"num\">" + (Math.abs(avg) < 0.05 ? "flat" : (avg > 0 ? "up " : "down ") + Math.abs(avg).toFixed(1) + "%") + "</b> since last " + typeName(strType).toLowerCase() + " day, across " + changes.length + " exercise" + (changes.length === 1 ? "" : "s") + ".</p>";
     return '<section class="panel" aria-labelledby="h-st"><div class="panel-head"><h2 id="h-st">Strength</h2>' +
@@ -2620,28 +2635,45 @@ body.setup .nav, body.setup .top { display: none; }
   const GROUP_NAME = { chest: "Chest", triceps: "Triceps", shoulders: "Shoulders", back: "Back", biceps: "Biceps", forearms: "Forearms", abs: "Abs" };
   const GROUP_EG = { chest: "Bench press", triceps: "Rope pushdown", shoulders: "Lateral raise", back: "Cable row", biceps: "Hammer curl", forearms: "Wrist curl", abs: "Cable crunch" };
   const groupsFor = (type) => GROUPS[type] || GROUPS.other;
-  // A first guess from the name; drag an exercise into another group to fix it.
-  function guessGroup(name, type) {
-    const n = exKey(name), gs = groupsFor(type);
+  // Every group there is, in order (the same few for every day type; "" is legs). An exercise can sit in a group that
+  // isn't its day's own, like push-ups on a pull day: that group then gets its own heading for the day.
+  const ALL_GROUPS = ["chest", "triceps", "shoulders", "back", "biceps", "forearms", "abs", ""];
+  // Each group's home on the Progress tab, so an exercise shows under one day type only. Abs live with Pull.
+  const GROUP_HOME = { chest: "push", triceps: "push", shoulders: "push", back: "pull", biceps: "pull", forearms: "pull", abs: "pull", "": "legs" };
+  const validGroup = (g) => typeof g === "string" && ALL_GROUPS.includes(g);
+  const groupLabel = (g, type) => (g ? GROUP_NAME[g] : groupsFor(type)[0] === "" ? "" : "Legs"); // "" on legs day has no heading
+  // A guess from the name alone, across every group; null when the name doesn't say.
+  function guessAny(name) {
+    const n = exKey(name);
     if (/crunch|\babs?\b|plank|sit.?ups?\b|oblique|\bcore\b|hollow|russian twist|ab wheel|roll.?out|leg raise|knee raise|toes to bar/.test(n)) return "abs";
-    if (type === "push") {
-      if (/tricep|push.?down|skull|kick.?back|\bdips?\b|close.?grip|french press|extension/.test(n)) return "triceps";
-      if (/shoulder|overhead|\bohp\b|military|lateral|raise|delt|arnold|upright/.test(n)) return "shoulders";
-      return "chest";
-    }
-    if (type === "pull") {
-      if (/wrist|forearm|grip|farmer|reverse curl|dead hang/.test(n)) return "forearms";
-      if (/curl|bicep|hammer|preacher/.test(n)) return "biceps";
-      return "back";
-    }
-    return gs[0];
+    if (/squat|lunge|leg press|leg curl|leg extension|calf|calves|hamstring|quad|glute|hip thrust|romanian|\brdl\b|step.?ups?\b|hack|adductor|abductor machine/.test(n)) return "";
+    if (/upright row|rear delt/.test(n)) return "shoulders";
+    if (/\brows?\b|pull.?downs?|pull.?ups?|chin.?ups?|\blats?\b|deadlift|shrug|face pull|back extension|hyperextension/.test(n)) return "back";
+    if (/tricep|push.?down|skull|kick.?back|\bdips?\b|close.?grip (bench|press)|french press|extension/.test(n)) return "triceps";
+    if (/shoulder|overhead|\bohp\b|military|lateral|raise|delt|arnold/.test(n)) return "shoulders";
+    if (/wrist|forearm|farmer|reverse curl|dead hang|gripper|grip strength/.test(n)) return "forearms";
+    if (/curl|bicep|hammer|preacher/.test(n)) return "biceps";
+    if (/bench|chest|\bfly|flyes?\b|push.?ups?|\bpec|incline press|decline press/.test(n)) return "chest";
+    return null;
+  }
+  // A first guess for a day: from the name (any group), else the day's first group. Drag an exercise to fix it.
+  function guessGroup(name, type) {
+    const g = guessAny(name);
+    return g != null ? g : groupsFor(type)[0];
   }
   function storedPlan(type) { const p = S().plans && S().plans[type]; return Array.isArray(p) ? p : null; }
-  const fitGroup = (g, name, type) => (groupsFor(type).includes(g) ? g : guessGroup(name, type));
-  function groupFor(name, type) {
-    const p = (storedPlan(type) || []).find((x) => exKey(x.name) === exKey(name));
-    return fitGroup(p && p.group, name, type);
+  const fitGroup = (g, name, type) => (validGroup(g) ? g : guessGroup(name, type));
+  // Where you've had an exercise before: this day's plan, else the last time you did it (any day type), else another plan.
+  function knownGroup(name, type) {
+    const k = exKey(name), p = (storedPlan(type) || []).find((x) => exKey(x.name) === k);
+    if (p && validGroup(p.group)) return p.group;
+    const last = prevExercise(name);
+    if (last && validGroup(last.e.group)) return last.e.group;
+    for (const t of Object.keys(GROUPS)) { const q = (storedPlan(t) || []).find((x) => exKey(x.name) === k); if (q && validGroup(q.group)) return q.group; }
+    return null;
   }
+  // Where an exercise goes on a day: where you've had it, else a guess from its name.
+  function groupFor(name, type) { const g = knownGroup(name, type); return g != null ? g : guessGroup(name, type); }
   // The plan for a day type: the list you kept, or (until you've finished one since plans arrived) your last session of that type.
   function planFor(type) {
     const p = storedPlan(type), last = p ? null : lastSession(type, null);
@@ -2649,9 +2681,23 @@ body.setup .nav, body.setup .top { display: none; }
     return l.map((x) => ({ name: x.name, group: fitGroup(x.group, x.name, type) }));
   }
   function setPlan(type, list) { S().plans = { ...(S().plans || {}), [type]: list.map((x) => ({ name: x.name, group: x.group })) }; save("settings"); }
+  // The groups a workout shows: the day's own, then any other group one of its exercises is in, with Abs last.
+  function sheetGroups(w) {
+    const own = groupsFor(w.type);
+    return own.filter((g) => g !== "abs").concat(ALL_GROUPS.filter((g) => !own.includes(g) && w.exercises.some((e) => e.group === g)), own.includes("abs") ? ["abs"] : []);
+  }
   // Today's exercises in the order they show: group by group, your order within each.
-  const inOrder = (w) => groupsFor(w.type).flatMap((g) => w.exercises.filter((e) => e.group === g));
-  function fixGroups(w) { w.exercises.forEach((e) => { if (!groupsFor(w.type).includes(e.group)) e.group = groupFor(e.name, w.type); }); }
+  const inOrder = (w) => sheetGroups(w).flatMap((g) => w.exercises.filter((e) => e.group === g));
+  function fixGroups(w) { w.exercises.forEach((e) => { if (!validGroup(e.group)) e.group = groupFor(e.name, w.type); }); }
+  // Once, for groups saved before an exercise could sit outside its day's groups: anything left in a day's first
+  // group only because nothing else fit (push-ups on a pull day landed in Back) moves to where its name says it goes.
+  function regroupOnce() {
+    if (S().groupsSorted || !Object.values(state.days).some((d) => d.workout)) return;
+    const fix = (x, type) => { const g = guessAny(x.name); if (GROUPS[type] && x.group === groupsFor(type)[0] && g != null && g !== x.group) { x.group = g; return true; } return false; };
+    Object.keys(state.days).forEach((d) => { const w = state.days[d].workout; if (w && w.exercises.map((x) => fix(x, w.type)).some(Boolean)) save(d, { keepStamp: false }); });
+    Object.keys(S().plans || {}).forEach((t) => (S().plans[t] || []).forEach((x) => fix(x, t)));
+    S().groupsSorted = true; save("settings");
+  }
   // An exercise for today, planned from the last time you did it (on any day type): same sets, none logged yet.
   function newEx(name, type, group) {
     const last = prevExercise(name), sets = last ? doneSets(last.e).map((x) => ({ w: x.w, r: x.r, done: false })) : [];
@@ -2668,9 +2714,9 @@ body.setup .nav, body.setup .top { display: none; }
   function aiSortExercise(e, type) {
     if (aiState !== "available" || coachMode() === "off" || !GROUPS[type] || aiSorted.has(exKey(e.name))) return;
     aiSorted.add(exKey(e.name));
-    const gs = groupsFor(type), names = gs.map((g) => g || "legs"), d = viewDate, from = e.group;
-    const prompt = 'Which muscle group does the gym exercise "' + e.name + '" mainly work? It is done on a ' + typeName(type).toLowerCase() + " day. " +
-      "Choose one of: " + names.join(", ") + ". Answer with that one word only.";
+    const own = groupsFor(type), rest = ALL_GROUPS.filter((g) => !own.includes(g)), word = (g) => g || "legs", gs = own.concat(rest), d = viewDate, from = e.group;
+    const prompt = 'Which muscle group does the gym exercise "' + e.name + '" mainly work? It is done on a ' + typeName(type).toLowerCase() + " day, whose groups are " + own.map(word).join(", ") + ". " +
+      "Pick one of those if it fits. Only if it clearly belongs somewhere else, pick one of: " + rest.map(word).join(", ") + ". Answer with that one word only.";
     aiAsk(prompt, (res) => {
       if (!res || !res.ok) return;
       const a = String(res.text).toLowerCase();
@@ -2679,7 +2725,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (!hit || !ex || hit.g === from || ex.group !== from) return;
       const move = (g) => { const w2 = peekDay(d).workout, x = w2 && w2.exercises.find((y) => y.id === e.id); if (!x) return; x.group = g; save(d); if (!sheet.hidden && viewDate === d) drawWorkoutSoon(); };
       move(hit.g);
-      toast("Coach moved " + ex.name + " to " + (GROUP_NAME[hit.g] || typeName(type)), () => move(from));
+      toast("Coach moved " + ex.name + " to " + (hit.g ? GROUP_NAME[hit.g] : "Legs"), () => move(from));
     });
   }
   const exState = (e) => { const l = ensureSets(e), n = l.filter(isDone).length; return n === 0 ? "plan" : n === l.length ? "done" : "part"; };
@@ -2815,7 +2861,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
   function addForm(w, g, empty) {
     return '<form class="form ex" id="wadd-form" data-g="' + g + '">' +
-      "<label>" + (g ? "Add to " + GROUP_NAME[g] : "Add an exercise") + '<input class="field" id="wadd-name" placeholder="' + (empty ? GROUP_EG[g] || "Squat" : "") + '" maxlength="60" autocomplete="off" enterkeyhint="done" required></label>' +
+      "<label>" + (groupLabel(g, w.type) ? "Add to " + groupLabel(g, w.type) : "Add an exercise") + '<input class="field" id="wadd-name" placeholder="' + (empty ? GROUP_EG[g] || "Squat" : "") + '" maxlength="60" autocomplete="off" enterkeyhint="done" required></label>' +
       '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
       '<p class="hint">Done it before? Your last sets load in. Leave weight at 0 for bodyweight moves.</p></form>';
   }
@@ -2832,14 +2878,14 @@ body.setup .nav, body.setup .top { display: none; }
     const w = peekDay(viewDate).workout;
     if (!w) { closeSheet(); return; }
     if (wKeepAsk) { sheet.innerHTML = keepAskHTML(); return; }
-    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), gs = groupsFor(w.type);
+    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), gs = sheetGroups(w);
     const body = wEdit
-      ? '<div class="wedit">' + gs.map((g) => (g ? '<div class="ex-ghead" data-g="' + g + '">' + GROUP_NAME[g] + "</div>" : "") + w.exercises.filter((e) => e.group === g).map(editRow).join("")).join("") + "</div>"
+      ? '<div class="wedit">' + gs.map((g) => (groupLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + groupLabel(g, w.type) + "</div>" : "") + w.exercises.filter((e) => e.group === g).map(editRow).join("")).join("") + "</div>"
       : gs.map((g) => {
-          const list = w.exercises.filter((e) => e.group === g), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g;
-          const head = g ? '<div class="wg-head"><h3>' + GROUP_NAME[g] + "</h3>" + (list.length ? '<span class="meta num">' + nDone + " of " + list.length + "</span>" : "") +
-            (adding ? "" : '<button class="linkbtn" data-action="wadd-open" data-g="' + g + '" aria-label="Add to ' + GROUP_NAME[g] + '">+ Add</button>') + "</div>" : "";
-          const foot = !g && !adding ? '<button class="btn secondary" data-action="wadd-open" data-g="">+ Add exercise</button>' : "";
+          const list = w.exercises.filter((e) => e.group === g), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g, label = groupLabel(g, w.type);
+          const head = label ? '<div class="wg-head"><h3>' + label + "</h3>" + (list.length ? '<span class="meta num">' + nDone + " of " + list.length + "</span>" : "") +
+            (adding ? "" : '<button class="linkbtn" data-action="wadd-open" data-g="' + g + '" aria-label="Add to ' + label + '">+ Add</button>') + "</div>" : "";
+          const foot = !label && !adding ? '<button class="btn secondary" data-action="wadd-open" data-g="">+ Add exercise</button>' : "";
           return '<div class="wg">' + head + list.map((e) => exBlock(e, w)).join("") + (adding ? addForm(w, g, !list.length) : "") + foot + "</div>";
         }).join("");
     const nSets = w.exercises.reduce((a, e) => a + ensureSets(e).filter(isDone).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
@@ -2982,7 +3028,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (commit && w && d.to !== d.from) {
       const seq = d.rows.map((r) => r.el), [m] = seq.splice(d.from, 1), order = [];
       seq.splice(d.to, 0, m);
-      let g = groupsFor(w.type)[0];
+      let g = sheetGroups(w)[0];
       seq.forEach((el) => {
         if (el.classList.contains("ex-ghead")) { g = el.dataset.g; return; }
         const e = w.exercises.find((x) => x.id === el.dataset.id);
@@ -3332,12 +3378,16 @@ body.setup .nav, body.setup .top { display: none; }
       if (!name || !w) return;
       const dup = w.exercises.find((x) => exKey(x.name) === exKey(name));
       if (dup) { wAddGroup = null; wOpen = dup.id; drawWorkout(); showOpen(); toast(dup.name + " is already in this workout"); return; }
-      const ne = newEx(name, w.type, f.dataset.g), known = !!prevExercise(name);
+      // The heading you tapped "+ Add" under is only the fallback: an exercise goes where you've had it before, else
+      // where its name says (push-ups added under Back on a pull day go to Chest), and says so.
+      const kg = knownGroup(name, w.type), gg = kg != null ? kg : guessAny(name), g = gg != null ? gg : f.dataset.g;
+      const ne = newEx(name, w.type, g), known = !!prevExercise(name);
       w.exercises.push(ne);
       wAddGroup = null; wOpen = ne.id;
       buzz("confirm");
       save(viewDate); render(); drawWorkout(); showOpen();
       // Brand new to you: the coach sorts it into a group, and you go straight into its weight, keyboard still up.
+      if (g !== f.dataset.g) toast(ne.name + " went under " + (groupLabel(g, w.type) || "the list"));
       if (!known) {
         aiSortExercise(ne, w.type);
         const i = document.getElementById("ex-w-" + ne.id);
@@ -3563,6 +3613,7 @@ body.setup .nav, body.setup .top { display: none; }
   render(true);
   healthSync();
   scheduleFileBackup();
+  regroupOnce();
   cheered = { date: todayISO(), seen: new Set(metNow(todayISO())) };
   connect().catch(() => { setupReady = true; render(); });
   checkForUpdate();
