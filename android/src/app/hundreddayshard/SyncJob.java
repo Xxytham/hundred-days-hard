@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 
 /**
  * About once an hour, reads today's numbers from Samsung Health (Health Connect) while the app is closed, so the
- * widget stays current and goal notifications can go out. Needs Health Connect's "background" permission on Android 15+.
+ * widget stays current and goal notifications can go out. It reads only what those use. Needs Health Connect's "background" permission on Android 15+.
  */
 public class SyncJob extends JobService {
     private static final int ID = 100;
@@ -31,7 +31,7 @@ public class SyncJob extends JobService {
     public boolean onStartJob(JobParameters params) {
         String today = Today.today();
         try {
-            HealthReader.read(this, today, today, IO, json -> {
+            HealthReader.read(this, today, today, HealthReader.WIDGET, IO, json -> { // just calories, protein, steps and sleep
                 Today.fromHealth(this, json);
                 jobFinished(params, false);
             });

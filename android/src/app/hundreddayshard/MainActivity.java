@@ -593,8 +593,12 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void healthSync(String fromIso, String toIso) {
-            HealthReader.read(MainActivity.this, fromIso, toIso, io,
+        public void healthSync(String fromIso, String toIso) { healthSync(fromIso, toIso, "today"); }
+
+        /** scope: "today" (what the Today tab needs) or "stats" (everything, for the Stats tab). */
+        @JavascriptInterface
+        public void healthSync(String fromIso, String toIso, String scope) {
+            HealthReader.read(MainActivity.this, fromIso, toIso, "stats".equals(scope) ? HealthReader.STATS : HealthReader.TODAY, io,
                     json -> js("window.__healthResult && window.__healthResult(" + json + ")"));
         }
     }

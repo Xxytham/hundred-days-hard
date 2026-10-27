@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23.1 · Lighter syncing
+- The app now reads only what it needs from Samsung Health, when it needs it.
+  - **In the background (hourly):** just calories, protein, steps and sleep, for the widget and goal notifications.
+  - **When you open the app:** what the Today tab uses: food totals, weight, steps, sleep and workouts.
+  - **When you open Stats:** everything else: sodium, fiber and the rest of the food label, body fat, heart stats, resting burn and your heart rate overnight. At most every 15 minutes.
+- So the slow parts, like your overnight heart rate, no longer get read every time you open the app.
+
 ## v0.23 · Food stats, and a coach for every chart
 - **Food in Stats:** a new Food section shows everything Samsung Health shares from your food log beyond calories and protein: fiber, sodium, potassium, saturated fat, sugar, carbs, fat, cholesterol, and vitamins and minerals like calcium, iron, vitamin A and vitamin C. Each one has a bar for every day since day 1 and a 7-day average, against the amount most adults should get. Green means you're getting enough, or for sodium and saturated fat, that you stayed under the limit; red means you're short or over. A line on top shows where your calories came from (protein, carbs and fat). Today doesn't count toward the average until it's over.
 - Only food you log with its full label counts. A quick calories-only entry adds nothing to these.

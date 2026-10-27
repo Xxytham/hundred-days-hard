@@ -1215,26 +1215,35 @@ body.setup .nav, body.setup .top { display: none; }
 
   // ---------- Samsung Health via Health Connect (installed app only) ----------
   let health = bridge && bridge.healthStatus ? bridge.healthStatus() : "unavailable"; // granted | not_granted | denied | unavailable
-  let healthSyncedAt = 0, healthBusy = false, healthFull = false;
+  let healthSyncedAt = 0, healthBusy = false, healthFull = false, healthScope = "today", healthNext = "", statsSyncedAt = 0;
 
-  function healthSync() {
-    if (health !== "granted" || healthBusy) return;
-    healthBusy = true;
-    // The whole challenge every few hours (and on first open); just the last few days in between.
-    const t = todayISO(), key = "hundred-days-hard.fullSync";
+  // Two levels: "today" (food totals, weight, steps, sleep, workouts: what Today, its tasks and the goal alerts use)
+  // whenever the app opens, and "stats" (the full food label, body and heart stats, overnight heart rate) only when the
+  // Stats tab is open, at most every 15 minutes. The background sync reads even less (see SyncJob).
+  function healthSync(scope) {
+    scope = scope || (view === "stats" ? "stats" : "today");
+    if (health !== "granted") return;
+    if (healthBusy) { if (scope === "stats" || !healthNext) healthNext = scope; return; }
+    if (scope === "stats" && Date.now() - statsSyncedAt < 15 * 60000) scope = "today";
+    healthBusy = true; healthScope = scope;
+    // The whole challenge every few hours (and on first open); just the last few days in between. Each level keeps its own clock.
+    const t = todayISO(), key = "hundred-days-hard.fullSync" + (scope === "stats" ? ".stats" : "");
     let full = true;
     try { full = Date.now() - (+localStorage.getItem(key) || 0) > 4 * 3600000 || localStorage.getItem(key + ".from") !== S().startDate; } catch (e) { /* ignore */ }
     const from = full ? [S().startDate, addDays(t, -400)].sort()[1] : [S().startDate, addDays(t, -3)].sort()[1];
     healthFull = full;
-    bridge.healthSync(from, t);
+    bridge.healthSync(from, t, scope);
   }
   window.__healthResult = function (res) {
     healthBusy = false;
+    if (healthNext) { const n = healthNext; healthNext = ""; setTimeout(() => healthSync(n), 0); } // one asked for while this ran
     if (ptrBusy) ptrDone(res && res.ok ? "Updated from Samsung Health" : "Couldn't reach Samsung Health");
     if (!res || !res.ok) { if (res && res.error === "permission") { health = "not_granted"; render(); } return; }
     setTimeout(() => coachWrite(false), 0);
-    if (healthFull) try { localStorage.setItem("hundred-days-hard.fullSync", String(Date.now())); localStorage.setItem("hundred-days-hard.fullSync.from", S().startDate); } catch (e) { /* ignore */ }
+    const key = "hundred-days-hard.fullSync" + (healthScope === "stats" ? ".stats" : "");
+    if (healthFull) try { localStorage.setItem(key, String(Date.now())); localStorage.setItem(key + ".from", S().startDate); } catch (e) { /* ignore */ }
     healthSyncedAt = Date.now();
+    if (healthScope === "stats") statsSyncedAt = Date.now();
     Object.keys(res.days || {}).forEach((d) => {
       const h = res.days[d];
       const day = peekDay(d);
@@ -3598,6 +3607,7 @@ body.setup .nav, body.setup .top { display: none; }
       case "tab": {
         const order = ["today", "stats", "progress", "goals"], from = order.indexOf(view), to = order.indexOf(el.dataset.tab);
         view = el.dataset.tab; if (view === "today") viewDate = todayISO(); render(true); window.scrollTo(0, 0);
+        if (view === "stats" && Date.now() - statsSyncedAt > 15 * 60000) healthSync("stats"); // the Stats-only numbers sync only once you look at them
         slideIn(from < 0 || from === to ? 0 : to > from ? 1 : -1);
         break;
       }

@@ -165,11 +165,18 @@ final class HealthReader {
         return out.toString();
     }
 
-    /** Reads every page of one record type, or nothing if its permission is missing. */
+    // How much to read. The background sync reads only what the widget and goal notifications use; opening the app
+    // adds what Today needs; the Stats tab reads the rest (the full food label, body and heart stats, overnight heart rate).
+    static final int WIDGET = 0, TODAY = 1, STATS = 2;
+
+    /** The permission, or null (skip this type) when it isn't needed at this scope. */
+    private static String at(int scope, int need, String permission) { return scope >= need ? permission : null; }
+
+    /** Reads every page of one record type, or nothing if its permission is missing or it isn't needed (null). */
     private static <T extends Record> void readAll(Context c, HealthConnectManager hcm, String permission, Class<T> type,
                                                    TimeInstantRangeFilter range, Executor ex, Consumer<List<T>> done) {
         List<T> acc = new ArrayList<>();
-        if (!has(c, permission)) {
+        if (permission == null || !has(c, permission)) {
             done.accept(acc);
             return;
         }
@@ -197,7 +204,7 @@ final class HealthReader {
         });
     }
 
-    static void read(Context c, String fromIso, String toIso, Executor ex, Consumer<String> done) {
+    static void read(Context c, String fromIso, String toIso, int scope, Executor ex, Consumer<String> done) {
         if (!"granted".equals(status(c))) {
             done.accept("{\"ok\":false,\"error\":\"permission\"}");
             return;
@@ -231,11 +238,12 @@ final class HealthReader {
                 double[] t = slot(food, n.getStartTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 3);
                 if (n.getEnergy() != null) t[0] += n.getEnergy().getInCalories();
                 if (n.getProtein() != null) { t[1] += n.getProtein().getInGrams(); t[2] = 1; }
+                if (scope < STATS) continue; // the rest of the label is only for the Stats tab
                 Mass[] ms = nutrients(n);
                 double[] u = slot(nutr, n.getStartTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), NUTR.length * 2);
                 for (int i = 0; i < NUTR.length; i++) if (ms[i] != null) { u[i] += ms[i].getInGrams() * NUTR_X[i]; u[NUTR.length + i] = 1; }
             }
-            readAll(c, hcm, WEIGHT, WeightRecord.class, range, ex, weights -> {
+            readAll(c, hcm, at(scope, TODAY, WEIGHT), WeightRecord.class, range, ex, weights -> {
                 Map<String, Instant> latest = new HashMap<>();
                 for (WeightRecord w : weights) {
                     String day = w.getTime().atZone(zone).toLocalDate().toString();
@@ -267,10 +275,10 @@ final class HealthReader {
                             }
                             slot(sleep, n.getEndTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 1)[0] += Math.max(0, min);
                         }
-                        readAll(c, hcm, EXERCISE, ExerciseSessionRecord.class, range, ex, sessions ->
-                        readAll(c, hcm, ACTIVE_CAL, ActiveCaloriesBurnedRecord.class, range, ex, active ->
-                        readAll(c, hcm, TOTAL_CAL, TotalCaloriesBurnedRecord.class, range, ex, total ->
-                        readAll(c, hcm, DISTANCE, DistanceRecord.class, range, ex, distances -> {
+                        readAll(c, hcm, at(scope, TODAY, EXERCISE), ExerciseSessionRecord.class, range, ex, sessions ->
+                        readAll(c, hcm, at(scope, TODAY, ACTIVE_CAL), ActiveCaloriesBurnedRecord.class, range, ex, active ->
+                        readAll(c, hcm, at(scope, TODAY, TOTAL_CAL), TotalCaloriesBurnedRecord.class, range, ex, total ->
+                        readAll(c, hcm, at(scope, TODAY, DISTANCE), DistanceRecord.class, range, ex, distances -> {
                             for (ExerciseSessionRecord w : sessions) {
                                 try {
                                     JSONObject o = new JSONObject();
@@ -300,13 +308,13 @@ final class HealthReader {
                                     workouts.computeIfAbsent(day, k -> new HashMap<>()).computeIfAbsent(origin == null ? "" : origin, k -> new JSONArray()).put(o);
                                 } catch (Exception ignored) { }
                             }
-                            readAll(c, hcm, BODY_FAT, BodyFatRecord.class, range, ex, fat ->
-                            readAll(c, hcm, RESTING_HR, RestingHeartRateRecord.class, range, ex, resting ->
-                            readAll(c, hcm, HRV, HeartRateVariabilityRmssdRecord.class, range, ex, hrv ->
-                            readAll(c, hcm, VO2, Vo2MaxRecord.class, range, ex, vo2 ->
-                            readAll(c, hcm, SPO2, OxygenSaturationRecord.class, range, ex, spo2 ->
-                            readAll(c, hcm, BMR, BasalMetabolicRateRecord.class, range, ex, bmr ->
-                            readAll(c, hcm, HEART_RATE, HeartRateRecord.class, sleepRange, ex, hearts -> {
+                            readAll(c, hcm, at(scope, STATS, BODY_FAT), BodyFatRecord.class, range, ex, fat ->
+                            readAll(c, hcm, at(scope, STATS, RESTING_HR), RestingHeartRateRecord.class, range, ex, resting ->
+                            readAll(c, hcm, at(scope, STATS, HRV), HeartRateVariabilityRmssdRecord.class, range, ex, hrv ->
+                            readAll(c, hcm, at(scope, STATS, VO2), Vo2MaxRecord.class, range, ex, vo2 ->
+                            readAll(c, hcm, at(scope, STATS, SPO2), OxygenSaturationRecord.class, range, ex, spo2 ->
+                            readAll(c, hcm, at(scope, STATS, BMR), BasalMetabolicRateRecord.class, range, ex, bmr ->
+                            readAll(c, hcm, at(scope, STATS, HEART_RATE), HeartRateRecord.class, sleepRange, ex, hearts -> {
                                 for (BodyFatRecord r : fat) stat(stats, "bodyFat", r.getTime(), zone, r.getMetadata(), r.getPercentage().getValue());
                                 for (RestingHeartRateRecord r : resting) stat(stats, "restHr", r.getTime(), zone, r.getMetadata(), r.getBeatsPerMinute());
                                 for (HeartRateVariabilityRmssdRecord r : hrv) stat(stats, "hrv", r.getTime(), zone, r.getMetadata(), r.getHeartRateVariabilityMillis());
