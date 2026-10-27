@@ -539,18 +539,27 @@ body.setup .nav, body.setup .top { display: none; }
 .coach-text.muted, .coach-status { color: var(--muted); }
 .coach-text.muted b { color: inherit; }
 .coach-status { margin: 6px 0 0; font-size: 13px; }
-/* While the note is being written (usually a second or two): three soft lines with a light sweep */
-.coach-skel { display: grid; gap: 10px; padding: 6px 0 4px; }
-.coach-skel i { display: block; height: 12px; border-radius: 6px; position: relative; overflow: hidden; background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.coach-skel i:nth-child(2) { width: 86%; }
-.coach-skel i:nth-child(3) { width: 54%; }
-.coach-skel i::after {
-  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--green) 30%, transparent), transparent);
-  animation: coach-sweep 1.1s var(--ease) infinite;
-}
-@keyframes coach-sweep { to { transform: translateX(100%); } }
-@media (prefers-reduced-motion: reduce) { .coach-skel i::after { animation: none; } }
+/* While it writes (usually a second or two): a small barbell loaded plate by plate (red, blue, yellow, green), with a
+   line about what it's reading. Only transform and opacity move. */
+.coach-load { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 4px 0; }
+.bb { position: relative; flex: none; width: 116px; height: 40px; }
+.bb-shaft { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 60%, transparent); }
+.bb i { position: absolute; top: 50%; width: 7px; border-radius: 2px; opacity: 0; --dx: -12px; animation: bb-load 2.4s var(--ease) infinite; animation-delay: calc(var(--k) * 0.14s); }
+.bb i.l { left: calc(32px - var(--k) * 8px); }
+.bb i.r { right: calc(32px - var(--k) * 8px); --dx: 12px; }
+.bb .bb-r { height: 38px; margin-top: -19px; background: var(--red); }
+.bb .bb-b { height: 33px; margin-top: -16.5px; background: var(--blue); }
+.bb .bb-y { height: 28px; margin-top: -14px; background: var(--yellow); }
+.bb .bb-g { height: 23px; margin-top: -11.5px; background: var(--green); }
+@keyframes bb-load { 0% { opacity: 0; transform: translateX(var(--dx)); } 14%, 72% { opacity: 1; transform: none; } 88%, 100% { opacity: 0; transform: none; } }
+.load-cap { font-size: 14px; color: var(--muted); transition: opacity 180ms ease; }
+.load-cap.out { opacity: 0; }
+.coach-actions { margin-top: 12px; }
+.coach-actions .btn { padding: 11px 20px; }
+/* A soft fade when the card changes (hello → loading → note); the typing itself is the transition into the note */
+.coach-body.enter > * { animation: coach-in 260ms var(--ease) both; }
+@keyframes coach-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bb i { animation: none; opacity: 1; } .coach-body.enter > * { animation: none; } .load-cap { transition: none; } }
 .coach-card { position: relative; }
 .coach-dots { border: 0; background: none; width: 40px; height: 32px; margin: -4px -10px -4px 0; display: grid; place-items: center; color: var(--muted); border-radius: 8px; }
 .coach-dots svg { width: 18px; height: 18px; fill: currentColor; }
@@ -1370,29 +1379,95 @@ body.setup .nav, body.setup .top { display: none; }
   window.__aiResult = function (res) { const c = aiCur; aiCur = null; if (c) c.cb(res || { ok: false }); aiNext(); };
   window.__aiChunk = function (text) { if (aiCur && aiCur.onText) aiCur.onText(String(text || "")); }; // the reply so far, as it's written
   // Small models sometimes add markdown or a label; keep plain sentences only.
-  const coachClean = (t) => String(t).replace(/[*#_`]+/g, "").replace(/^\s*(coach|summary|note)\s*:\s*/i, "").replace(/\s+/g, " ").trim();
+  const coachClean = (t) => String(t).replace(/[*#_`]+/g, "").replace(/^\s*(coach|summary|note)\s*:\s*/i, "").replace(/\s*—\s*/g, ", ").replace(/,\s*([.,!?])/g, "$1").replace(/\s+/g, " ").trim();
   // The note's numbers in bold, so it reads at a glance. Split first, then escape, so apostrophes stay intact.
   const coachRich = (t) => String(t).split(/(\d+(?:[.,]\d+)*(?:\s?(?:lb|kg|kcal|calories|reps|sets|days|nights|steps|bpm|min|h|g|%)(?![a-z]))?)/i)
     .map((x, i) => (i % 2 ? "<b>" + esc(x) + "</b>" : esc(x))).join("");
   // While Gemini Nano writes, its words appear as they come (the placeholder shows only until the first ones arrive).
-  let coachLiveText = ""; // the words so far, so a redraw mid-note keeps them
-  function coachStream(text) {
-    const el = document.getElementById("coach-body"), t = coachClean(text);
-    coachLiveText = t;
-    if (!el || !t) return;
-    el.innerHTML = '<p class="coach-text">' + coachRich(t) + "</p>";
-    const card = el.closest(".coach-card");
-    if (card) card.classList.add("live");
+  // The note inks in character by character at a steady pace, speeding up when the model gets ahead; the newest few
+  // characters are still fading in. A redraw mid-note picks up where it was (typer survives renders).
+  const typer = { target: "", shown: 0, raf: 0, last: 0, done: null };
+  function typeTo(text, onDone) {
+    typer.target = text || "";
+    if (onDone) typer.done = onDone;
+    if (reduceMotion) { typer.shown = typer.target.length; paintTyped(); finishTyping(); return; }
+    if (!typer.raf) { typer.last = performance.now(); typer.raf = requestAnimationFrame(typeFrame); }
   }
-  function coachDone(res) {
-    coachBusy = false; coachLiveText = "";
-    if (res && res.ok) {
-      const text = coachClean(res.text);
-      try { localStorage.setItem(COACH_KEY, JSON.stringify({ date: todayISO(), at: Date.now(), facts: coachFacts, text })); } catch (e) { /* ignore */ }
-      coachErr = false;
-    } else coachErr = true;
-    if (view === "today") render();
+  function typeFrame(now) {
+    const dt = Math.min(64, now - typer.last), back = typer.target.length - typer.shown;
+    typer.last = now;
+    typer.shown = Math.min(typer.target.length, typer.shown + (Math.max(55, back * 4) * dt) / 1000);
+    paintTyped();
+    if (typer.shown < typer.target.length) typer.raf = requestAnimationFrame(typeFrame);
+    else { typer.raf = 0; finishTyping(); }
+  }
+  function finishTyping() { if (typer.done && typer.shown >= typer.target.length) { const f = typer.done; typer.done = null; f(); } }
+  const typedHTML = () => {
+    const t = typer.target, n = Math.floor(typer.shown), cut = Math.max(0, n - 6);
+    let tail = "";
+    for (let i = cut; i < n; i++) tail += '<span style="opacity:' + (1 - (i - cut + 1) / 8).toFixed(2) + '">' + esc(t[i]) + "</span>";
+    return '<p class="coach-text">' + coachRich(t.slice(0, cut)) + tail + "</p>";
   };
+  function paintTyped() {
+    const el = document.getElementById("coach-body");
+    if (el && typer.target) el.innerHTML = typedHTML();
+  }
+  function typerReset() { cancelAnimationFrame(typer.raf); typer.target = ""; typer.shown = 0; typer.raf = 0; typer.done = null; }
+  function coachStream(text) { const t = coachClean(text); if (t) { stopCaptions(); typeTo(t); } }
+  function coachDone(res) {
+    const ok = res && res.ok, text = ok ? coachClean(res.text) : "";
+    if (ok) { try { localStorage.setItem(COACH_KEY, JSON.stringify({ date: todayISO(), at: Date.now(), facts: coachFacts, text })); } catch (e) { /* ignore */ } }
+    coachErr = !ok; coachFirst = false;
+    const end = () => { coachBusy = false; coachTask = ""; stopCaptions(); typerReset(); if (view === "today") render(); };
+    if (ok && typer.target) typeTo(text, end); else end(); // let the typing finish before the card settles
+  }
+
+  // ---------- the coach's first hello ----------
+  // The first time the coach is on, Gemini Nano introduces itself in its own words (a different vibe each time), says it
+  // runs on the phone's own processor, and asks if you're ready. "I'm ready" goes straight into its first look at your data.
+  const INTRO_KEY = "hundred-days-hard.coachIntro";
+  const coachIntro = () => { try { return JSON.parse(localStorage.getItem(INTRO_KEY) || "null"); } catch (e) { return null; } };
+  const setIntro = (o) => { try { localStorage.setItem(INTRO_KEY, JSON.stringify(o)); } catch (e) { /* ignore */ } };
+  const introStarted = () => { const it = coachIntro(); return !!(it && it.started); };
+  const INTRO_FALLBACK = "I'm your coach, and I live right here on your phone. I do all my thinking on its own processor, so your numbers never leave it. Ready to get started?";
+  const VIBES = ["warm and friendly", "upbeat and full of energy", "calm and confident", "a little playful", "straight-talking but kind", "like a teammate who's glad to see them"];
+  let coachTask = "", coachFirst = false; // what's being written ("intro" or "note"); the first note opens with a lead-in
+  function coachIntroWrite() {
+    if (aiState !== "available" || coachBusy || !S().setupDone || coachMode() === "off") return;
+    const it = coachIntro();
+    if (it && it.text) return;
+    coachBusy = true; coachErr = false; coachTask = "intro";
+    const vibe = VIBES[Math.floor(Math.random() * VIBES.length)], tasks = activeTasks().slice(0, 4).map((h) => taskName(h)).join(", ");
+    const prompt = "You're the coach inside a 100-day gym challenge app, meeting the user for the very first time. " +
+      "About them: they're on day " + dayNum(todayISO()) + " of " + TOTAL() + ", their aim is to " + (calAim() === "build" ? "build muscle" : "lose fat") + (tasks ? ", and their daily tasks are " + tasks : "") + ".\n" +
+      "Introduce yourself in 2 or 3 short sentences, talking to them as \"you\", in a way that's " + vibe + ". Make it your own; don't open with a stock line like \"Hi, I'm your AI coach\". " +
+      "Mention that you run entirely on their phone's own processor, so their numbers never leave the phone. End by asking if they're ready to get started. " +
+      "Under 55 words. No lists, no markdown, no emoji, and never use em dashes.";
+    startCaptions("intro");
+    aiAsk(prompt, (res) => {
+      const text = res && res.ok ? coachClean(res.text) : INTRO_FALLBACK;
+      setIntro({ text, at: Date.now(), started: false });
+      typeTo(text, () => { coachBusy = false; coachTask = ""; stopCaptions(); typerReset(); if (view === "today") render(); });
+    }, coachStream);
+    if (view === "today") render();
+  }
+
+  // While it writes: a small barbell being loaded, plate by plate, with a line about what it's reading.
+  const CAPTIONS = { intro: ["Warming up", "Getting to know you"], note: ["Reading your week", "Checking calories and protein", "Looking at your lifts", "Lining up your goals", "Putting it into words"] };
+  let capT = 0, capI = 0, capKind = "note";
+  function startCaptions(kind) {
+    capKind = kind; capI = 0; clearInterval(capT);
+    capT = setInterval(() => {
+      const el = document.querySelector(".load-cap");
+      if (!el) return;
+      el.classList.add("out");
+      setTimeout(() => { capI = (capI + 1) % CAPTIONS[capKind].length; el.textContent = CAPTIONS[capKind][capI]; el.classList.remove("out"); }, 180);
+    }, 1200);
+  }
+  function stopCaptions() { clearInterval(capT); capT = 0; }
+  const coachLoader = () => '<div class="coach-load" role="status" aria-label="' + (capKind === "intro" ? "Your coach is getting ready" : "Writing your note") + '"><span class="bb" aria-hidden="true"><b class="bb-shaft"></b>' +
+    ["r", "b", "y", "g"].map((c, k) => '<i class="bb-' + c + ' l" style="--k:' + k + '"></i><i class="bb-' + c + ' r" style="--k:' + k + '"></i>').join("") +
+    '</span><span class="load-cap">' + CAPTIONS[capKind][capI % CAPTIONS[capKind].length] + "</span></div>";
   const avgOf = (xs) => (xs.length ? xs.reduce((a, v) => a + v, 0) / xs.length : null);
   const coachMode = () => (S().coach === "min" || S().coach === "off" ? S().coach : "on");
   // The numbers behind the note. The app does the analysis (trends, patterns, what to focus on); the model
@@ -1544,6 +1619,7 @@ body.setup .nav, body.setup .top { display: none; }
   // Writes a fresh note on a new day, when the numbers have changed (at most every 2 hours), or on Refresh.
   function coachWrite(force) {
     if (aiState !== "available" || coachBusy || !S().setupDone || coachMode() === "off") return;
+    if (!introStarted()) { coachIntroWrite(); return; } // says hello first
     const facts = buildFacts(), saved = coachSaved();
     if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
     coachFacts = facts; coachBusy = true; coachErr = false;
@@ -1557,33 +1633,43 @@ body.setup .nav, body.setup .top { display: none; }
       "- One idea at a time, never a lecture.\n" +
       "- If the facts show a plateau, say so plainly but kindly, give the likely reason, and suggest the course correction they give. That's coaching, not criticism.\n\n" +
       "What the app worked out from their data:\n" + facts + "\n\n" +
-      "Write them a short note: 2 to 4 sentences, under 80 words, talking to them as \"you\". You decide what's most worth saying today; the app's picks are only suggestions. " +
+      (coachFirst ? "This is your first look at their data, right after they told you they're ready. Open with one short, natural lead-in in your own words, something like \"Well then, let's have a look at your charts.\", then go straight into the note. " : "") +
+      "Write them a short note: 2 to 4 sentences, under " + (coachFirst ? 95 : 80) + " words, talking to them as \"you\". You decide what's most worth saying today; the app's picks are only suggestions. " +
       "Make them feel good about how far they've come and keen for what's next. A little personality and energy is welcome. " +
-      "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice.";
+      "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice, and never use em dashes.";
+    coachTask = "note"; typerReset(); startCaptions("note");
     aiAsk(prompt, coachDone, coachStream);
-    if (view === "today") render(); // shows the brief "Writing…" placeholder
+    if (view === "today") render(); // shows the loader until the first words arrive
   }
   const DOTS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
   const SPARK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 4.6 2.9 6.9 7.5 7.5-4.6.6-6.9 2.9-7.5 7.5-.6-4.6-2.9-6.9-7.5-7.5 4.6-.6 6.9-2.9 7.5-7.5z"/><path d="M19 15.5c.25 1.9 1.1 2.75 3 3-1.9.25-2.75 1.1-3 3-.25-1.9-1.1-2.75-3-3 1.9-.25 2.75-1.1 3-3z"/></svg>';
+  let coachShown = ""; // what the card showed last time, so it only fades in when that changes
   function coachHTML() {
     if (!bridge || !bridge.aiStatus || aiState === "none" || aiState === "checking" || aiState === "unavailable" || coachMode() === "off") return "";
-    const min = coachMode() === "min", saved = coachSaved(), fresh = saved && saved.date === todayISO();
-    const when = coachBusy ? "Writing…" : saved ? (fresh ? "Today, " + new Date(saved.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : saved.date === addDays(todayISO(), -1) ? "Yesterday's note" : "An earlier note") : aiState === "available" ? "On this phone" : "";
-    let body;
-    if (aiState === "downloadable") body = min ? "" : '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>';
-    else if (aiState === "downloading") body = min ? "" : '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>';
-    else if (min) body = saved && !coachBusy ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : "";
-    // A brief placeholder while the note is being written; the words replace it as they arrive
-    else if (coachBusy) body = coachLiveText ? '<p class="coach-text">' + coachRich(coachLiveText) + "</p>" : '<div class="coach-skel" role="status" aria-label="Writing your note"><i></i><i></i><i></i></div>';
-    else body = (saved ? '<p class="coach-text' + (fresh ? "" : " muted") + '">' + coachRich(saved.text) + "</p>" : "") + (coachErr ? '<p class="coach-status">Couldn\'t write a note just now.</p>' : "");
+    const min = coachMode() === "min", saved = coachSaved(), fresh = saved && saved.date === todayISO(), intro = coachIntro(), hello = aiState === "available" && !introStarted();
+    const when = coachBusy ? (coachTask === "intro" ? "Getting ready…" : "Writing…") : hello ? "Nice to meet you" : saved ? (fresh ? "Today, " + new Date(saved.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : saved.date === addDays(todayISO(), -1) ? "Yesterday's note" : "An earlier note") : aiState === "available" ? "On this phone" : "";
+    let body, shown;
+    if (aiState === "downloadable") { shown = "setup"; body = min ? "" : '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>'; }
+    else if (aiState === "downloading") { shown = "downloading"; body = min ? "" : '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>'; }
+    else if (coachBusy) { shown = typer.target ? "typing" : "loading"; body = min ? "" : typer.target ? typedHTML() : coachLoader(); }
+    else if (hello && intro && intro.text) {
+      shown = "hello";
+      body = min ? '<button class="coach-mini" data-action="coach-mode" data-v="on" aria-label="Show the coach">' + esc(intro.text) + "</button>"
+        : '<p class="coach-text">' + esc(intro.text) + '</p><div class="coach-actions"><button class="btn go" data-action="coach-start">I\'m ready</button></div>';
+    }
+    else if (hello) { shown = "loading"; body = min ? "" : coachLoader(); }
+    else if (min) { shown = "mini"; body = saved ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : ""; }
+    else { shown = "note"; body = (saved ? '<p class="coach-text' + (fresh ? "" : " muted") + '">' + coachRich(saved.text) + "</p>" : "") + (coachErr ? '<p class="coach-status">Couldn\'t write a note just now.</p>' : ""); }
+    const enter = shown !== coachShown && coachShown !== "" && shown !== "typing" && coachShown !== "typing";
+    coachShown = shown;
     const menu = '<div class="coach-menu" role="menu">' +
-      (aiState === "available" && !coachBusy ? '<button role="menuitem" data-action="coach-refresh">Write a new note</button>' : "") +
+      (aiState === "available" && !coachBusy && !hello ? '<button role="menuitem" data-action="coach-refresh">Write a new note</button>' : "") +
       '<button role="menuitem" data-action="coach-mode" data-v="' + (min ? "on" : "min") + '">' + (min ? "Show in full" : "Minimize") + "</button>" +
       '<button role="menuitem" class="danger" data-action="coach-mode" data-v="off">Turn off coach</button></div>';
     return '<section class="coach-card' + (min ? " min" : "") + (coachBusy ? " busy" : "") + '" aria-label="Coach"><div class="coach-head">' +
       '<span class="coach-av">' + SPARK + '</span><span class="coach-who"><b>Coach</b>' + (when ? "<small>" + when + "</small>" : "") + "</span>" +
       '<button class="coach-dots" data-action="coach-menu" aria-label="Coach options" aria-haspopup="menu" aria-expanded="false">' + DOTS + "</button></div>" + menu +
-      '<div class="coach-body" id="coach-body">' + body + "</div></section>";
+      '<div class="coach-body' + (enter ? " enter" : "") + '" id="coach-body" aria-live="polite">' + body + "</div></section>";
   }
   // Settings: on, minimized to one line, or off (installed app, on phones that can run the coach).
   function coachSection() {
@@ -3519,6 +3605,12 @@ body.setup .nav, body.setup .top { display: none; }
       case "watch-later": S().watchOffer = el.dataset.v; save("settings"); render(true); break;
       case "stat-sel": statSel[statTab] = statSel[statTab] === el.dataset.k ? "" : el.dataset.k; render(true); break;
       case "coach-refresh": coachWrite(true); render(true); break;
+      case "coach-start": {
+        // "I'm ready": straight into its first look at your data
+        setIntro({ ...(coachIntro() || {}), started: true });
+        coachFirst = true; buzz("confirm"); coachWrite(true); render(true);
+        break;
+      }
       case "coach-menu": {
         const c = el.closest(".coach-card"), open = !c.classList.contains("menu-open");
         c.classList.toggle("menu-open", open); el.setAttribute("aria-expanded", String(open));

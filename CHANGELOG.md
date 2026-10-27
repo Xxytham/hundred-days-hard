@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.22 · Meet your coach
+- **A hello first:** the first time you use the coach, it introduces itself in its own words, a little different for everyone. It tells you it runs on your phone's own processor, so your numbers never leave the phone, and asks if you're ready. Tap **I'm ready** and it goes straight into its first look at your data, starting with something natural like "Well then, let's have a look at your charts."
+- **New loading animation:** while the coach writes, a small barbell gets loaded plate by plate in the app's plate colors, with a line about what it's reading ("Checking calories and protein", "Looking at your lifts"). It replaces the pulsing bars.
+- **Smoother text:** the note now inks in smoothly, character by character, instead of jumping in chunks.
+- **No em dashes:** the coach never uses them.
+- Also includes everything from v0.21 (plateau spotting, changes that only count from today, trend-colored body stats). That release didn't get published because of a GitHub server error, so it arrives with this one.
+
 ## v0.21 · A coach that spots plateaus, and changes that only count from today
 - **Plateaus:** if your weight has barely moved for about three weeks while your calories were on target, the coach says so and explains why it might be. Maybe eaten and burned are nearly the same, or your resting burn has dropped as you got lighter. It then suggests a fix, like lowering the calorie goal by about 150 or adding about 2,000 steps a day. When your weight is trending the right way, that's the first thing it celebrates.
 - **Changes count from today:** changing a target (calories, protein, steps, sleep, workouts a day) or a task now applies from today on. Past days keep the targets and tasks they had, so a streak or a perfect day can't change after the fact. Before this, raising your step goal could untick past days. Also, a task you delete still counts on the days it existed, and a task you add in Settings counts from today, not from day 1.
