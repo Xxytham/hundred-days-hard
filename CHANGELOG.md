@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.2 · The coach syncs first
+- When the coach writes a new note on its own (a new day, or your numbers changed), it first syncs everything from Samsung Health, the same full set the Stats tab reads, so its note uses your latest numbers. While it syncs, the card shows the barbell and "Getting your latest numbers…". It waits at most 20 seconds, and if Samsung Health can't be reached it writes with what it has.
+- Tapping **Write a new note** still writes straight away.
+
 ## v0.23.1 · Lighter syncing
 - The app now reads only what it needs from Samsung Health, when it needs it.
   - **In the background (hourly):** just calories, protein, steps and sleep, for the widget and goal notifications.

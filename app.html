@@ -1238,6 +1238,7 @@ body.setup .nav, body.setup .top { display: none; }
     healthBusy = false;
     if (healthNext) { const n = healthNext; healthNext = ""; setTimeout(() => healthSync(n), 0); } // one asked for while this ran
     if (ptrBusy) ptrDone(res && res.ok ? "Updated from Samsung Health" : "Couldn't reach Samsung Health");
+    if (coachAwait && (healthScope === "stats" || !res || !res.ok)) { coachAwait = 0; setTimeout(() => coachWrite(false), 0); } // the coach's sync is in: write now
     if (!res || !res.ok) { if (res && res.error === "permission") { health = "not_granted"; render(); } return; }
     setTimeout(() => coachWrite(false), 0);
     const key = "hundred-days-hard.fullSync" + (healthScope === "stats" ? ".stats" : "");
@@ -1455,6 +1456,7 @@ body.setup .nav, body.setup .top { display: none; }
   const introStarted = () => { const it = coachIntro(); return !!(it && it.started); };
   const INTRO_FALLBACK = "I'm your coach, and I live right here on your phone. I do all my thinking on its own processor, so your numbers never leave it. Ready to get started?";
   const VIBES = ["warm and friendly", "upbeat and full of energy", "calm and confident", "a little playful", "straight-talking but kind", "like a teammate who's glad to see them"];
+  let coachAwait = 0, coachSyncTried = 0; // the coach waiting for a full sync before it writes (when it asked), and when it last asked
   let coachTask = "", coachFirst = false; // what's being written ("intro" or "note"); the first note opens with a lead-in
   function coachIntroWrite() {
     if (aiState !== "available" || coachBusy || !S().setupDone || coachMode() === "off") return;
@@ -1478,7 +1480,7 @@ body.setup .nav, body.setup .top { display: none; }
 
   // While it writes: a small barbell being loaded, plate by plate, with a line about what it's reading.
   const CAPTIONS = {
-    intro: ["Warming up", "Getting to know you"], note: ["Reading your week", "Checking calories and protein", "Looking at your lifts", "Lining up your goals", "Putting it into words"],
+    intro: ["Warming up", "Getting to know you"], sync: ["Syncing Samsung Health", "Getting your latest numbers"], note: ["Reading your week", "Checking calories and protein", "Looking at your lifts", "Lining up your goals", "Putting it into words"],
     strength: ["Looking at your lifts", "Comparing your sessions", "Putting it into words"], body: ["Reading your weigh-ins", "Checking the trend", "Putting it into words"],
     heart: ["Reading your heart stats", "Checking the trend", "Putting it into words"], sleep: ["Going over your nights", "Checking deep and REM", "Putting it into words"],
     energy: ["Adding up calories in and out", "Checking your steps", "Putting it into words"], food: ["Reading your food log", "Checking fiber and sodium", "Seeing what you need more of", "Putting it into words"],
@@ -1489,7 +1491,7 @@ body.setup .nav, body.setup .top { display: none; }
     capI = 0;
     if (capT) return;
     capT = setInterval(() => {
-      if (!coachBusy && !scoach.busy) { stopCaptions(); return; }
+      if (!coachBusy && !coachAwait && !scoach.busy) { stopCaptions(); return; }
       const els = document.querySelectorAll(".load-cap");
       if (!els.length) return;
       capI++;
@@ -1500,7 +1502,7 @@ body.setup .nav, body.setup .top { display: none; }
       });
     }, 1200);
   }
-  function stopCaptions() { if (coachBusy || scoach.busy) return; clearInterval(capT); capT = 0; }
+  function stopCaptions() { if (coachBusy || coachAwait || scoach.busy) return; clearInterval(capT); capT = 0; }
   const coachLoader = (kind) => '<div class="coach-load" role="status" aria-label="' + (kind === "intro" ? "Your coach is getting ready" : "Writing your note") + '"><span class="bb" aria-hidden="true"><b class="bb-shaft"></b>' +
     [0, 1, 2].map((k) => '<i class="l" style="--k:' + k + '"></i><i class="r" style="--k:' + k + '"></i>').join("") +
     '</span><span class="load-cap" data-kind="' + kind + '">' + CAPTIONS[kind][capI % CAPTIONS[kind].length] + "</span></div>";
@@ -1673,6 +1675,18 @@ body.setup .nav, body.setup .top { display: none; }
     if (!introStarted()) { coachIntroWrite(); return; } // says hello first
     const facts = buildFacts(), saved = coachSaved();
     if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
+    // A note it writes on its own starts with a full sync (everything Stats reads too), so it's written from the latest
+    // numbers. It waits for that sync (at most 20 s), then __healthResult calls back here. "Write a new note" skips this.
+    if (!force && health === "granted") {
+      if (coachAwait) return; // still waiting for the fresh numbers
+      if (Date.now() - statsSyncedAt > 15 * 60000 && Date.now() - coachSyncTried > 15 * 60000) {
+        coachAwait = coachSyncTried = Date.now();
+        healthSync("stats"); startCaptions();
+        setTimeout(() => { if (coachAwait) { coachAwait = 0; coachWrite(false); } }, 20000);
+        if (view === "today") render();
+        return;
+      }
+    }
     coachFacts = facts; coachBusy = true; coachErr = false;
     // The coach's values, then the facts, then room to choose what to say. The numbers all come from the app.
     const prompt = "You're the coach inside the user's 100-day gym challenge app: an upbeat strength coach who's genuinely in their corner.\n" +
@@ -1699,10 +1713,11 @@ body.setup .nav, body.setup .top { display: none; }
   function coachHTML() {
     if (!bridge || !bridge.aiStatus || aiState === "none" || aiState === "checking" || aiState === "unavailable" || coachMode() === "off") return "";
     const min = coachMode() === "min", saved = coachSaved(), fresh = saved && saved.date === todayISO(), intro = coachIntro(), hello = aiState === "available" && !introStarted();
-    const when = coachBusy ? (coachTask === "intro" ? "Getting ready…" : "Writing…") : hello ? "Nice to meet you" : saved ? (fresh ? "Today, " + new Date(saved.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : saved.date === addDays(todayISO(), -1) ? "Yesterday's note" : "An earlier note") : aiState === "available" ? "On this phone" : "";
+    const when = coachBusy ? (coachTask === "intro" ? "Getting ready…" : "Writing…") : coachAwait ? "Getting your latest numbers…" : hello ? "Nice to meet you" : saved ? (fresh ? "Today, " + new Date(saved.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : saved.date === addDays(todayISO(), -1) ? "Yesterday's note" : "An earlier note") : aiState === "available" ? "On this phone" : "";
     let body, shown;
     if (aiState === "downloadable") { shown = "setup"; body = min ? "" : '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>'; }
     else if (aiState === "downloading") { shown = "downloading"; body = min ? "" : '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>'; }
+    else if (coachAwait && !coachBusy) { shown = "loading"; body = min ? "" : coachLoader("sync"); }
     else if (coachBusy) { shown = typer.target ? "typing" : "loading"; body = min ? "" : typer.target ? typer.html() : coachLoader(coachTask === "intro" ? "intro" : "note"); }
     else if (hello && intro && intro.text) {
       shown = "hello";
