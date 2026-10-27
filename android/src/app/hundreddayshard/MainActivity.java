@@ -357,6 +357,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String goalsSent() {
+            return Today.sentToday(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public String notifyStatus() {
             return MainActivity.this.notifyStatus();
         }

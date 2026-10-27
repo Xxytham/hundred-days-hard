@@ -267,16 +267,17 @@ final class HealthReader {
                                     if (kcal <= 0) kcal = totalDuring(total, w);
                                     if (kcal > 0) o.put("kcal", Math.round(kcal));
                                     o.put("auto", w.getMetadata().getRecordingMethod() == Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED);
+                                    // Steps taken during the workout: the page counts the day's other steps as walking.
+                                    long n = 0;
+                                    for (StepsRecord st : stepRecords) if (inside(st.getStartTime(), st.getEndTime(), w)) n += st.getCount();
+                                    if (n > 0) o.put("steps", n);
                                     if (type == ExerciseSessionType.EXERCISE_SESSION_TYPE_WALKING) {
-                                        // Walks only count as cardio from a mile up, so send their distance, and the
-                                        // steps taken during them as a fallback when no distance was recorded.
+                                        // Walks only count as cardio from a mile up, so send their distance (steps are the
+                                        // fallback when no distance was recorded).
                                         o.put("walk", true);
                                         double m = 0;
                                         for (DistanceRecord d : distances) if (inside(d.getStartTime(), d.getEndTime(), w)) m += d.getDistance().getInMeters();
                                         if (m > 0) o.put("miles", Math.round(m / 1609.344 * 100) / 100.0);
-                                        long n = 0;
-                                        for (StepsRecord st : stepRecords) if (inside(st.getStartTime(), st.getEndTime(), w)) n += st.getCount();
-                                        if (n > 0) o.put("steps", n);
                                     }
                                     String day = w.getStartTime().atZone(zone).toLocalDate().toString();
                                     String origin = w.getMetadata().getDataOrigin().getPackageName();

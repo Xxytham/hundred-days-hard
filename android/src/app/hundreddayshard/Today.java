@@ -103,6 +103,13 @@ final class Today {
         return out;
     }
 
+    /** Today's goals already announced, for the page (so it doesn't congratulate twice). */
+    static String sentToday(Context c) {
+        String sent = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(SENT, ""), out = "";
+        for (String g : new String[] {"protein", "calories", "steps", "sleep"}) if (sent.contains("|" + today() + ":" + g + "|")) out += (out.isEmpty() ? "" : ",") + g;
+        return out;
+    }
+
     private static boolean wasSent(Context c, String goal) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(SENT, "").contains("|" + today() + ":" + goal + "|");
     }
@@ -120,16 +127,24 @@ final class Today {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm.getNotificationChannel(CHANNEL) == null) {
             NotificationChannel ch = new NotificationChannel(CHANNEL, "Goals hit", NotificationManager.IMPORTANCE_DEFAULT);
-            ch.setDescription("When Samsung Health shows you've hit a daily goal while the app is closed");
+            ch.setDescription("A congratulations when you hit your protein, calories, steps or sleep goal");
             nm.createNotificationChannel(ch);
         }
-        String title, text;
+        // A different line each day, so it never reads like the same alert twice.
+        int v = LocalDate.now().getDayOfYear() % 2;
+        String title, text, kcal = String.format(java.util.Locale.US, "%,d", Math.round(num(s, "kcal"))), steps = String.format(java.util.Locale.US, "%,d", Math.round(num(s, "steps")));
         switch (goal) {
-            case "protein": title = "Protein goal hit"; text = Math.round(num(s, "protein")) + " g of " + Math.round(s.optDouble("proteinGoal")) + " g. Nice work."; break;
-            case "calories": title = "build".equals(s.optString("aim")) ? "Calorie goal reached" : "You're in your calorie range";
-                text = String.format(java.util.Locale.US, "%,d calories so far today.", Math.round(num(s, "kcal"))); break;
-            case "steps": title = "Steps done"; text = String.format(java.util.Locale.US, "%,d steps today.", Math.round(num(s, "steps"))); break;
-            default: long m = Math.round(num(s, "sleepMin")); title = "Sleep goal hit"; text = (m / 60) + " h " + (m % 60) + " m last night."; break;
+            case "protein": title = "Protein goal hit \uD83D\uDCAA";
+                text = v == 0 ? Math.round(num(s, "protein")) + " g of protein today. That's how muscle gets built. Nice work!"
+                        : "You reached " + Math.round(s.optDouble("proteinGoal")) + " g of protein. Your next workout will thank you."; break;
+            case "calories":
+                if ("build".equals(s.optString("aim"))) { title = "Calorie goal reached \uD83C\uDFAF"; text = kcal + " calories in. That's fuel for growing. Well done!"; }
+                else { title = "Right in your calorie range \uD83C\uDFAF"; text = v == 0 ? kcal + " calories so far, right where you want to be. Nicely judged!" : kcal + " calories and on target. Hold it there and today's a win."; }
+                break;
+            case "steps": title = "Step goal crushed \uD83D\uDC5F";
+                text = v == 0 ? steps + " steps today. Every one of them counts. Great job!" : steps + " steps and counting. Way to keep moving!"; break;
+            default: long m = Math.round(num(s, "sleepMin")); title = "Well rested \uD83D\uDE34";
+                text = (m / 60) + " h " + (m % 60) + " m of sleep last night. A great start to the day!"; break;
         }
         PendingIntent open = PendingIntent.getActivity(c, 3, new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

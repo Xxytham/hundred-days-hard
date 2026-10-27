@@ -923,7 +923,36 @@ body.setup .nav, body.setup .top { display: none; }
   }
   // Today's numbers for the home-screen widget and goal notifications (installed app), a moment after any change.
   let widgetT = null;
+  // A congratulations the moment a daily goal is hit while you're in the app (closed, the phone's notification does it).
+  // Goals already met when the app opened, or already announced by a notification, are skipped.
+  const metNow = (t) => {
+    const d = peekDay(t), h = hOf(d), out = [];
+    if (S().proteinGoal && (d.protein || 0) >= S().proteinGoal) out.push("protein");
+    if (d.kcal != null && calStatus(d.kcal).state === "met") out.push("calories");
+    if (S().stepsTarget && (h.steps || 0) >= S().stepsTarget) out.push("steps");
+    if (S().sleepTarget && (h.sleepMin || 0) >= S().sleepTarget * 60) out.push("sleep");
+    return out;
+  };
+  let cheered = null; // set at startup, from what's already met
+  function cheerGoals() {
+    const t = todayISO();
+    if (!cheered) return;
+    if (cheered.date !== t) cheered = { date: t, seen: new Set() };
+    let sent = "";
+    try { sent = bridge && bridge.goalsSent ? String(bridge.goalsSent()) : ""; } catch (e) { /* ignore */ }
+    const fresh = metNow(t).filter((g) => !cheered.seen.has(g));
+    fresh.forEach((g) => cheered.seen.add(g));
+    const say = fresh.filter((g) => !sent.split(",").includes(g));
+    if (!say.length || document.visibilityState !== "visible" || !S().setupDone) return;
+    const d = peekDay(t), h = hOf(d);
+    const line = { protein: fmt(d.protein) + " g of protein. Protein goal hit, nice work!", calories: calAim() === "build" ? "Calorie goal reached. That's fuel for growing!" : "Right in your calorie range. Nicely judged!",
+      steps: fmt(h.steps) + " steps. Step goal crushed!", sleep: hm(h.sleepMin) + " of sleep. Well rested!" };
+    const names = { protein: "protein", calories: "calorie", steps: "step", sleep: "sleep" };
+    toast(say.length === 1 ? line[say[0]] : "You hit your " + say.map((g) => names[g]).join(say.length === 2 ? " and " : ", ").replace(/, (?=[^,]*$)/, " and ") + " goals. Great work!");
+    buzz("confirm");
+  }
   function pushWidget() {
+    setTimeout(cheerGoals, 850);
     if (!bridge || !bridge.widgetUpdate || !S().setupDone) return;
     clearTimeout(widgetT);
     widgetT = setTimeout(() => {
@@ -935,7 +964,7 @@ body.setup .nav, body.setup .top { display: none; }
           date: t, startDate: S().startDate, total: TOTAL(), calorieGoal: S().calorieGoal, aim: calAim(), proteinGoal: S().proteinGoal,
           stepsTarget: S().stepsTarget, sleepTarget: S().sleepTarget, kcal: d.kcal || 0, protein: d.protein || 0, kcalSrc: d.kcalSrc || "",
           steps: (d.health && d.health.steps) || 0, sleepMin: (d.health && d.health.sleepMin) || 0, streak: st ? st.cur : 0,
-          tasksDone: doneOn(t), tasksTotal: tasksFor(t).length, nextGoal: next, notify: !!S().goalNotifs,
+          tasksDone: doneOn(t), tasksTotal: tasksFor(t).length, nextGoal: next, notify: S().goalNotifs !== false,
         }));
       } catch (e) { /* ignore */ }
     }, 800);
@@ -1140,10 +1169,18 @@ body.setup .nav, body.setup .top { display: none; }
     else toast("Samsung Health wasn't connected");
     render();
   };
+  // Goal notifications are on unless turned off; Android asks for permission once.
+  function askNotifyOnce() {
+    if (!bridge || !bridge.notifyStatus || !bridge.notifyPermission || !S().setupDone || S().goalNotifs === false || S().notifAsked) return;
+    try { if (bridge.notifyStatus() === "granted") return; } catch (e) { return; }
+    S().notifAsked = true; save("settings");
+    setTimeout(() => { try { bridge.notifyPermission(); } catch (e) { /* ignore */ } }, 1500);
+  }
   window.__onResume = function () {
     if (bridge && bridge.healthStatus) health = bridge.healthStatus();
     if (upd.state === "permission" && bridge.canInstallUpdates && bridge.canInstallUpdates()) { upd = { state: "idle" }; startUpdate(); }
     coachCheck();
+    askNotifyOnce();
     healthSync();
     checkForUpdate();
     render();
@@ -2101,8 +2138,25 @@ body.setup .nav, body.setup .top { display: none; }
   const hOf = (d) => d.health || {};
   const hm = (min) => Math.floor(min / 60) + " h " + String(Math.round(min % 60)).padStart(2, "0") + " m";
   const workoutMin = (d) => { const ses = (hOf(d).sessions || []).filter((x) => x.min >= 10); return ses.length ? ses.reduce((a, x) => a + x.min, 0) : null; };
-  let bmrKnown = null;
-  const burnedOf = (d) => hOf(d).burned || (hOf(d).active && bmrKnown ? hOf(d).active + bmrKnown : null);
+  // The day's total calories burned. Samsung Health shares only workout calories with Health Connect, so when "burned"
+  // is no more than the workouts' own calories (or less than a resting day), the total is worked out instead:
+  // resting burn (BMR, the watch's latest reading, else estimated from weight) + workouts + walking outside them.
+  let bmrKnown = null, kgKnown = null, burnEstimated = false;
+  function burnedOf(d, date) {
+    const h = hOf(d), ses = (h.sessions || []).filter((x) => x.min > 0);
+    if (!h.burned && !h.active && !h.steps && !ses.length) return null;
+    const sesKcal = ses.reduce((a, x) => a + (x.kcal || 0), 0), sesMin = ses.reduce((a, x) => a + x.min, 0);
+    const bmr = h.bmr || bmrKnown;
+    if (h.burned && (!bmr || (h.burned >= bmr && h.burned > sesKcal * 1.3 + 150))) return h.burned; // already the whole day
+    if (!bmr) return null;
+    burnEstimated = true;
+    const now = new Date(), part = date === todayISO() ? (now.getHours() * 60 + now.getMinutes()) / 1440 : 1; // today: resting burn so far
+    const work = h.active || Math.max(0, (h.burned || sesKcal) - (bmr * sesMin) / 1440); // a workout's total includes its resting share
+    const walk = Math.max(0, (h.steps || 0) - ses.reduce((a, x) => a + (x.steps || 0), 0)) * (kgKnown || 80) * 0.0004; // about 0.4 kcal per kg per 1,000 steps
+    return Math.round(bmr * part + work + walk);
+  }
+  const burnFoot = () => (burnEstimated ? " Burned is your whole day: resting burn" + (bmrKnown && !bmrGuess ? "" : " (estimated from your weight)") + " + workouts + walking." : "");
+  let bmrGuess = false;
   const STAT_TABS = [["strength", "Strength"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"]];
   const STATS = [
     { k: "weight", cat: "body", name: "Body weight", kind: "line", val: (d) => d.weight, unit: () => " " + S().unit, dec: 1, better: () => (calAim() === "build" ? 1 : -1) },
@@ -2119,9 +2173,9 @@ body.setup .nav, body.setup .top { display: none; }
     { k: "light", cat: "sleep", name: "Light sleep", kind: "bar", val: (d) => hOf(d).lightMin, show: hm, axis: (v) => Math.round(v / 60) + "h", step: 60 },
     { k: "kcal", cat: "energy", name: "Calories eaten", kind: "bar", val: (d) => d.kcal, show: (v) => fmt(v) + " kcal", step: 500, cal: true },
     { k: "protein", cat: "energy", name: "Protein", kind: "bar", val: (d) => d.protein, show: (v) => fmt(v) + " g", step: 50, goal: () => S().proteinGoal },
-    { k: "burned", cat: "energy", name: "Calories burned", kind: "bar", val: burnedOf, show: (v) => fmt(v) + " kcal", step: 500 },
-    { k: "balance", cat: "energy", name: "Eaten − burned", kind: "bar", val: (d) => (d.kcal != null && burnedOf(d) ? d.kcal - burnedOf(d) : null), show: (v) => signed(v, 0, " kcal"), step: 250, signed: true,
-      better: () => (calAim() === "build" ? 1 : -1) },
+    { k: "burned", cat: "energy", name: "Calories burned", kind: "bar", val: burnedOf, show: (v) => fmt(v) + " kcal", step: 500, foot: burnFoot },
+    { k: "balance", cat: "energy", name: "Eaten − burned", kind: "bar", val: (d, date) => { const b = burnedOf(d, date); return d.kcal != null && b ? d.kcal - b : null; }, show: (v) => signed(v, 0, " kcal"), step: 250, signed: true,
+      better: () => (calAim() === "build" ? 1 : -1), foot: burnFoot },
     { k: "steps", cat: "energy", name: "Steps", kind: "bar", val: (d) => hOf(d).steps, show: (v) => fmt(v), step: 2000, goal: () => S().stepsTarget },
     { k: "active", cat: "energy", name: "Workout minutes", kind: "bar", val: workoutMin, show: (v) => fmt(v) + " min", step: 30, total: true },
   ];
@@ -2132,12 +2186,12 @@ body.setup .nav, body.setup .top { display: none; }
   const challengeDates = () => { const t = todayISO(), last = [t, addDays(S().startDate, TOTAL() - 1)].sort()[0], out = []; for (let d = S().startDate; d <= last; d = addDays(d, 1)) out.push(d); return out.length ? out : [t]; };
   function statData(m) {
     if (m.kind === "line") {
-      const ds = Object.keys(state.days).sort().filter((d) => { const v = m.val(state.days[d]); return d >= S().startDate && v != null && +v > 0; });
+      const ds = Object.keys(state.days).sort().filter((d) => { const v = m.val(state.days[d], d); return d >= S().startDate && v != null && +v > 0; });
       if (!ds.length) return null;
-      const pts = ds.map((d) => ({ n: dayNum(d), v: +m.val(state.days[d]) })), last = pts[pts.length - 1], ch = last.v - pts[0].v;
+      const pts = ds.map((d) => ({ n: dayNum(d), v: +m.val(state.days[d], d) })), last = pts[pts.length - 1], ch = last.v - pts[0].v;
       return { m, pts, last, ch, good: ch * m.better() >= 0, flat: Math.abs(ch) < 1e-9, note: m.note ? m.note(state.days[ds[ds.length - 1]]) : "" };
     }
-    const dates = challengeDates(), vals = dates.map((d) => { const v = m.val(peekDay(d)); return v == null || (!m.signed && !(v > 0)) ? null : +v; });
+    const dates = challengeDates(), vals = dates.map((d) => { const v = m.val(peekDay(d), d); return v == null || (!m.signed && !(v > 0)) ? null : +v; });
     const week = vals.slice(-7).filter((v) => v != null);
     if (!vals.some((v) => v != null)) return null;
     const avg = week.length ? week.reduce((a, v) => a + v, 0) / (m.total ? 1 : week.length) : null; // "total" stats add up the week
@@ -2196,14 +2250,21 @@ body.setup .nav, body.setup .top { display: none; }
     const logged = vals.filter((v) => v != null);
     const hit = goal || m.cal || m.signed ? logged.filter((v) => (m.cal ? calStatus(v).state === "met" : m.signed ? v * m.better() >= 0 : v >= goal)).length : null;
     return s + '<p class="hint num">Average ' + esc(m.show(logged.reduce((a, v) => a + v, 0) / logged.length)) +
-      (hit != null ? " · " + (m.cal && calAim() === "lose" ? "in range" : m.signed ? (calAim() === "build" ? "a surplus" : "a deficit") : "goal met") + " on " + hit + " of " + logged.length + " days" : "") + ". Numbers under the bars are challenge days.</p>";
+      (hit != null ? " · " + (m.cal && calAim() === "lose" ? "in range" : m.signed ? (calAim() === "build" ? "a surplus" : "a deficit") : "goal met") + " on " + hit + " of " + logged.length + " days" : "") + ". Numbers under the bars are challenge days." + (m.foot ? m.foot() : "") + "</p>";
   }
   const WATCH_STATS = ["body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR", "older history"];
   function renderStats() {
     const missing = bridge && health !== "unavailable" ? healthMissing().filter((x) => WATCH_STATS.includes(x)) : [];
     // Asks once per set of missing stats; "Not now" hides it until something else is missing.
     const offer = missing.length && S().watchOffer !== missing.join() ? '<div class="notice"><b>Add more from your watch</b><span class="hint">Let Samsung Health share ' + missing.join(", ") + " and they'll show up here.</span><div class=\"btn-row\"><button class=\"btn\" data-action=\"health-connect\">Connect</button><button class=\"btn secondary\" data-action=\"watch-later\" data-v=\"" + esc(missing.join()) + "\">Not now</button></div></div>" : "";
-    bmrKnown = (() => { const ds = Object.keys(state.days).sort().reverse(); for (const d of ds) if (hOf(state.days[d]).bmr) return hOf(state.days[d]).bmr; return null; })();
+    // Latest weight (kg) and body fat; resting burn is the watch's latest, else estimated (Katch-McArdle with body fat, else roughly 10 × kg + 900).
+    const latest = (f) => { const ds = Object.keys(state.days).sort().reverse(); for (const d of ds) { const v = f(state.days[d]); if (v) return v; } return null; };
+    const w = latest((d) => d.weight), bf = latest((d) => hOf(d).bodyFat);
+    kgKnown = w ? (S().unit === "kg" ? w : w / KG_TO_LB) : null;
+    bmrKnown = latest((d) => hOf(d).bmr);
+    bmrGuess = !bmrKnown && !!kgKnown;
+    if (bmrGuess) bmrKnown = Math.round(bf ? 370 + 21.6 * kgKnown * (1 - bf / 100) : 10 * kgKnown + 900);
+    burnEstimated = false;
     const data = {};
     STATS.forEach((m) => { const b = statData(m); if (b) (data[m.cat] = data[m.cat] || []).push(b); });
     const tabs = STAT_TABS.filter(([k]) => k === "strength" || data[k]);
@@ -2386,7 +2447,7 @@ body.setup .nav, body.setup .top { display: none; }
   // Goal notifications and the widget (installed app only).
   function notifySection() {
     if (mode !== "apk") return "";
-    const on = !!S().goalNotifs, allowed = bridge.notifyStatus ? bridge.notifyStatus() === "granted" : false;
+    const on = S().goalNotifs !== false, allowed = bridge.notifyStatus ? bridge.notifyStatus() === "granted" : false;
     const bg = healthMissing().includes("background updates");
     return '<section class="panel" aria-labelledby="h-nt"><h2 id="h-nt">Notifications &amp; widget</h2>' +
       '<div class="form"><span class="hint">Tell me when Samsung Health shows I\'ve hit my protein, calories, steps or sleep goal while the app is closed</span>' +
@@ -3494,9 +3555,11 @@ body.setup .nav, body.setup .top { display: none; }
   render(true);
   healthSync();
   scheduleFileBackup();
+  cheered = { date: todayISO(), seen: new Set(metNow(todayISO())) };
   connect().catch(() => { setupReady = true; render(); });
   checkForUpdate();
   coachCheck();
+  askNotifyOnce();
   pushWidget();
   try { const sc = bridge && bridge.takeShortcut ? bridge.takeShortcut() : ""; if (sc) window.__shortcut(sc); } catch (e) { /* ignore */ }
 })();

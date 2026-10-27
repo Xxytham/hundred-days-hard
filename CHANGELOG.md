@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.19 · Whole-day calories and a cheer for every goal
+- Calories burned on the Stats tab is now your whole day: resting burn, plus workouts, plus walking outside them. Samsung Health only shares workout calories with other apps, so before this it showed only your workouts, and eaten − burned looked like a big surplus.
+- Hitting your protein, calorie, steps or sleep goal now gets a congratulations. A notification comes when the app is closed, and a message when you're in it. Each goal is celebrated once a day.
+- Goal notifications are on by default now (Settings → Notifications & widget turns them off). Android asks once to allow them.
+
 ## v0.18.3 · Progress sorted by muscle group
 - The Strength list on the Progress tab is now split into the same groups as your workouts (Chest, Triceps, Shoulders, Back, Biceps, Forearms, Abs). Each heading shows how that group moved since last time. Moving an exercise to another group in a workout, or the coach sorting it, moves it here too.
 
