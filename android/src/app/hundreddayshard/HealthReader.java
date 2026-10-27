@@ -25,6 +25,7 @@ import android.health.connect.datatypes.StepsRecord;
 import android.health.connect.datatypes.TotalCaloriesBurnedRecord;
 import android.health.connect.datatypes.Vo2MaxRecord;
 import android.health.connect.datatypes.WeightRecord;
+import android.health.connect.datatypes.units.Mass;
 import android.os.Build;
 import android.os.OutcomeReceiver;
 
@@ -46,7 +47,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
- * Reads what Samsung Health shares through Health Connect (Android 14+): daily food totals,
+ * Reads what Samsung Health shares through Health Connect (Android 14+): daily food totals (calories, protein and the rest of the label),
  * body weight, steps, sleep and exercise sessions (with the calories burned during them), and the watch's body stats:
  * body fat, resting heart rate, heart rate variability, VO2 max, BMR, blood oxygen, and heart rate (averaged over each night's
  * sleep, a resting heart rate for watches that don't share one). Sleep also brings its deep, REM and light minutes, and the
@@ -125,6 +126,16 @@ final class HealthReader {
         STRENGTH.add(ExerciseSessionType.EXERCISE_SESSION_TYPE_WEIGHTLIFTING);
         STRENGTH.add(ExerciseSessionType.EXERCISE_SESSION_TYPE_CALISTHENICS);
     }
+    // What the food label says beyond calories and protein, each in its usual unit (grams × the factor: g, mg or µg).
+    // Samsung Health shares whatever its food entries have; a nutrient no entry had that day is left out.
+    private static final String[] NUTR = {"carbs", "fat", "satFat", "transFat", "sugar", "fiber", "cholesterol", "sodium", "potassium", "calcium",
+            "iron", "magnesium", "zinc", "vitA", "vitC", "vitD", "vitE", "vitK", "vitB6", "vitB12", "folate", "caffeine"};
+    private static final double[] NUTR_X = {1, 1, 1, 1, 1, 1, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e6, 1e3, 1e6, 1e3, 1e6, 1e3, 1e6, 1e6, 1e3};
+    private static Mass[] nutrients(NutritionRecord n) {
+        return new Mass[] {n.getTotalCarbohydrate(), n.getTotalFat(), n.getSaturatedFat(), n.getTransFat(), n.getSugar(), n.getDietaryFiber(),
+                n.getCholesterol(), n.getSodium(), n.getPotassium(), n.getCalcium(), n.getIron(), n.getMagnesium(), n.getZinc(), n.getVitaminA(),
+                n.getVitaminC(), n.getVitaminD(), n.getVitaminE(), n.getVitaminK(), n.getVitaminB6(), n.getVitaminB12(), n.getFolate(), n.getCaffeine()};
+    }
     private static final String SAMSUNG_HEALTH = "com.sec.android.app.shealth";
 
     private HealthReader() { }
@@ -202,6 +213,8 @@ final class HealthReader {
 
         // day -> app that wrote it -> totals
         Map<String, Map<String, double[]>> food = new TreeMap<>();
+        // day -> app -> {each nutrient's total..., then whether any entry had it...}
+        Map<String, Map<String, double[]>> nutr = new TreeMap<>();
         Map<String, Map<String, double[]>> steps = new TreeMap<>();
         Map<String, Map<String, double[]>> sleep = new TreeMap<>();
         Map<String, Double> weightKg = new HashMap<>();
@@ -218,6 +231,9 @@ final class HealthReader {
                 double[] t = slot(food, n.getStartTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), 3);
                 if (n.getEnergy() != null) t[0] += n.getEnergy().getInCalories();
                 if (n.getProtein() != null) { t[1] += n.getProtein().getInGrams(); t[2] = 1; }
+                Mass[] ms = nutrients(n);
+                double[] u = slot(nutr, n.getStartTime(), zone, n.getMetadata().getDataOrigin().getPackageName(), NUTR.length * 2);
+                for (int i = 0; i < NUTR.length; i++) if (ms[i] != null) { u[i] += ms[i].getInGrams() * NUTR_X[i]; u[NUTR.length + i] = 1; }
             }
             readAll(c, hcm, WEIGHT, WeightRecord.class, range, ex, weights -> {
                 Map<String, Instant> latest = new HashMap<>();
@@ -310,7 +326,7 @@ final class HealthReader {
                                 }
                                 for (TotalCaloriesBurnedRecord r : total) slot(burned, r.getStartTime(), zone, r.getMetadata().getDataOrigin().getPackageName(), 2)[0] += r.getEnergy().getInCalories() / 1000.0;
                                 for (ActiveCaloriesBurnedRecord r : active) slot(burned, r.getStartTime(), zone, r.getMetadata().getDataOrigin().getPackageName(), 2)[1] += r.getEnergy().getInCalories() / 1000.0;
-                                done.accept(toJson(food, weightKg, steps, sleep, workouts, stats, stages, burned, fromIso));
+                                done.accept(toJson(food, nutr, weightKg, steps, sleep, workouts, stats, stages, burned, fromIso));
                             })))))));
                         }))));
                     });
@@ -363,7 +379,7 @@ final class HealthReader {
         return d;
     }
 
-    private static String toJson(Map<String, Map<String, double[]>> food, Map<String, Double> weightKg,
+    private static String toJson(Map<String, Map<String, double[]>> food, Map<String, Map<String, double[]>> nutr, Map<String, Double> weightKg,
                                  Map<String, Map<String, double[]>> steps, Map<String, Map<String, double[]>> sleep,
                                  Map<String, Map<String, JSONArray>> workouts, Map<String, Map<String, Map<String, double[]>>> stats,
                                  Map<String, Map<String, double[]>> stages, Map<String, Map<String, double[]>> burned, String fromIso) {
@@ -374,6 +390,17 @@ final class HealthReader {
                 JSONObject d = day(days, e.getKey());
                 d.put("kcal", Math.round(t[0] / 1000.0)); // Health Connect stores energy in small calories
                 if (t[2] > 0) d.put("protein", Math.round(t[1]));
+            }
+            for (Map.Entry<String, Map<String, double[]>> e : nutr.entrySet()) {
+                int n = NUTR.length;
+                double[] t = e.getValue().get(SAMSUNG_HEALTH);
+                if (t == null) {
+                    t = new double[n * 2];
+                    for (double[] o : e.getValue().values()) for (int i = 0; i < n * 2; i++) t[i] = i < n ? t[i] + o[i] : Math.max(t[i], o[i]);
+                }
+                JSONObject j = new JSONObject();
+                for (int i = 0; i < n; i++) if (t[n + i] > 0) j.put(NUTR[i], Math.round(t[i] * 10) / 10.0);
+                if (j.length() > 0) day(days, e.getKey()).put("nutr", j);
             }
             for (Map.Entry<String, Double> e : weightKg.entrySet()) day(days, e.getKey()).put("weightKg", e.getValue());
             for (Map.Entry<String, Map<String, double[]>> e : steps.entrySet()) day(days, e.getKey()).put("steps", Math.round(pick(e.getValue(), 1)[0]));

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23 · Food stats, and a coach for every chart
+- **Food in Stats:** a new Food section shows everything Samsung Health shares from your food log beyond calories and protein: fiber, sodium, potassium, saturated fat, sugar, carbs, fat, cholesterol, and vitamins and minerals like calcium, iron, vitamin A and vitamin C. Each one has a bar for every day since day 1 and a 7-day average, against the amount most adults should get. Green means you're getting enough, or for sodium and saturated fat, that you stayed under the limit; red means you're short or over. A line on top shows where your calories came from (protein, carbs and fat). Today doesn't count toward the average until it's over.
+- Only food you log with its full label counts. A quick calories-only entry adds nothing to these.
+- **A coach under every section:** Strength, Body, Heart, Sleep, Energy and Food each get a short coach note under their charts, about just that section. It reads the trends: which way things are heading and what that means for your aim. For Food it tells you what you're doing well and what you need more of, sometimes with a food that helps. Like the Today coach, it runs on your phone, and it follows the same On / Minimized / Off setting.
+- Tapping a stat now opens its chart right under it, instead of at the bottom of the section.
+- No new permission needed. Food details from before the update fill in within a few hours, the next time the app reads your whole challenge from Samsung Health.
+
 ## v0.22.2 · A pace goal for fat loss
 - **Pace goal:** when your aim is to lose fat, the coach now aims for 1.5 to 3 lb a week, judged on your weight trend over the last three weeks. It tells you when you're right in the sweet spot, when you're near the slow end and could lose a bit more, when you're close to the fast end, when you're slower than the goal (with a suggested calorie goal), and when you're losing too fast (with a suggestion to eat a bit more). For people under 200 lb the range scales down, so it never pushes a lighter friend too hard.
 - **Tap to minimize:** tap the coach's note to shrink it to one line, and tap the line to open it again.

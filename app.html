@@ -599,6 +599,9 @@ body.setup .nav, body.setup .top { display: none; }
 .body-tile.open { --fc: var(--green); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fc) 75%, transparent); background: color-mix(in srgb, var(--fc) 12%, var(--bg)); }
 .body-tile.open.down { --fc: var(--red); }
 .body-detail { margin: 0; padding: 12px; display: grid; gap: 6px; }
+.body-grid > .body-detail { grid-column: 1 / -1; min-width: 0; }
+.food-split { margin: 0 0 10px; }
+.food-split b { color: var(--ink); }
 .mini-stats { display: flex; gap: 8px; }
 .mini-stats span { flex: 1; min-width: 0; background: var(--bg); border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--muted); display: grid; }
 .mini-stats b { font-family: var(--font-display); font-size: 24px; font-weight: 800; line-height: 1; color: var(--ink); }
@@ -1249,6 +1252,7 @@ body.setup .nav, body.setup .top { display: none; }
       let hc = false;
       ["steps", "sleepMin", "bodyFat", "restHr", "hrv", "vo2", "sleepHr", "spo2", "bmr", "deepMin", "remMin", "lightMin", "burned", "active"].forEach((k) => { if (h[k] != null && h[k] !== hv[k]) { hv[k] = h[k]; hc = true; } });
       if (h.sessions && JSON.stringify(h.sessions) !== JSON.stringify(hv.sessions || [])) { hv.sessions = h.sessions; hc = true; }
+      if (h.nutr && JSON.stringify(h.nutr) !== JSON.stringify(hv.nutr || {})) { hv.nutr = h.nutr; hc = true; } // fiber, sodium, vitamins…
       if (hc) { next.health = hv; changed = true; }
       if (autoMetricHabits(next, d)) changed = true;
       if (changed) { autoProteinHabit(next, d); state.days[d] = next; save(d); }
@@ -1369,7 +1373,7 @@ body.setup .nav, body.setup .top { display: none; }
     const was = aiState;
     aiState = st;
     if (st === "available") coachWrite(false);
-    if (was !== st && view === "today") render();
+    if (was !== st && (view === "today" || view === "stats")) render();
   };
   // Gemini Nano takes one request at a time: the coach's note and exercise sorting queue up, and each answer
   // (through window.__aiResult) goes back to whoever asked.
@@ -1391,41 +1395,46 @@ body.setup .nav, body.setup .top { display: none; }
   // While Gemini Nano writes, its words appear as they come (the placeholder shows only until the first ones arrive).
   // The note inks in character by character at a steady pace, speeding up when the model gets ahead; the newest few
   // characters are still fading in. A redraw mid-note picks up where it was (typer survives renders).
-  const typer = { target: "", shown: 0, raf: 0, last: 0, done: null };
-  function typeTo(text, onDone) {
-    typer.target = text || "";
-    if (onDone) typer.done = onDone;
-    if (reduceMotion) { typer.shown = typer.target.length; paintTyped(); finishTyping(); return; }
-    if (!typer.raf) { typer.last = performance.now(); typer.raf = requestAnimationFrame(typeFrame); }
+  // Each coach card has its own (Today's note, and the note under a Stats section); paused() skips painting while minimized.
+  function makeTyper(id, paused) {
+    const ty = { target: "", shown: 0, raf: 0, last: 0, done: null };
+    const finish = () => { if (ty.done && ty.shown >= ty.target.length) { const f = ty.done; ty.done = null; f(); } };
+    const frame = (now) => {
+      const dt = Math.min(64, now - ty.last), back = ty.target.length - ty.shown;
+      ty.last = now;
+      ty.shown = Math.min(ty.target.length, ty.shown + (Math.max(55, back * 4) * dt) / 1000);
+      ty.paint();
+      if (ty.shown < ty.target.length) ty.raf = requestAnimationFrame(frame);
+      else { ty.raf = 0; finish(); }
+    };
+    ty.to = (text, onDone) => {
+      ty.target = text || "";
+      if (onDone) ty.done = onDone;
+      if (reduceMotion) { ty.shown = ty.target.length; ty.paint(); finish(); return; }
+      if (!ty.raf) { ty.last = performance.now(); ty.raf = requestAnimationFrame(frame); }
+    };
+    ty.html = () => {
+      const t = ty.target, n = Math.floor(ty.shown), cut = Math.max(0, n - 6);
+      let tail = "";
+      for (let i = cut; i < n; i++) tail += '<span style="opacity:' + (1 - (i - cut + 1) / 8).toFixed(2) + '">' + esc(t[i]) + "</span>";
+      return '<p class="coach-text">' + coachRich(t.slice(0, cut)) + tail + "</p>";
+    };
+    ty.paint = () => {
+      if (paused()) return; // minimized mid-note: it carries on writing out of sight
+      const el = document.getElementById(id);
+      if (el && ty.target) el.innerHTML = ty.html();
+    };
+    ty.reset = () => { cancelAnimationFrame(ty.raf); ty.target = ""; ty.shown = 0; ty.raf = 0; ty.done = null; };
+    return ty;
   }
-  function typeFrame(now) {
-    const dt = Math.min(64, now - typer.last), back = typer.target.length - typer.shown;
-    typer.last = now;
-    typer.shown = Math.min(typer.target.length, typer.shown + (Math.max(55, back * 4) * dt) / 1000);
-    paintTyped();
-    if (typer.shown < typer.target.length) typer.raf = requestAnimationFrame(typeFrame);
-    else { typer.raf = 0; finishTyping(); }
-  }
-  function finishTyping() { if (typer.done && typer.shown >= typer.target.length) { const f = typer.done; typer.done = null; f(); } }
-  const typedHTML = () => {
-    const t = typer.target, n = Math.floor(typer.shown), cut = Math.max(0, n - 6);
-    let tail = "";
-    for (let i = cut; i < n; i++) tail += '<span style="opacity:' + (1 - (i - cut + 1) / 8).toFixed(2) + '">' + esc(t[i]) + "</span>";
-    return '<p class="coach-text">' + coachRich(t.slice(0, cut)) + tail + "</p>";
-  };
-  function paintTyped() {
-    if (coachMode() === "min") return; // minimized mid-note: it carries on writing out of sight
-    const el = document.getElementById("coach-body");
-    if (el && typer.target) el.innerHTML = typedHTML();
-  }
-  function typerReset() { cancelAnimationFrame(typer.raf); typer.target = ""; typer.shown = 0; typer.raf = 0; typer.done = null; }
-  function coachStream(text) { const t = coachClean(text); if (t) { stopCaptions(); typeTo(t); } }
+  const typer = makeTyper("coach-body", () => coachMode() === "min");
+  function coachStream(text) { const t = coachClean(text); if (t) typer.to(t); }
   function coachDone(res) {
     const ok = res && res.ok, text = ok ? coachClean(res.text) : "";
     if (ok) { try { localStorage.setItem(COACH_KEY, JSON.stringify({ date: todayISO(), at: Date.now(), facts: coachFacts, text })); } catch (e) { /* ignore */ } }
     coachErr = !ok; coachFirst = false;
-    const end = () => { coachBusy = false; coachTask = ""; stopCaptions(); typerReset(); if (view === "today") render(); };
-    if (ok && typer.target) typeTo(text, end); else end(); // let the typing finish before the card settles
+    const end = () => { coachBusy = false; coachTask = ""; stopCaptions(); typer.reset(); if (view === "today") render(); };
+    if (ok && typer.target) typer.to(text, end); else end(); // let the typing finish before the card settles
   }
 
   // ---------- the coach's first hello ----------
@@ -1449,31 +1458,43 @@ body.setup .nav, body.setup .top { display: none; }
       "Introduce yourself in 2 or 3 short sentences, talking to them as \"you\", in a way that's " + vibe + ". Make it your own; don't open with a stock line like \"Hi, I'm your AI coach\". " +
       "Mention that you run entirely on their phone's own processor, so their numbers never leave the phone. End by asking if they're ready to get started. " +
       "Under 55 words. No lists, no markdown, no emoji, and never use em dashes.";
-    startCaptions("intro");
+    startCaptions();
     aiAsk(prompt, (res) => {
       const text = res && res.ok ? coachClean(res.text) : INTRO_FALLBACK;
       setIntro({ text, at: Date.now(), started: false });
-      typeTo(text, () => { coachBusy = false; coachTask = ""; stopCaptions(); typerReset(); if (view === "today") render(); });
+      typer.to(text, () => { coachBusy = false; coachTask = ""; stopCaptions(); typer.reset(); if (view === "today") render(); });
     }, coachStream);
     if (view === "today") render();
   }
 
   // While it writes: a small barbell being loaded, plate by plate, with a line about what it's reading.
-  const CAPTIONS = { intro: ["Warming up", "Getting to know you"], note: ["Reading your week", "Checking calories and protein", "Looking at your lifts", "Lining up your goals", "Putting it into words"] };
-  let capT = 0, capI = 0, capKind = "note";
-  function startCaptions(kind) {
-    capKind = kind; capI = 0; clearInterval(capT);
+  const CAPTIONS = {
+    intro: ["Warming up", "Getting to know you"], note: ["Reading your week", "Checking calories and protein", "Looking at your lifts", "Lining up your goals", "Putting it into words"],
+    strength: ["Looking at your lifts", "Comparing your sessions", "Putting it into words"], body: ["Reading your weigh-ins", "Checking the trend", "Putting it into words"],
+    heart: ["Reading your heart stats", "Checking the trend", "Putting it into words"], sleep: ["Going over your nights", "Checking deep and REM", "Putting it into words"],
+    energy: ["Adding up calories in and out", "Checking your steps", "Putting it into words"], food: ["Reading your food log", "Checking fiber and sodium", "Seeing what you need more of", "Putting it into words"],
+  };
+  // One interval swaps the caption of whichever loader is on screen; it stops once neither coach is writing.
+  let capT = 0, capI = 0;
+  function startCaptions() {
+    capI = 0;
+    if (capT) return;
     capT = setInterval(() => {
-      const el = document.querySelector(".load-cap");
-      if (!el) return;
-      el.classList.add("out");
-      setTimeout(() => { capI = (capI + 1) % CAPTIONS[capKind].length; el.textContent = CAPTIONS[capKind][capI]; el.classList.remove("out"); }, 180);
+      if (!coachBusy && !scoach.busy) { stopCaptions(); return; }
+      const els = document.querySelectorAll(".load-cap");
+      if (!els.length) return;
+      capI++;
+      els.forEach((el) => {
+        const list = CAPTIONS[el.dataset.kind] || CAPTIONS.note;
+        el.classList.add("out");
+        setTimeout(() => { el.textContent = list[capI % list.length]; el.classList.remove("out"); }, 180);
+      });
     }, 1200);
   }
-  function stopCaptions() { clearInterval(capT); capT = 0; }
-  const coachLoader = () => '<div class="coach-load" role="status" aria-label="' + (capKind === "intro" ? "Your coach is getting ready" : "Writing your note") + '"><span class="bb" aria-hidden="true"><b class="bb-shaft"></b>' +
+  function stopCaptions() { if (coachBusy || scoach.busy) return; clearInterval(capT); capT = 0; }
+  const coachLoader = (kind) => '<div class="coach-load" role="status" aria-label="' + (kind === "intro" ? "Your coach is getting ready" : "Writing your note") + '"><span class="bb" aria-hidden="true"><b class="bb-shaft"></b>' +
     [0, 1, 2].map((k) => '<i class="l" style="--k:' + k + '"></i><i class="r" style="--k:' + k + '"></i>').join("") +
-    '</span><span class="load-cap">' + CAPTIONS[capKind][capI % CAPTIONS[capKind].length] + "</span></div>";
+    '</span><span class="load-cap" data-kind="' + kind + '">' + CAPTIONS[kind][capI % CAPTIONS[kind].length] + "</span></div>";
   const avgOf = (xs) => (xs.length ? xs.reduce((a, v) => a + v, 0) / xs.length : null);
   const coachMode = () => (S().coach === "min" || S().coach === "off" ? S().coach : "on");
   // The numbers behind the note. The app does the analysis (trends, patterns, what to focus on); the model
@@ -1659,7 +1680,7 @@ body.setup .nav, body.setup .top { display: none; }
       "Write them a short note: 2 to 4 sentences, under " + (coachFirst ? 95 : 80) + " words, talking to them as \"you\". You decide what's most worth saying today; the app's picks are only suggestions. " +
       "Make them feel good about how far they've come and keen for what's next. A little personality and energy is welcome. " +
       "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice, and never use em dashes.";
-    coachTask = "note"; typerReset(); startCaptions("note");
+    coachTask = "note"; typer.reset(); startCaptions();
     aiAsk(prompt, coachDone, coachStream);
     if (view === "today") render(); // shows the loader until the first words arrive
   }
@@ -1673,13 +1694,13 @@ body.setup .nav, body.setup .top { display: none; }
     let body, shown;
     if (aiState === "downloadable") { shown = "setup"; body = min ? "" : '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>'; }
     else if (aiState === "downloading") { shown = "downloading"; body = min ? "" : '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>'; }
-    else if (coachBusy) { shown = typer.target ? "typing" : "loading"; body = min ? "" : typer.target ? typedHTML() : coachLoader(); }
+    else if (coachBusy) { shown = typer.target ? "typing" : "loading"; body = min ? "" : typer.target ? typer.html() : coachLoader(coachTask === "intro" ? "intro" : "note"); }
     else if (hello && intro && intro.text) {
       shown = "hello";
       body = min ? '<button class="coach-mini" data-action="coach-mode" data-v="on" aria-label="Show the coach">' + esc(intro.text) + "</button>"
         : '<p class="coach-text">' + esc(intro.text) + '</p><div class="coach-actions"><button class="btn go" data-action="coach-start">I\'m ready</button></div>';
     }
-    else if (hello) { shown = "loading"; body = min ? "" : coachLoader(); }
+    else if (hello) { shown = "loading"; body = min ? "" : coachLoader("intro"); }
     else if (min) { shown = "mini"; body = saved ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : ""; }
     else { shown = "note"; body = (saved ? '<p class="coach-text tap' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="min" role="button" aria-label="Minimize the coach">' + coachRich(saved.text) + "</p>" : "") + (coachErr ? '<p class="coach-status">Couldn\'t write a note just now.</p>' : ""); }
     const enter = shown !== coachShown && coachShown !== "" && shown !== "typing" && coachShown !== "typing";
@@ -2414,7 +2435,45 @@ body.setup .nav, body.setup .top { display: none; }
   const burnFoot = () => (burnEstimated ? " Burned is your whole day: resting burn" + (bmrKnown && !bmrGuess ? "" : " (estimated from your weight)") + " + workouts + walking." : "") +
     (burnCut ? " Watches overestimate workouts, so their calories count 20% lower for cardio and 35% lower for lifting." : "");
   let bmrGuess = false;
-  const STAT_TABS = [["strength", "Strength"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"]];
+  const STAT_TABS = [["strength", "Strength"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"], ["food", "Food"]];
+  // Food: the rest of the label from Samsung Health's food entries (day.health.nutr), each in its usual unit.
+  // Goals are adult recommended amounts (US National Academies; the higher one where men and women differ, except iron:
+  // 8 mg for men, 18 mg for women under 51). Fiber scales with the calorie goal (14 g per 1,000 kcal). "max" ones are
+  // limits, better under the line: sodium, saturated fat (10% of the calorie goal) and caffeine. The rest have no goal.
+  const NUTRIENTS = [
+    ["fiber", "Fiber", "g", { min: (date) => Math.max(25, Math.round(TG(date).calorieGoal * 0.014)) }],
+    ["sodium", "Sodium", "mg", { max: () => 2300 }],
+    ["potassium", "Potassium", "mg", { min: () => 3400 }],
+    ["satFat", "Saturated fat", "g", { max: (date) => Math.round((TG(date).calorieGoal * 0.1) / 9) }],
+    ["sugar", "Sugar", "g", {}],
+    ["carbs", "Carbs", "g", {}],
+    ["fat", "Fat", "g", {}],
+    ["transFat", "Trans fat", "g", {}],
+    ["cholesterol", "Cholesterol", "mg", {}],
+    ["calcium", "Calcium", "mg", { min: () => 1000 }],
+    ["iron", "Iron", "mg", { min: () => 8 }],
+    ["magnesium", "Magnesium", "mg", { min: () => 420 }],
+    ["zinc", "Zinc", "mg", { min: () => 11 }],
+    ["vitA", "Vitamin A", "µg", { min: () => 900 }],
+    ["vitC", "Vitamin C", "mg", { min: () => 90 }],
+    ["vitD", "Vitamin D", "µg", { min: () => 15 }],
+    ["vitE", "Vitamin E", "mg", { min: () => 15 }],
+    ["vitK", "Vitamin K", "µg", { min: () => 120 }],
+    ["vitB6", "Vitamin B6", "mg", { min: () => 1.3 }],
+    ["vitB12", "Vitamin B12", "µg", { min: () => 2.4 }],
+    ["folate", "Folate", "µg", { min: () => 400 }],
+    ["caffeine", "Caffeine", "mg", { max: () => 400 }],
+  ];
+  const nutrOf = (d) => hOf(d).nutr || {};
+  const nfmt = (v) => (v < 10 ? fmtW(v) : fmt(v));
+  const niceStep = (x) => { const p = 10 ** Math.floor(Math.log10(Math.max(x, 1e-6))); return [1, 2, 2.5, 5, 10].map((k) => k * p).find((v) => v >= x); };
+  const NUTR_FOOT = " Today is still filling, so the 7-day average leaves it out. Goals are adult recommended amounts (iron: 8 mg for men, 18 mg for women under 51).";
+  const nutrStat = ([key, name, unit, g]) => ({
+    k: "n-" + key, cat: "food", name, kind: "bar", nutr: key, unit, val: (d) => nutrOf(d)[key], show: (v) => nfmt(v) + " " + unit, past: true, near: 0.03,
+    goal: g.min || g.max, limit: !!g.max, foot: () => NUTR_FOOT,
+    step: (vals, goal) => niceStep((goal || Math.max(0, ...vals.filter((v) => v != null))) / 2 || 1),
+    axis: (v) => (v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + "k" : String(+v.toFixed(2))),
+  });
   const STATS = [
     { k: "weight", cat: "body", name: "Body weight", kind: "line", val: (d) => d.weight, unit: () => " " + S().unit, dec: 1, better: () => (calAim() === "build" ? 1 : -1) },
     { k: "bodyFat", cat: "body", name: "Body fat", kind: "line", val: (d) => hOf(d).bodyFat, unit: () => "%", dec: 1, better: () => -1 },
@@ -2436,7 +2495,7 @@ body.setup .nav, body.setup .top { display: none; }
       better: () => (calAim() === "build" ? 1 : -1), foot: burnFoot },
     { k: "steps", cat: "energy", name: "Steps", kind: "bar", val: (d) => hOf(d).steps, show: (v) => fmt(v), step: 2000, goal: (date) => TG(date).stepsTarget },
     { k: "active", cat: "energy", name: "Workout minutes", kind: "bar", val: workoutMin, show: (v) => fmt(v) + " min", step: 30, total: true },
-  ];
+  ].concat(NUTRIENTS.map(nutrStat));
   let statTab = "strength";
   const statSel = {}; // section -> open tile key ("" = closed); unset = the first tile
   const lastDates = (n) => { const t = todayISO(), out = []; for (let i = n - 1; i >= 0; i--) out.push(addDays(t, -i)); return out; };
@@ -2451,14 +2510,15 @@ body.setup .nav, body.setup .top { display: none; }
       const mx = avgOf(pts.map((x) => x.n)), my = avgOf(pts.map((x) => x.v)), den = pts.reduce((a, x) => a + (x.n - mx) ** 2, 0);
       const slope = den ? pts.reduce((a, x) => a + (x.n - mx) * (x.v - my), 0) / den : 0, drift = slope * (last.n - pts[0].n);
       const flat = Math.abs(drift) < Math.max(1e-9, Math.abs(my) * 0.002); // a flat trend is neutral, never red
-      return { m, pts, last, ch, good: flat || drift * m.better() >= 0, flat, note: m.note ? m.note(state.days[ds[ds.length - 1]]) : "" };
+      return { m, pts, last, ch, drift, good: flat || drift * m.better() >= 0, flat, note: m.note ? m.note(state.days[ds[ds.length - 1]]) : "" };
     }
     const dates = challengeDates(), vals = dates.map((d) => { const v = m.val(peekDay(d), d); return v == null || (!m.signed && !(v > 0)) ? null : +v; });
-    const week = vals.slice(-7).filter((v) => v != null);
+    // Food stats leave today out of the average while the day's still going
+    const week = (m.past && dates[dates.length - 1] === todayISO() ? vals.slice(-8, -1) : vals.slice(-7)).filter((v) => v != null);
     if (!vals.some((v) => v != null)) return null;
     const avg = week.length ? week.reduce((a, v) => a + v, 0) / (m.total ? 1 : week.length) : null; // "total" stats add up the week
-    const goal = m.goal ? m.goal() : null;
-    const ok = avg == null ? null : m.cal ? calStatus(avg).state === "met" : m.signed ? avg * m.better() >= 0 : goal ? avg >= goal : null;
+    const goal = m.goal ? m.goal() : null, near = 1 + (m.near || 0);
+    const ok = avg == null ? null : m.cal ? calStatus(avg).state === "met" : m.signed ? avg * m.better() >= 0 : goal ? (m.limit ? avg <= goal * near : avg * near >= goal) : null;
     return { m, dates, vals, avg, goal, ok };
   }
   function statTile(b, open) {
@@ -2471,7 +2531,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (b.note) sub = b.note + " · " + sub;
     } else {
       big = b.avg == null ? "–" : esc(m.show(b.avg));
-      sub = (m.total ? "last 7 days" : "7-day average") + (b.goal ? " · goal " + m.show(b.goal) : m.cal ? " · " + calGoalText() : "");
+      sub = (m.total ? "last 7 days" : "7-day average") + (b.goal ? (m.limit ? " · under " : " · goal ") + m.show(b.goal) : m.cal ? " · " + calGoalText() : "");
       tone = b.ok == null ? "" : b.ok ? "up" : "down";
     }
     return '<button class="body-tile' + cls + '" data-action="stat-sel" data-k="' + m.k + '" aria-expanded="' + open + '"><span class="body-name">' + m.name + '</span><b class="num">' + big + '</b><span class="num ' + tone + '">' + sub + "</span></button>";
@@ -2487,12 +2547,14 @@ body.setup .nav, body.setup .top { display: none; }
   function barChart(m, b) {
     const W = 340, H = 150, L = 40, R = 6, T = 10, B = 22, pw = W - L - R, ph = H - T - B;
     const vals = b.vals, goal = b.goal || (m.cal ? (calAim() === "lose" ? calRange()[1] : S().calorieGoal) : null);
-    let lo = Math.min(0, ...vals.filter((v) => v != null)), hi = Math.max(goal ? goal * 1.15 : 0, ...vals.filter((v) => v != null), m.step);
-    lo = Math.floor(lo / m.step) * m.step; hi = Math.ceil(hi / m.step) * m.step;
+    const step = typeof m.step === "function" ? m.step(vals, goal) : m.step, near = 1 + (m.near || 0);
+    const meets = (v, g) => (m.limit ? v <= g * near : v * near >= g);
+    let lo = Math.min(0, ...vals.filter((v) => v != null)), hi = Math.max(goal ? goal * 1.15 : 0, ...vals.filter((v) => v != null), step);
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
     const y = (v) => T + ph * (1 - (v - lo) / (hi - lo)), slot = pw / vals.length, bw = slot * 0.62;
     const axis = m.axis || ((v) => (Math.abs(v) >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + "k" : String(v)));
     let s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(m.name) + ' from day 1">';
-    const ticks = [...new Set([lo, Math.round((lo + hi) / 2 / m.step) * m.step, hi, lo < 0 ? 0 : lo])];
+    const ticks = [...new Set([lo, Math.round((lo + hi) / 2 / step) * step, hi, lo < 0 ? 0 : lo])];
     ticks.forEach((v) => { s += '<line class="gridl' + (v === 0 && lo < 0 ? " zero" : "") + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + axis(v) + "</text>"; });
     if (m.cal && calAim() === "lose") {
       const [rlo, rhi] = calRange();
@@ -2501,8 +2563,8 @@ body.setup .nav, body.setup .top { display: none; }
     vals.forEach((v, i) => {
       const x = L + slot * i + (slot - bw) / 2;
       if (v != null) {
-        const dg = m.goal ? m.goal(b.dates[i]) : goal; // each day against the goal it had then
-        const st = m.cal ? calStatus(v, b.dates[i]).state : m.signed ? (v * m.better() >= 0 ? "met" : "over") : dg ? (v >= dg ? "met" : "") : "";
+        const dg = m.past && b.dates[i] === todayISO() ? null : m.goal ? m.goal(b.dates[i]) : goal; // each day against the goal it had then (food: today's still filling)
+        const st = m.cal ? calStatus(v, b.dates[i]).state : m.signed ? (v * m.better() >= 0 ? "met" : "over") : dg ? (meets(v, dg) ? "met" : m.limit ? "over" : "") : "";
         const top = y(Math.max(v, 0)), bot = y(Math.min(v, 0));
         s += '<rect class="b' + (st === "met" ? " met" : st === "over" ? " over" : "") + '" x="' + x.toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1, bot - top).toFixed(1) + '" rx="2"><title>Day ' + dayNum(b.dates[i]) + ": " + esc(m.show(v)) + "</title></rect>";
       }
@@ -2511,9 +2573,10 @@ body.setup .nav, body.setup .top { display: none; }
     });
     s += "</svg>";
     const logged = vals.filter((v) => v != null);
-    const hit = goal || m.cal || m.signed ? b.dates.filter((d, i) => vals[i] != null && (m.cal ? calStatus(vals[i], d).state === "met" : m.signed ? vals[i] * m.better() >= 0 : vals[i] >= (m.goal ? m.goal(d) : goal))).length : null;
+    const hit = goal || m.cal || m.signed ? b.dates.filter((d, i) => vals[i] != null && !(m.past && d === todayISO()) && (m.cal ? calStatus(vals[i], d).state === "met" : m.signed ? vals[i] * m.better() >= 0 : meets(vals[i], m.goal ? m.goal(d) : goal))).length : null;
+    const counted = m.past ? b.dates.filter((d, i) => vals[i] != null && d !== todayISO()).length : logged.length;
     return s + '<p class="hint num">Average ' + esc(m.show(logged.reduce((a, v) => a + v, 0) / logged.length)) +
-      (hit != null ? " · " + (m.cal && calAim() === "lose" ? "in range" : m.signed ? (calAim() === "build" ? "a surplus" : "a deficit") : "goal met") + " on " + hit + " of " + logged.length + " days" : "") + ". Numbers under the bars are challenge days." + (m.foot ? m.foot() : "") + "</p>";
+      (hit != null ? " · " + (m.cal && calAim() === "lose" ? "in range" : m.signed ? (calAim() === "build" ? "a surplus" : "a deficit") : m.limit ? "under the limit" : "goal met") + " on " + hit + " of " + counted + " days" : "") + ". Numbers under the bars are challenge days." + (m.foot ? m.foot() : "") + "</p>";
   }
   const WATCH_STATS = ["body fat", "resting heart rate", "heart rate variability", "VO2 max", "heart rate", "blood oxygen", "BMR", "older history"];
   function renderStats() {
@@ -2526,13 +2589,179 @@ body.setup .nav, body.setup .top { display: none; }
     const tabs = STAT_TABS.filter(([k]) => k === "strength" || data[k]);
     if (!tabs.some(([k]) => k === statTab)) statTab = "strength";
     const chips = '<div class="stat-tabs" role="tablist">' + tabs.map(([k, name]) => '<button role="tab" data-action="stat-tab" data-k="' + k + '" aria-selected="' + (statTab === k) + '">' + name + "</button>").join("") + "</div>";
-    if (statTab === "strength") return offer + chips + strengthStats();
+    if (statTab === "strength") { const html = strengthStats(); return offer + chips + html + scoachHTML("strength", null); }
     const list = data[statTab];
     if (statSel[statTab] === undefined) statSel[statTab] = list[0].m.k;
-    const sel = list.find((b) => b.m.k === statSel[statTab]);
+    const si = list.findIndex((b) => b.m.k === statSel[statTab]), rowEnd = si < 0 ? -1 : Math.min(list.length - 1, si | 1); // the open chart goes under its row of two
+    const grid = list.map((b, i) => statTile(b, i === si) + (i === rowEnd ? statDetail(list[si]) : "")).join("");
     const extra = statTab === "heart" && !list.some((b) => b.m.k === "hrv") ? '<p class="hint">Samsung Health keeps HRV and stress to itself; it doesn\'t share them with other apps.</p>' : "";
-    return offer + chips + '<section class="panel" aria-label="' + STAT_TABS.find(([k]) => k === statTab)[1] + '">' +
-      '<div class="body-grid">' + list.map((b) => statTile(b, b === sel)).join("") + "</div>" + (sel ? statDetail(sel) : "") + extra + "</section>";
+    const split = statTab === "food" ? macroSplit() : null;
+    const head = split ? '<p class="hint num food-split">Calories from protein <b>' + split.p + "%</b> · carbs <b>" + split.c + "%</b> · fat <b>" + split.f + "%</b>, last 7 days</p>" : "";
+    const html = offer + chips + '<section class="panel" aria-label="' + STAT_TABS.find(([k]) => k === statTab)[1] + '">' + head +
+      '<div class="body-grid">' + grid + "</div>" + extra + "</section>";
+    return html + scoachHTML(statTab, list);
+  }
+  // Where the week's calories came from (the 7 days before today with protein, carbs and fat all logged).
+  function macroSplit() {
+    const t = todayISO(), ds = [];
+    for (let i = 7; i >= 1; i--) { const d = peekDay(addDays(t, -i)), n = nutrOf(d); if (d.protein > 0 && n.carbs != null && n.fat != null) ds.push([d.protein * 4, n.carbs * 4, n.fat * 9]); }
+    if (!ds.length) return null;
+    const sum = ds.reduce((a, x) => [a[0] + x[0], a[1] + x[1], a[2] + x[2]], [0, 0, 0]), all = sum[0] + sum[1] + sum[2];
+    if (!(all > 0)) return null;
+    const p = Math.round((sum[0] / all) * 100), f = Math.round((sum[2] / all) * 100);
+    return { p, c: 100 - p - f, f, days: ds.length };
+  }
+
+  // ---------- the coach under each Stats section ----------
+  // Under the charts of every section, a short note about just that section, written by the same on-phone coach.
+  // The app works out the section's facts (trends, goals, what's on target and what needs more); the model words them.
+  // Notes are kept per section (localStorage, not in backups) and rewritten on a new day, or when the numbers have
+  // changed and the note is over 2 hours old, but only for the section you're looking at.
+  const SCOACH_KEY = "hundred-days-hard.coachStats";
+  const scoachAll = () => { try { return JSON.parse(localStorage.getItem(SCOACH_KEY) || "{}") || {}; } catch (e) { return {}; } };
+  const scoach = { busy: "", next: "", err: "", shown: "" }; // section being written, one waiting, one whose last try failed, what the card showed
+  const styper = makeTyper("scoach-body", () => coachMode() === "min");
+  const SECTION_NAME = { strength: "strength", body: "body", heart: "heart", sleep: "sleep", energy: "energy (calories in and out, steps, workouts)", food: "food (the nutrients in what they ate)" };
+  const scoachOn = () => bridge && bridge.aiStatus && aiState === "available" && coachMode() !== "off" && S().setupDone && introStarted();
+
+  const lowName = (n) => (/^(Vitamin|VO2)/.test(n) ? n : n.toLowerCase()); // "fiber", but "Vitamin C"
+  // One plain line per stat in the section, plus the app's picks.
+  function statFact(b, sec, wins, fixes) {
+    const m = b.m, t = todayISO();
+    if (m.kind === "line") {
+      const u = m.unit(), l = b.last, p0 = b.pts[0], f = (v) => v.toFixed(m.dec) + u;
+      if (b.pts.length < 2) return m.name + ": one reading so far, " + f(l.v) + " on day " + l.n + ".";
+      const two = b.pts.filter((x) => x.n >= l.n - 14), aim = m.k === "weight" || m.k === "bmr" ? "for their aim" : "for health";
+      const dir = b.flat ? "about flat" : (b.drift > 0 ? "rising" : "falling") + (b.good ? ", the good direction " + aim : ", not the direction that's good " + aim);
+      if (!b.flat) (b.good ? wins : fixes).push([b.good ? 0.6 : 0.4, lowName(m.name) + " " + (b.drift > 0 ? "rising" : "falling") + ", " + signed(b.ch, m.dec, u) + " since day " + p0.n]);
+      return m.name + (b.note ? " (" + b.note + ")" : "") + ": latest " + f(l.v) + " on day " + l.n + ", first " + f(p0.v) + " on day " + p0.n + ", so " + signed(b.ch, m.dec, u) + " since then (" + b.pts.length + " readings). " +
+        "Overall trend: " + dir + "." + (two.length > 1 && two[0].n < l.n ? " Last 2 weeks: " + signed(l.v - two[0].v, m.dec, u) + "." : "");
+    }
+    const idx = b.dates.indexOf(t), endI = m.past && idx === b.dates.length - 1 ? idx : b.dates.length, vals = b.vals;
+    const wk = vals.slice(Math.max(0, endI - 7), endI).filter((v) => v != null), pw = vals.slice(Math.max(0, endI - 14), Math.max(0, endI - 7)).filter((v) => v != null);
+    if (!wk.length) return m.name + ": nothing logged in the last 7 days.";
+    const avg = m.total ? wk.reduce((a, v) => a + v, 0) : avgOf(wk), prev = pw.length ? (m.total ? pw.reduce((a, v) => a + v, 0) : avgOf(pw)) : null;
+    let line = m.name + ", last 7 days" + (m.past ? " before today" : "") + ": " + (m.total ? "total " : "average ") + m.show(avg) + " (logged on " + wk.length + " days)" + (prev != null ? ", the week before " + m.show(prev) : "") + ".";
+    const g = m.goal ? m.goal(t) : null, name = lowName(m.name);
+    if (g && !m.cal) {
+      const near = 1 + (m.near || 0.03), pc = Math.floor((avg / g) * 100) + "%";
+      if (m.limit) {
+        const ok = avg <= g * near, over = wk.filter((v) => v > g * near).length;
+        line += " Limit: stay under " + m.show(g) + ". " + (ok ? "Under it, which is on target" : "Over it by " + m.show(avg - g) + " (" + pc + " of the limit)") + "; over on " + over + " of " + wk.length + " days.";
+        (ok ? wins : fixes).push([ok ? 0.5 : Math.min(1, avg / g - 1 + 0.4), ok ? name + " under the " + m.show(g) + " limit, averaging " + m.show(avg) : name + " averaging " + m.show(avg) + ", over the " + m.show(g) + " limit"]);
+      } else {
+        const ok = avg * near >= g, hit = wk.filter((v) => v * near >= g).length;
+        line += " Goal: " + m.show(g) + " a day. " + (ok ? "Reaching it (" + pc + "), which is on target" : "About " + pc + " of it, " + m.show(g - avg) + " short") + "; reached on " + hit + " of " + wk.length + " days.";
+        (ok ? wins : fixes).push([ok ? 0.45 + Math.min(0.3, (avg / g - 1) * 0.5) : Math.min(1, 1 - avg / g) + 0.2, ok ? name + " on target, averaging " + m.show(avg) + " against " + m.show(g) : name + " averaging " + m.show(avg) + ", about " + pc + " of the " + m.show(g) + " goal"]);
+      }
+    }
+    if (m.signed && m.better) {
+      const good = avg * m.better() >= 0;
+      line += " That's " + (avg < 0 ? "a deficit" : "a surplus") + " of about " + fmt(Math.abs(avg)) + " a day, " + (good ? "which fits their aim" : "the opposite of their aim") + ".";
+    }
+    if (m.k === "deep" || m.k === "rem") {
+      const tot = b.dates.slice(Math.max(0, endI - 7), endI).map((d) => hOf(peekDay(d)).sleepMin).filter((v) => v > 0);
+      if (tot.length) {
+        const share = Math.round((avg / avgOf(tot)) * 100), [lo, hi] = m.k === "deep" ? [13, 23] : [20, 25], ok = share >= lo - 1;
+        line += " That's " + share + "% of their sleep (a typical healthy share is " + lo + " to " + hi + "%).";
+        (ok ? wins : fixes).push([ok ? 0.45 : 0.4, name + " at " + share + "% of their sleep (typical " + lo + " to " + hi + "%)"]);
+      }
+    }
+    if (m.foot && m.k === "burned" && burnEstimated) line += " (Worked out from resting burn plus workouts and walking, with workout calories cut since watches overestimate them.)";
+    return line;
+  }
+  // The section's facts: the Today coach's own lines that belong here, then one line per stat, then the picks.
+  function sectionFacts(sec, list) {
+    const t = todayISO(), out = ["Challenge: day " + dayNum(t) + " of " + TOTAL() + ". Their aim: " + (calAim() === "build" ? "build muscle" : "lose fat") + "."];
+    const wins = [], fixes = [];
+    const keep = { strength: ["Training,", "Strength (", "Biggest gains", "New bests", "Not moving lately"], body: ["Body weight:", "Weight trend", "Pace goal", "Pace check", "Plateau"],
+      heart: [], sleep: ["Sleep,"], energy: ["Calories,", "Protein,", "Today so far", "Steps,", "Plateau"], food: ["Calories,", "Protein,"] }[sec] || [];
+    const was = [burnEstimated, burnCut];
+    buildFacts().split("\n").filter((l) => keep.some((k) => l.startsWith(k))).forEach((l) => out.push(l));
+    [burnEstimated, burnCut] = was; // the footnotes under the charts still say how burned was worked out
+    if (sec === "strength") {
+      const sr = strengthTrend(), sd = strengthData().filter((m) => m.pts.length >= 2);
+      const per = TYPES.filter((x) => sr[x.id].length > 1).map((x) => x.name + " " + signed(sr[x.id][sr[x.id].length - 1].v, 1, "%"));
+      if (per.length) out.push("Strength by day type since their first session of each: " + per.join(", ") + ".");
+      const best = sd.map((m) => ({ m, g: m.pts[0].score > 0 ? (m.pts[m.pts.length - 1].score / m.pts[0].score - 1) * 100 : 0 })).sort((a, b) => b.g - a.g);
+      if (best.length && best[0].g > 0.5) wins.push([0.8, best[0].m.name + " up " + signed(best[0].g, 0, "%") + " since they started"]);
+      const n = savedSessions().filter((d) => d >= addDays(t, -6)).length;
+      if (n >= 3) wins.push([0.7, n + " lifting sessions this week"]);
+      const stalled = sd.filter((m) => m.pts.length >= 3 && m.pts[m.pts.length - 1].score <= m.pts[m.pts.length - 3].score)[0];
+      if (stalled) fixes.push([0.5, stalled.name + " hasn't gone up over its last 3 sessions; a small jump (one plate step or one more rep) or a fresh variation can restart it"]);
+    } else {
+      const skip = { sleep: 1, kcal: 1, protein: 1, steps: 1 }; // the Today coach's lines already cover these
+      list.forEach((b) => { if (!(skip[b.m.k] || (b.m.k === "weight" && b.pts.length > 1))) out.push(statFact(b, sec, wins, fixes)); });
+    }
+    if (sec === "food") {
+      const st = list.filter((b) => b.m.goal && b.avg != null).map((b) => { const g = b.m.goal(t), near = 1 + (b.m.near || 0); return { b, g, ok: b.m.limit ? b.avg <= g * near : b.avg * near >= g }; });
+      const good = st.filter((x) => x.ok), more = st.filter((x) => !x.ok && !x.b.m.limit), over = st.filter((x) => !x.ok && x.b.m.limit);
+      const say = (x) => lowName(x.b.m.name) + " (" + x.b.m.show(x.b.avg) + " against " + (x.b.m.limit ? "a limit of " : "") + x.b.m.show(x.g) + ")";
+      if (good.length) out.push("Doing well (on target): " + good.map(say).join(", ") + ".");
+      if (more.length) out.push("Needs more: " + more.sort((a, b) => a.b.avg / a.g - b.b.avg / b.g).map(say).join(", ") + ".");
+      if (over.length) out.push("Over the limit: " + over.map(say).join(", ") + ".");
+      const sp = macroSplit();
+      if (sp) out.push("Calories came from protein " + sp.p + "%, carbs " + sp.c + "% and fat " + sp.f + "% (over " + sp.days + " days). Typical healthy ranges: protein 10 to 35%, carbs 45 to 65%, fat 20 to 35%; more protein and fewer carbs is normal on a gym plan.");
+      out.push("Only foods logged with their full label count, so a quick calories-only entry adds nothing here.");
+    }
+    const top = (l) => l.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
+    if (wins.length) out.push("Worth celebrating (the app's pick): " + top(wins)[0] + ".");
+    if (fixes.length) out.push(sec === "food" ? "What they need more of, or less of (the app's pick): " + top(fixes).slice(0, 2).join("; and ") + "." : "One thing to work on, if they want (the app's pick): " + top(fixes)[0] + ".");
+    return out.join("\n");
+  }
+  function scoachWrite(sec, list, force) {
+    if (!scoachOn()) return;
+    if (scoach.busy) { if (scoach.busy !== sec) scoach.next = sec; return; }
+    const facts = sectionFacts(sec, list), saved = scoachAll()[sec];
+    if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
+    scoach.busy = sec; scoach.err = ""; scoach.next = "";
+    const label = STAT_TABS.find(([k]) => k === sec)[1];
+    const prompt = "You're the coach inside the user's 100-day gym challenge app: an upbeat coach who's genuinely in their corner. " +
+      "This note sits right under their " + label + " charts in the Stats tab, so talk only about their " + SECTION_NAME[sec] + ".\n" +
+      "How you coach:\n" +
+      "- Lead with what's going well, using their real numbers.\n" +
+      "- Close counts. Anything the facts call on target is a win. Never call it a miss.\n" +
+      "- Read the trend, not one day: say which way things are heading and what it means.\n" +
+      "- Be specific, and give one clear idea for what to do next, never a lecture.\n" +
+      (sec === "food" ? "- Say what they're doing well, then what they need more of (or less of, for a limit). You may name one or two everyday foods rich in what they need more of.\n" : "") +
+      "\nWhat the app worked out from their data:\n" + facts + "\n\n" +
+      "Write a short note: 2 or 3 sentences, under 70 words, talking to them as \"you\". You decide what's most worth saying; the app's picks are only suggestions. " +
+      "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice, and never use em dashes.";
+    styper.reset(); startCaptions();
+    aiAsk(prompt, (res) => {
+      const ok = res && res.ok, text = ok ? coachClean(res.text) : "";
+      if (ok && text) { const all = scoachAll(); all[sec] = { date: todayISO(), at: Date.now(), facts, text }; try { localStorage.setItem(SCOACH_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ } }
+      else scoach.err = sec;
+      const end = () => {
+        scoach.busy = ""; styper.reset();
+        if (view === "stats") render();
+        if (scoach.next) { const n = scoach.next; scoach.next = ""; if (view === "stats" && statTab === n) render(); } // the waiting section writes when it's drawn
+      };
+      if (ok && styper.target) styper.to(text, end); else end();
+    }, (t) => { const c = coachClean(t); if (c) styper.to(c); });
+    if (view === "stats") render(); // shows the loader until the first words arrive
+  }
+  function scoachHTML(sec, list) {
+    if (!scoachOn()) return "";
+    if (!scoach.busy || scoach.busy === sec) setTimeout(() => { if (view === "stats" && statTab === sec) scoachWrite(sec, list, false); }, 0); // a fresh note when this one's stale
+    const min = coachMode() === "min", saved = scoachAll()[sec], fresh = saved && saved.date === todayISO(), busy = scoach.busy === sec;
+    const when = busy ? "Writing…" : saved ? (fresh ? "Today, " + new Date(saved.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "An earlier note") : scoach.busy ? "Up next" : "";
+    let body, shown;
+    if (busy) { shown = styper.target ? "typing" : "loading"; body = min ? "" : styper.target ? styper.html() : coachLoader(sec); }
+    else if (min) { shown = "mini"; body = saved ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : ""; }
+    else if (saved) { shown = "note"; body = '<p class="coach-text tap' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="min" role="button" aria-label="Minimize the coach">' + coachRich(saved.text) + "</p>" + (scoach.err === sec ? '<p class="coach-status">Couldn\'t write a new note just now.</p>' : ""); }
+    else if (scoach.err === sec) { shown = "err"; body = '<p class="coach-status">Couldn\'t write a note just now.</p>'; }
+    else { shown = "wait"; body = min ? "" : coachLoader(sec); }
+    const key = sec + ":" + shown, enter = scoach.shown && key !== scoach.shown && scoach.shown.split(":")[0] === sec && shown !== "typing" && !scoach.shown.endsWith(":typing");
+    scoach.shown = key;
+    const label = STAT_TABS.find(([k]) => k === sec)[1];
+    const menu = '<div class="coach-menu" role="menu">' + (!scoach.busy ? '<button role="menuitem" data-action="scoach-refresh" data-k="' + sec + '">Write a new note</button>' : "") +
+      '<button role="menuitem" data-action="coach-mode" data-v="' + (min ? "on" : "min") + '">' + (min ? "Show in full" : "Minimize") + "</button>" +
+      '<button role="menuitem" class="danger" data-action="coach-mode" data-v="off">Turn off coach</button></div>';
+    return '<section class="coach-card stat-coach' + (min ? " min" : "") + (busy ? " busy" : "") + '" aria-label="Coach on your ' + label.toLowerCase() + '"><div class="coach-head">' +
+      '<span class="coach-av">' + SPARK + '</span><span class="coach-who"><b>Coach · ' + label + "</b>" + (when ? "<small>" + when + "</small>" : "") + "</span>" +
+      '<button class="coach-dots" data-action="coach-menu" aria-label="Coach options" aria-haspopup="menu" aria-expanded="false">' + DOTS + "</button></div>" + menu +
+      '<div class="coach-body' + (enter ? " enter" : "") + '" id="scoach-body" aria-live="polite">' + body + "</div></section>";
   }
 
   let strType, strSel = null; // strType null = list folded away; undefined = not chosen yet (opens on the last workout's type)
@@ -3624,6 +3853,12 @@ body.setup .nav, body.setup .top { display: none; }
       }
       case "toast-undo": { const f = toastUndo; hideToast(); if (f) f(); break; }
       case "stat-tab": statTab = el.dataset.k; render(true); break;
+      case "scoach-refresh": {
+        const c = el.closest(".coach-card"); if (c) c.classList.remove("menu-open");
+        burnSetup();
+        const list = el.dataset.k === "strength" ? null : STATS.filter((m) => m.cat === el.dataset.k).map(statData).filter(Boolean);
+        scoachWrite(el.dataset.k, list, true); render(true); break;
+      }
       case "watch-later": S().watchOffer = el.dataset.v; save("settings"); render(true); break;
       case "stat-sel": statSel[statTab] = statSel[statTab] === el.dataset.k ? "" : el.dataset.k; render(true); break;
       case "coach-refresh": coachWrite(true); render(true); break;
