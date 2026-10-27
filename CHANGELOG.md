@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.20 · Easier workout logging and a friendlier coach
+**Workouts**
+- No more Log set button. Tap the exercise you're doing and it starts at set 1, with the numbers from last time. Change whatever was different.
+- Sets start at 1 and you add them as you go. **+ Set** and **Done** are at the bottom, by your thumb. Each new set starts from what you did on that set last time, moved by any change you made, so going 5 lb heavier carries on.
+- **Done** folds the exercise up, so you can pick the next one.
+- The open exercise has a clear outline and space around it, so it's easy to see where it starts and ends.
+- Weight and reps each get a full-width row, so three digits (or 102.5) always fit. Tapping a box clears it so you just type the new number. Leave it empty and the old one comes back.
+- **Remove** deletes a set. Removing the only set means you're not doing that exercise today, with Undo.
+- Saving changes to a workout you already saved no longer asks again about keeping changes for next time.
+
+**Coach**
+- It knows how close you are. Every goal comes with how far off you are, and anything within a few percent counts as on target. 219 g against a 220 g protein goal is a win, not a miss.
+- It has values: lead with what's going well, close counts, progress over perfection, one small next step. It also gets to choose what's most worth saying, so its notes should feel more like a coach in your corner.
+- New look: a softly glowing card with a small avatar, and the numbers in bold.
+- The note appears word by word as it's written, so the "Writing…" placeholder only shows for a moment. The model also loads ahead of time when the app opens.
+- Fixed: the minimized coach could stretch the page wider than the screen.
+
 ## v0.19.2 · Each exercise in one place
 - On the Progress tab, each exercise now shows under one tab only, by its muscle group. Chest, triceps and shoulders go under Push; back, biceps, forearms and abs under Pull; legs under Legs. Push-ups stay under Push even when you do them on a pull day, and it says "also on Pull" under the name.
 - In a workout, an exercise from another day's group gets that group's heading. For example, push-ups on a pull day show under Chest instead of Back.

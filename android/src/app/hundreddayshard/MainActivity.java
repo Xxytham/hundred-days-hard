@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.genai.common.DownloadCallback;
 import com.google.mlkit.genai.common.FeatureStatus;
 import com.google.mlkit.genai.common.GenAiException;
+import com.google.mlkit.genai.common.StreamingCallback;
 import com.google.mlkit.genai.prompt.GenerateContentRequest;
 import com.google.mlkit.genai.prompt.GenerateContentResponse;
 import com.google.mlkit.genai.prompt.Generation;
@@ -345,6 +346,14 @@ public class MainActivity extends Activity {
         return model;
     }
 
+    // Loads Gemini Nano ahead of time, once, so the coach's first words come quickly.
+    private boolean warmed = false;
+    private void warmup() {
+        if (warmed) return;
+        warmed = true;
+        try { model().warmup(); } catch (Throwable ignored) { }
+    }
+
     private void aiStatusTo(String status) {
         js("window.__aiStatus && window.__aiStatus(" + JSONObject.quote(status) + ")");
     }
@@ -405,6 +414,7 @@ public class MainActivity extends Activity {
                         st = v == FeatureStatus.AVAILABLE ? "available" : v == FeatureStatus.DOWNLOADABLE ? "downloadable"
                                 : v == FeatureStatus.DOWNLOADING ? "downloading" : "unavailable";
                     } catch (Exception ignored) { }
+                    if ("available".equals(st)) warmup();
                     aiStatusTo(st);
                 }, io);
             } catch (Throwable t) { // no AICore or Play services on this phone
@@ -426,19 +436,33 @@ public class MainActivity extends Activity {
             }
         }
 
-        /** Writes a short reply to the prompt; answers through window.__aiResult({ok, text}). */
+        /** Writes a short reply to the prompt. The text so far streams to window.__aiChunk(text) as it's written;
+         *  the whole reply answers through window.__aiResult({ok, text}). */
         @JavascriptInterface
         public void aiGenerate(String prompt) {
             try {
                 GenerateContentRequest.Builder b = new GenerateContentRequest.Builder(new TextPart(prompt));
-                b.setTemperature(0.4f);
-                b.setTopK(16);
-                b.setMaxOutputTokens(256);
-                ListenableFuture<GenerateContentResponse> f = model().generateContent(b.build());
+                b.setTemperature(0.5f);
+                b.setTopK(24);
+                b.setMaxOutputTokens(220);
+                final StringBuilder sofar = new StringBuilder();
+                StreamingCallback stream = chunk -> {
+                    if (chunk == null || chunk.isEmpty()) return;
+                    String text;
+                    synchronized (sofar) {
+                        // Pieces normally arrive one after another; if one repeats everything so far, take it whole.
+                        if (sofar.length() > 0 && chunk.startsWith(sofar.toString())) sofar.setLength(0);
+                        sofar.append(chunk);
+                        text = sofar.toString();
+                    }
+                    js("window.__aiChunk && window.__aiChunk(" + JSONObject.quote(text) + ")");
+                };
+                ListenableFuture<GenerateContentResponse> f = model().generateContent(b.build(), stream);
                 f.addListener(() -> {
                     JSONObject o = new JSONObject();
                     try {
                         String text = f.get().getCandidates().get(0).getText();
+                        if (text == null || text.trim().isEmpty()) synchronized (sofar) { text = sofar.toString(); }
                         o.put("ok", text != null && !text.trim().isEmpty());
                         o.put("text", text == null ? "" : text.trim());
                     } catch (Exception e) {

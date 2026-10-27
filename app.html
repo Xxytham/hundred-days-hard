@@ -163,22 +163,15 @@ body.kb .fab-wrap { display: none; }
 .ex-ask { display: grid; gap: 10px; }
 .ex-ask p { margin: 0; display: grid; gap: 2px; }
 .ex-ask .btn-row { align-items: center; }
-.stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; }
-.stepper-label { font-size: 12px; font-weight: 600; color: var(--muted); }
 .sbtn { height: 44px; border-radius: 10px; border: 0; background: var(--sunk); font-size: 22px; font-weight: 700; line-height: 1; }
-.sval-wrap { display: flex; align-items: baseline; justify-content: center; gap: 4px; min-width: 0; }
 .sval {
   width: 100%; min-width: 0; text-align: center; border: 0; background: none; padding: 4px 0;
   font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 1;
 }
-.sval-wrap .u { font-size: 13px; color: var(--muted); font-weight: 600; }
-.sval-wrap:has(.u) .sval { width: 5ch; text-align: right; }
 .ex-sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .seg.sm button { padding: 4px 10px; font-size: 13px; }
-.sval-wrap:has(.u) .set-now { display: block; width: auto; text-align: center; }
-.sval-wrap .u { white-space: nowrap; }
-/* Workout plan: groups, one open exercise, sets logged one by one. Grey = planned, not logged yet. */
-.wg { display: grid; gap: 6px; }
+/* Workout: groups of one-line exercises; the one you're doing opens, with its sets and big steppers. Dashed = not started. */
+.wg { display: grid; gap: 8px; }
 .wg-head { display: flex; align-items: center; gap: 8px; min-height: 32px; }
 .wg-head h3, .ex-ghead { margin: 0; font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .wg-head .meta { font-size: 12px; color: var(--muted); }
@@ -196,32 +189,48 @@ body.kb .fab-wrap { display: none; }
 }
 .mk svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .mk.done { border: 0; background: var(--green); color: var(--on-color); }
-.mk.part { border-style: solid; border-color: var(--green); background: color-mix(in srgb, var(--green) 25%, transparent); }
-.ex.open { gap: 8px; }
-.ex.open .ex-head .ex-name { border: 0; background: none; padding: 4px 0; text-align: left; color: var(--ink); }
+/* The open exercise: outlined, lifted and spaced off its neighbours, so where it starts and ends is obvious */
+.ex.open {
+  gap: 10px; padding: 14px; margin: 8px 0; border-radius: 16px;
+  border: 2px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+.ex.open .ex-head { gap: 10px; }
+.ex.open .ex-head .ex-name { flex: 1; border: 0; background: none; padding: 2px 0; text-align: left; color: var(--ink); font-size: 18px; }
+.ex-close { flex: none; width: 40px; height: 36px; margin: -4px -6px -4px 0; border: 0; border-radius: 10px; background: var(--sunk); color: var(--ink); display: grid; place-items: center; }
+.ex-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .ex-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.ex-last { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
 .try {
   display: grid; gap: 2px; justify-items: start; text-align: left; padding: 8px 12px; border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--green) 45%, transparent); background: color-mix(in srgb, var(--green) 10%, transparent); color: var(--ink);
 }
 .try b { color: var(--green); font-size: 14px; }
 .try span { font-size: 12px; color: var(--muted); }
-.sets { display: grid; gap: 2px; }
-.set { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px 2px; border: 0; background: none; text-align: left; font-weight: 600; font-size: 15px; color: var(--ink); }
-.set small { font-size: 12px; color: var(--muted); font-weight: 600; }
-.set.plan { color: var(--muted); }
-.set.cur { display: grid; gap: 8px; padding: 10px; margin: 4px 0; border-radius: 12px; border: 1px solid var(--line); background: color-mix(in srgb, var(--ink) 3%, transparent); }
-.set-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.set-n { font-weight: 700; }
-.set.cur.plan:not(.touched) .sval { color: var(--muted); }
-.log-btn {
-  display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 9px 16px;
-  background: var(--green); color: var(--on-color); font-weight: 700; font-size: 14px;
+.sets { display: grid; }
+.set-row {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 2px; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; color: var(--ink); font-weight: 600; font-size: 16px;
 }
-.log-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.log-btn.on { background: none; color: var(--green); box-shadow: inset 0 0 0 1.5px var(--green); }
-.set-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; }
-.set-tools .ex-sub { margin-left: auto; }
+.sets > :first-child { border-top: 0; }
+.set-row small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.set-k { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: var(--on-color); font-size: 12px; font-weight: 800; }
+.set-edit svg { width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.set-cur { display: grid; gap: 8px; padding: 10px 0 2px; border-top: 1px solid var(--line); }
+.set-top { display: flex; align-items: center; gap: 10px; }
+.set-n { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
+.set-top .set-del { margin-left: auto; color: var(--muted); font-size: 13px; }
+.srow { display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; gap: 8px; align-items: center; }
+.srow .sbtn { height: 52px; font-size: 24px; color: var(--ink); }
+.sbox { position: relative; display: block; height: 52px; border-radius: 10px; background: var(--bg); }
+.sbox .sval { width: 100%; height: 100%; padding: 0 48px; text-align: center; font-size: 30px; border-radius: 10px; color: var(--ink); }
+.sbox .sval::placeholder { color: var(--muted); opacity: 0.6; }
+.sbox .u { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--muted); pointer-events: none; }
+.foot-row { display: grid; grid-template-columns: 1fr 1.25fr; gap: 8px; }
+.foot-row .btn { padding: 14px 12px; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.go { background: var(--green); color: var(--on-color); }
+.btn.go svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .wedit { display: grid; gap: 6px; }
 .ex-ghead { padding: 10px 2px 2px; transition: transform 160ms var(--ease); }
 .keep-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
@@ -505,14 +514,48 @@ body.setup .nav, body.setup .top { display: none; }
 .big-stat .down, .big-stat b.down { color: var(--red); }
 .body-name { font-weight: 700; }
 /* Coach note under the streak */
-.coach-card { background: linear-gradient(160deg, color-mix(in srgb, var(--green) 16%, var(--surface)), var(--surface) 70%); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent); }
-.coach-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }
+/* Coach: a card with a soft green-to-blue edge and glow, a small avatar, and the note with its numbers in bold */
+.coach-card {
+  position: relative; display: grid; gap: 10px; padding: 14px 16px 16px; border-radius: 18px; border: 1px solid transparent;
+  background:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--green) 13%, transparent), transparent 62%) padding-box,
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(135deg, color-mix(in srgb, var(--green) 75%, transparent), color-mix(in srgb, var(--blue) 50%, transparent) 50%, var(--line)) border-box;
+}
+.coach-head { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.coach-av {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--on-color);
+  background: linear-gradient(135deg, var(--green), color-mix(in srgb, var(--green) 45%, var(--blue)));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 16%, transparent);
+}
+.coach-av svg { width: 17px; height: 17px; fill: currentColor; }
+.coach-who { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
+.coach-who b { font-size: 15px; font-weight: 700; }
+.coach-who small { font-size: 12px; color: var(--muted); }
+.coach-card.busy .coach-who small { color: var(--green); }
+.coach-body { min-width: 0; } /* lets the one-line minimized note cut off with "…" instead of widening the page */
+.coach-text { margin: 0; font-size: 16px; line-height: 1.55; }
+.coach-text b { font-weight: 700; color: var(--ink); }
+.coach-text.muted, .coach-status { color: var(--muted); }
+.coach-text.muted b { color: inherit; }
+.coach-status { margin: 6px 0 0; font-size: 13px; }
+/* While the note is being written (usually a second or two): three soft lines with a light sweep */
+.coach-skel { display: grid; gap: 10px; padding: 6px 0 4px; }
+.coach-skel i { display: block; height: 12px; border-radius: 6px; position: relative; overflow: hidden; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.coach-skel i:nth-child(2) { width: 86%; }
+.coach-skel i:nth-child(3) { width: 54%; }
+.coach-skel i::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--green) 30%, transparent), transparent);
+  animation: coach-sweep 1.1s var(--ease) infinite;
+}
+@keyframes coach-sweep { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .coach-skel i::after { animation: none; } }
 .coach-card { position: relative; }
-.coach-head .coach-status { margin-right: auto; }
 .coach-dots { border: 0; background: none; width: 40px; height: 32px; margin: -4px -10px -4px 0; display: grid; place-items: center; color: var(--muted); border-radius: 8px; }
 .coach-dots svg { width: 18px; height: 18px; fill: currentColor; }
 .coach-menu {
-  position: absolute; right: 10px; top: 42px; z-index: 5; display: grid; min-width: 190px; padding: 6px; border-radius: 12px;
+  position: absolute; right: 10px; top: 46px; z-index: 5; display: grid; min-width: 190px; padding: 6px; border-radius: 12px;
   background: var(--surface); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3), inset 0 0 0 1px var(--line);
   opacity: 0; transform: translateY(-6px) scale(0.97); transform-origin: top right; visibility: hidden;
   transition: opacity 120ms ease, transform 120ms var(--ease), visibility 0s linear 120ms;
@@ -520,14 +563,12 @@ body.setup .nav, body.setup .top { display: none; }
 .coach-card.menu-open .coach-menu { opacity: 1; transform: none; visibility: visible; transition: opacity var(--t) ease, transform var(--t) var(--ease); }
 .coach-menu button { border: 0; background: none; text-align: left; padding: 11px 12px; border-radius: 8px; font-size: 15px; font-weight: 600; color: var(--ink); }
 .coach-menu button.danger { color: var(--red); }
-.coach-card.min { padding-block: 10px; gap: 4px; }
+.coach-card.min { padding-block: 10px 12px; gap: 6px; }
+.coach-card.min .coach-av { width: 24px; height: 24px; box-shadow: none; }
+.coach-card.min .coach-av svg { width: 14px; height: 14px; }
 .coach-mini { display: block; width: 100%; border: 0; background: none; padding: 0; text-align: left; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .coach-mini.muted { color: var(--muted); }
 .coach-head .linkbtn { padding: 2px 0; font-size: 13px; }
-.coach-tag { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
-.coach-text { margin: 0; font-size: 15px; line-height: 1.5; }
-.coach-text.muted, .coach-status { color: var(--muted); }
-.coach-status { margin: 0; font-size: 13px; }
 .stat-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
 .stat-tabs::-webkit-scrollbar { display: none; }
 .stat-tabs button { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; color: var(--muted); }
@@ -814,6 +855,7 @@ body.setup .nav, body.setup .top { display: none; }
     }
     delete day.exercises;
     if (day.workout && Array.isArray(day.workout.exercises)) day.workout.exercises.forEach(ensureSets);
+    if (day.workout && !day.workout.saved && Array.isArray(day.workout.exercises)) day.workout.exercises.forEach(prepDraftEx);
     return day;
   }
 
@@ -1283,18 +1325,33 @@ body.setup .nav, body.setup .top { display: none; }
   // (through window.__aiResult) goes back to whoever asked.
   const aiQueue = [];
   let aiCur = null;
-  function aiAsk(prompt, cb) { aiQueue.push({ prompt, cb }); aiNext(); }
+  function aiAsk(prompt, cb, onText) { aiQueue.push({ prompt, cb, onText }); aiNext(); }
   function aiNext() {
     if (aiCur || !aiQueue.length) return;
     aiCur = aiQueue.shift();
     try { bridge.aiGenerate(aiCur.prompt); } catch (e) { const c = aiCur; aiCur = null; c.cb({ ok: false }); aiNext(); }
   }
   window.__aiResult = function (res) { const c = aiCur; aiCur = null; if (c) c.cb(res || { ok: false }); aiNext(); };
+  window.__aiChunk = function (text) { if (aiCur && aiCur.onText) aiCur.onText(String(text || "")); }; // the reply so far, as it's written
+  // Small models sometimes add markdown or a label; keep plain sentences only.
+  const coachClean = (t) => String(t).replace(/[*#_`]+/g, "").replace(/^\s*(coach|summary|note)\s*:\s*/i, "").replace(/\s+/g, " ").trim();
+  // The note's numbers in bold, so it reads at a glance. Split first, then escape, so apostrophes stay intact.
+  const coachRich = (t) => String(t).split(/(\d+(?:[.,]\d+)*(?:\s?(?:lb|kg|kcal|calories|reps|sets|days|nights|steps|bpm|min|h|g|%)(?![a-z]))?)/i)
+    .map((x, i) => (i % 2 ? "<b>" + esc(x) + "</b>" : esc(x))).join("");
+  // While Gemini Nano writes, its words appear as they come (the placeholder shows only until the first ones arrive).
+  let coachLiveText = ""; // the words so far, so a redraw mid-note keeps them
+  function coachStream(text) {
+    const el = document.getElementById("coach-body"), t = coachClean(text);
+    coachLiveText = t;
+    if (!el || !t) return;
+    el.innerHTML = '<p class="coach-text">' + coachRich(t) + "</p>";
+    const card = el.closest(".coach-card");
+    if (card) card.classList.add("live");
+  }
   function coachDone(res) {
-    coachBusy = false;
+    coachBusy = false; coachLiveText = "";
     if (res && res.ok) {
-      // Small models sometimes add markdown or a label; keep plain sentences only.
-      const text = String(res.text).replace(/[*#_`]+/g, "").replace(/^\s*(coach|summary)\s*:\s*/i, "").replace(/\s+/g, " ").trim();
+      const text = coachClean(res.text);
       try { localStorage.setItem(COACH_KEY, JSON.stringify({ date: todayISO(), at: Date.now(), facts: coachFacts, text })); } catch (e) { /* ignore */ }
       coachErr = false;
     } else coachErr = true;
@@ -1323,51 +1380,54 @@ body.setup .nav, body.setup .top { display: none; }
       const perfect = week.filter(fullOn).length, todo = tasksFor(t).filter((h) => !(day.habits && day.habits[h.id])).map((h) => '"' + h.name + '"');
       if (rate.length) out.push("Daily tasks, last 7 days: " + rate.map((x) => '"' + x.name + '" ' + x.k + " of " + x.of).join(", ") + ". Days with every task done: " + perfect + " of 7.");
       out.push("Today's tasks " + (todo.length ? "still to do: " + todo.join(", ") : "are all done") + ".");
-      out.push("Streak: " + st.cur + " days with every task done (best ever " + st.best + ")" + (st.cur > 0 && st.cur >= st.best ? ", their longest yet" : st.best > st.cur ? ", " + (st.best - st.cur + 1) + " more days beats it" : "") + ".");
+      out.push("Streak: " + st.cur + (st.cur === 1 ? " day" : " days") + " with every task done (best ever " + st.best + ")" + (st.cur > 0 && st.cur >= st.best ? ", their longest yet" : st.best > st.cur ? ", " + (st.best - st.cur + 1) + " more days beats it" : "") + ".");
       const worst = rate.filter((x) => x.k < x.of).sort((a, b) => a.k / a.of - b.k / b.of)[0];
       if (worst) fixes.push([1 - worst.k / worst.of, 'the task "' + worst.name + '", done on only ' + worst.k + " of the last " + worst.of + " days"]);
       if (st.cur >= 3) wins.push([Math.min(1, st.cur / 10), "a " + st.cur + "-day streak"]);
       if (perfect >= 5) wins.push([perfect / 7, "every task done on " + perfect + " of the last 7 days"]);
     }
 
-    // Food
+    // Food, sleep and steps: each week's average against its goal, with how far off it is. Close counts: within a few
+    // percent is on target, so a 219 g week against a 220 g goal is a win, not a miss.
+    const onTarget = [], toGrow = [], pct = (v, g) => Math.floor((v / g) * 100) + "%"; // 219 of 220 reads 99%, not 100%
     const kc = vals(week, (d) => d.kcal), kc0 = vals(prevWeek, (d) => d.kcal);
     if (kc.length) {
-      const sts = kc.map((v) => ({ v, s: calStatus(v) })), ok = sts.filter((x) => x.s.state === "met").length;
-      const over = sts.filter((x) => x.s.state === "over"), under = sts.filter((x) => x.s.state === "under");
-      const hi = calAim() === "lose" ? calRange()[1] : S().calorieGoal, lo = calAim() === "lose" ? calRange()[0] : S().calorieGoal;
-      out.push("Calories, last 7 days: food logged on " + kc.length + " days, average " + fmt(avgOf(kc)) + vs(avgOf(kc), avgOf(kc0), fmt) + ", goal " + calGoalText() + ". " +
-        (calAim() === "lose" ? "In range" : "Goal reached") + " on " + ok + " of " + kc.length + " days" +
-        (over.length && calAim() === "lose" ? "; over on " + over.length + " (by about " + fmt(avgOf(over.map((x) => x.v - hi))) + " each)" : "") +
-        (under.length ? "; under on " + under.length + " (by about " + fmt(avgOf(under.map((x) => lo - x.v))) + " each)" : "") + ".");
-      if (ok / kc.length >= 0.7) wins.push([ok / kc.length, "calories on target " + ok + " of " + kc.length + " days"]);
-      else fixes.push([1 - ok / kc.length, "calories: on target only " + ok + " of " + kc.length + " days" + (over.length > under.length && calAim() === "lose" ? ", mostly going over" : under.length ? ", mostly coming in under" : "")]);
+      const [lo, hi] = calAim() === "lose" ? calRange() : [S().calorieGoal, Infinity], tol = Math.max(50, S().calorieGoal * 0.02), avg = avgOf(kc);
+      const near = (v) => v >= lo - tol && v <= hi + tol, ok = kc.filter(near).length, over = kc.filter((v) => v > hi + tol), under = kc.filter((v) => v < lo - tol);
+      const where = avg > hi ? fmt(avg - hi) + " above the top (" + pct(avg, hi) + ")" : avg < lo ? fmt(lo - avg) + " below " + (calAim() === "lose" ? "the bottom" : "the goal") + " (" + pct(avg, lo) + ")" : calAim() === "lose" ? "inside the range" : "at or above the goal";
+      out.push("Calories, last 7 days: logged on " + kc.length + " days, average " + fmt(avg) + " against a goal of " + calGoalText() + ": " + where + (near(avg) ? ", which is on target" : "") + vs(avg, avgOf(kc0), fmt) + ". " +
+        "On target (within " + fmt(tol) + ") on " + ok + " of " + kc.length + " days" +
+        (over.length && calAim() === "lose" ? "; over on " + over.length + " (by about " + fmt(avgOf(over.map((v) => v - hi))) + ")" : "") +
+        (under.length ? "; under on " + under.length + " (by about " + fmt(avgOf(under.map((v) => lo - v))) + ")" : "") + ".");
+      if (near(avg)) { onTarget.push("calories (average " + fmt(avg) + ")"); wins.push([0.7 + (0.2 * ok) / kc.length, "calories on target, averaging " + fmt(avg) + " against " + calGoalText()]); }
+      else { toGrow.push("calories (average " + fmt(avg) + " against " + calGoalText() + ")"); fixes.push([Math.min(1, Math.abs(avg - (avg > hi ? hi : lo)) / 500), "calories averaging " + fmt(avg) + " against " + calGoalText() + ", " + where]); }
     }
     const pr = vals(week, (d) => d.protein), pr0 = vals(prevWeek, (d) => d.protein), pg = S().proteinGoal;
     if (pr.length && pg) {
-      const hit = pr.filter((v) => v >= pg).length, miss = pr.filter((v) => v < pg);
-      out.push("Protein, last 7 days: average " + fmt(avgOf(pr)) + " g" + vs(avgOf(pr), avgOf(pr0), (v) => fmt(v) + " g") + ", goal " + pg + " g, hit on " + hit + " of " + pr.length + " days" +
-        (miss.length ? "; short by about " + fmt(avgOf(miss.map((v) => pg - v))) + " g on the days missed" : "") + ".");
-      if (hit / pr.length >= 0.7) wins.push([hit / pr.length, "protein hit " + hit + " of " + pr.length + " days"]);
-      else fixes.push([1 - hit / pr.length + 0.1, "protein: hit on " + hit + " of " + pr.length + " days, about " + fmt(avgOf(miss.map((v) => pg - v))) + " g short when missed"]);
+      const tol = Math.max(5, Math.round(pg * 0.03)), avg = avgOf(pr), gap = Math.round(pg - avg), close = avg >= pg - tol;
+      const hit = pr.filter((v) => v >= pg - tol).length, miss = pr.filter((v) => v < pg - tol);
+      out.push("Protein, last 7 days: average " + fmt(avg) + " g against a " + pg + " g goal (" + pct(avg, pg) + (gap > 0 ? ", " + gap + " g short" : gap < 0 ? ", " + -gap + " g over" : "") + (close ? ", which is on target" : "") + ")" + vs(avg, avgOf(pr0), (v) => fmt(v) + " g") + ". " +
+        "At the goal or within " + tol + " g of it on " + hit + " of " + pr.length + " days" + (miss.length ? "; about " + fmt(avgOf(miss.map((v) => pg - v))) + " g short on the other days" : "") + ".");
+      if (close) { onTarget.push("protein (" + fmt(avg) + " of " + pg + " g)"); wins.push([0.8, "protein averaging " + fmt(avg) + " g against a " + pg + " g goal, right on target"]); }
+      else { toGrow.push("protein (" + fmt(avg) + " of " + pg + " g)"); fixes.push([Math.min(1, gap / (pg * 0.25)) + 0.1, "protein averaging " + fmt(avg) + " g, " + gap + " g under the " + pg + " g goal"]); }
     }
     const todayCal = (k) => { const c = calStatus(k); return c.state === "met" ? (calAim() === "lose" ? "in range" : "goal reached") : c.state === "over" ? fmt(k - calRange()[1]) + " over the range" : fmt(c.left) + (calAim() === "lose" ? " below the range" : " to go"); };
-    if (day.kcal != null) out.push("Today so far: " + fmt(day.kcal) + " calories (" + todayCal(day.kcal) + ") and " + fmt(day.protein || 0) + " g protein" + (pg && (day.protein || 0) < pg ? " (" + fmt(pg - (day.protein || 0)) + " g to go)" : "") + ".");
-
-    // Sleep and steps
+    if (day.kcal != null) out.push("Today so far (the day isn't over): " + fmt(day.kcal) + " calories (" + todayCal(day.kcal) + ") and " + fmt(day.protein || 0) + " g protein" + (pg && (day.protein || 0) < pg ? " (" + fmt(pg - (day.protein || 0)) + " g to go)" : "") + ".");
     const sl = vals(week, (d) => hOf(d).sleepMin), sl0 = vals(prevWeek, (d) => hOf(d).sleepMin), sg = S().sleepTarget * 60;
     if (sl.length) {
-      const short = sl.filter((v) => v < sg).length;
-      out.push("Sleep, last " + sl.length + " nights: average " + hm(avgOf(sl)) + vs(avgOf(sl), avgOf(sl0), hm) + ", goal " + S().sleepTarget + " h, under goal on " + short + " nights.");
-      if (avgOf(sl) < sg - 20) fixes.push([Math.min(1, (sg - avgOf(sl)) / 90), "sleep: averaging " + hm(avgOf(sl)) + " against a " + S().sleepTarget + " h goal"]);
-      else if (short <= 1 && sl.length >= 5) wins.push([0.7, "sleep averaging " + hm(avgOf(sl))]);
+      const avg = avgOf(sl), close = avg >= sg - 15, short = sl.filter((v) => v < sg - 15).length;
+      out.push("Sleep, last " + sl.length + " nights: average " + hm(avg) + " against a " + S().sleepTarget + " h goal (" + pct(avg, sg) + (close ? ", which is on target" : ", " + Math.round(sg - avg) + " min short") + ")" + vs(avg, avgOf(sl0), hm) + ". " + short + (short === 1 ? " night" : " nights") + " more than 15 min short.");
+      if (close) { onTarget.push("sleep (" + hm(avg) + ")"); wins.push([0.65, "sleep averaging " + hm(avg) + " against a " + S().sleepTarget + " h goal"]); }
+      else { toGrow.push("sleep (" + hm(avg) + " of " + S().sleepTarget + " h)"); fixes.push([Math.min(1, (sg - avg) / 90), "sleep averaging " + hm(avg) + ", " + Math.round(sg - avg) + " min under the " + S().sleepTarget + " h goal"]); }
     }
     const sp = vals(week, (d) => hOf(d).steps), sp0 = vals(prevWeek, (d) => hOf(d).steps), sgo = S().stepsTarget;
-    if (sp.length) {
-      const hit = sp.filter((v) => v >= sgo).length;
-      out.push("Steps, last 7 days: average " + fmt(avgOf(sp)) + vs(avgOf(sp), avgOf(sp0), fmt) + ", goal " + fmt(sgo) + ", reached on " + hit + " of " + sp.length + " days.");
-      if (hit / sp.length < 0.5) fixes.push([0.5 * (1 - hit / sp.length), "steps: goal reached on " + hit + " of " + sp.length + " days"]);
+    if (sp.length && sgo) {
+      const avg = avgOf(sp), close = avg >= sgo * 0.95, hit = sp.filter((v) => v >= sgo * 0.95).length;
+      out.push("Steps, last 7 days: average " + fmt(avg) + " against a " + fmt(sgo) + " goal (" + pct(avg, sgo) + (close ? ", which is on target" : "") + ")" + vs(avg, avgOf(sp0), fmt) + ". Goal reached (or within 5%) on " + hit + " of " + sp.length + " days.");
+      if (close) { onTarget.push("steps (" + fmt(avg) + " a day)"); wins.push([0.6, "steps averaging " + fmt(avg) + " a day"]); }
+      else { toGrow.push("steps (" + fmt(avg) + " of " + fmt(sgo) + ")"); fixes.push([0.5 * (1 - avg / sgo), "steps averaging " + fmt(avg) + " against a " + fmt(sgo) + " goal"]); }
     }
+    if (onTarget.length || toGrow.length) out.push("On target this week: " + (onTarget.join(", ") || "nothing yet") + "." + (toGrow.length ? " Room to grow: " + toGrow.join(", ") + "." : ""));
 
     // Training
     const lifts = (ds) => ds.filter((d) => peekDay(d).workout && peekDay(d).workout.saved);
@@ -1414,8 +1474,8 @@ body.setup .nav, body.setup .top { display: none; }
       if (stuck) fixes.push([0.4, 'the goal "' + stuck.g.name + '", next step "' + stuck.g.steps[firstOpen(stuck.g)].text + '"' + (stuck.last ? ", no step for " + (n - stuck.last) + " days" : ", not started")]);
     }
     const top = (l) => l.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
-    if (wins.length) out.push("The app's pick for what is going best: " + top(wins)[0] + ".");
-    if (fixes.length) out.push("The app's pick for what to work on: " + top(fixes)[0] + ".");
+    if (wins.length) out.push("Worth celebrating (the app's pick): " + top(wins)[0] + ".");
+    if (fixes.length) out.push("One thing to nudge, if you want (the app's pick): " + top(fixes)[0] + ".");
     return out.join("\n");
   }
   // Writes a fresh note on a new day, when the numbers have changed (at most every 2 hours), or on Refresh.
@@ -1424,36 +1484,42 @@ body.setup .nav, body.setup .top { display: none; }
     const facts = buildFacts(), saved = coachSaved();
     if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
     coachFacts = facts; coachBusy = true; coachErr = false;
-    const prompt = "You are a sharp, encouraging strength coach writing a short note inside the user's 100-day gym challenge app. " +
-      "The app has worked out these facts from their own data:\n\n" + facts + "\n\n" +
-      "Write 3 or 4 sentences, under 90 words in total, talking to the user as \"you\".\n" +
-      "First: the best thing in the facts, with its number.\n" +
-      "Then: one pattern, comparing numbers (this week against last week, or two facts that explain each other, like short sleep and missed protein).\n" +
-      "Last: one specific thing to do today or this week, naming their task, goal or exercise.\n" +
-      "Sound like a real coach who knows them: plain, direct and warm. No filler like \"Great job\" or \"Keep it up\". " +
-      "Use only these facts and copy numbers exactly; never invent one. No greeting, no lists, no markdown, no emoji, no medical advice.";
-    aiAsk(prompt, coachDone);
+    // The coach's values, then the facts, then room to choose what to say. The numbers all come from the app.
+    const prompt = "You're the coach inside the user's 100-day gym challenge app: an upbeat strength coach who's genuinely in their corner.\n" +
+      "How you coach:\n" +
+      "- Lead with what's going well, using their real numbers.\n" +
+      "- Close counts. Anything the facts call on target is a win, even if it's a gram or a few calories off. Never call it a miss or inconsistent.\n" +
+      "- Progress over perfection. Missed days are normal; point to the next small step, not the slip.\n" +
+      "- Be specific: name their exercise, task or goal.\n" +
+      "- One idea at a time, never a lecture.\n\n" +
+      "What the app worked out from their data:\n" + facts + "\n\n" +
+      "Write them a short note: 2 to 4 sentences, under 80 words, talking to them as \"you\". You decide what's most worth saying today; the app's picks are only suggestions. " +
+      "Make them feel good about how far they've come and keen for what's next. A little personality and energy is welcome. " +
+      "Use only these facts, and copy any number exactly as written. No greeting, no sign-off, no lists, no markdown, no emoji, no medical advice.";
+    aiAsk(prompt, coachDone, coachStream);
+    if (view === "today") render(); // shows the brief "Writing…" placeholder
   }
   const DOTS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+  const SPARK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 4.6 2.9 6.9 7.5 7.5-4.6.6-6.9 2.9-7.5 7.5-.6-4.6-2.9-6.9-7.5-7.5 4.6-.6 6.9-2.9 7.5-7.5z"/><path d="M19 15.5c.25 1.9 1.1 2.75 3 3-1.9.25-2.75 1.1-3 3-.25-1.9-1.1-2.75-3-3 1.9-.25 2.75-1.1 3-3z"/></svg>';
   function coachHTML() {
     if (!bridge || !bridge.aiStatus || aiState === "none" || aiState === "checking" || aiState === "unavailable" || coachMode() === "off") return "";
     const min = coachMode() === "min", saved = coachSaved(), fresh = saved && saved.date === todayISO();
+    const when = coachBusy ? "Writing…" : saved ? (fresh ? "Today, " + new Date(saved.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : saved.date === addDays(todayISO(), -1) ? "Yesterday's note" : "An earlier note") : aiState === "available" ? "On this phone" : "";
     let body;
     if (aiState === "downloadable") body = min ? "" : '<p class="coach-text">Your coach runs on this phone with Gemini Nano, so your numbers never leave it. It needs a one-time download.</p><div class="btn-row"><button class="btn secondary" data-action="coach-setup">Set up coach</button></div>';
     else if (aiState === "downloading") body = min ? "" : '<p class="coach-text muted">Getting your coach ready. This can take a few minutes on Wi-Fi.</p>';
-    else if (min) body = saved ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : "";
-    else {
-      body = saved ? '<p class="coach-text' + (fresh ? "" : " muted") + '">' + esc(saved.text) + "</p>" : "";
-      if (coachBusy) body += '<p class="coach-status">Reading your numbers…</p>';
-      else if (coachErr) body += '<p class="coach-status">Couldn\'t write a note just now.</p>';
-    }
+    else if (min) body = saved && !coachBusy ? '<button class="coach-mini' + (fresh ? "" : " muted") + '" data-action="coach-mode" data-v="on" aria-label="Show the coach\'s note">' + esc(saved.text) + "</button>" : "";
+    // A brief placeholder while the note is being written; the words replace it as they arrive
+    else if (coachBusy) body = coachLiveText ? '<p class="coach-text">' + coachRich(coachLiveText) + "</p>" : '<div class="coach-skel" role="status" aria-label="Writing your note"><i></i><i></i><i></i></div>';
+    else body = (saved ? '<p class="coach-text' + (fresh ? "" : " muted") + '">' + coachRich(saved.text) + "</p>" : "") + (coachErr ? '<p class="coach-status">Couldn\'t write a note just now.</p>' : "");
     const menu = '<div class="coach-menu" role="menu">' +
       (aiState === "available" && !coachBusy ? '<button role="menuitem" data-action="coach-refresh">Write a new note</button>' : "") +
       '<button role="menuitem" data-action="coach-mode" data-v="' + (min ? "on" : "min") + '">' + (min ? "Show in full" : "Minimize") + "</button>" +
       '<button role="menuitem" class="danger" data-action="coach-mode" data-v="off">Turn off coach</button></div>';
-    return '<section class="coach-card' + (min ? " min" : "") + '" aria-label="Coach"><div class="coach-head"><span class="coach-tag">Coach</span>' +
-      (min && coachBusy ? '<span class="coach-status">Reading…</span>' : "") +
-      '<button class="coach-dots" data-action="coach-menu" aria-label="Coach options" aria-haspopup="menu" aria-expanded="false">' + DOTS + "</button></div>" + menu + body + "</section>";
+    return '<section class="coach-card' + (min ? " min" : "") + (coachBusy ? " busy" : "") + '" aria-label="Coach"><div class="coach-head">' +
+      '<span class="coach-av">' + SPARK + '</span><span class="coach-who"><b>Coach</b>' + (when ? "<small>" + when + "</small>" : "") + "</span>" +
+      '<button class="coach-dots" data-action="coach-menu" aria-label="Coach options" aria-haspopup="menu" aria-expanded="false">' + DOTS + "</button></div>" + menu +
+      '<div class="coach-body" id="coach-body">' + body + "</div></section>";
   }
   // Settings: on, minimized to one line, or off (installed app, on phones that can run the coach).
   function coachSection() {
@@ -2588,6 +2654,16 @@ body.setup .nav, body.setup .top { display: none; }
     return e.setList;
   }
   const isDone = (x) => x.done !== false;
+  // A workout in progress: each exercise keeps last time's sets as hints (e.last) and, in setList, only the sets you've
+  // done today. Until you start it, setList is one placeholder (done: false) holding the first set's numbers. Drafts from
+  // before v0.20 kept last time's sets as planned rows; this turns them into the same shape. (A function declaration,
+  // not a const, because loading saved days runs it before the rest of the script.)
+  function prepDraftEx(e) {
+    const l = ensureSets(e);
+    if (!Array.isArray(e.last)) e.last = l.map((x) => ({ w: +x.w || 0, r: +x.r || 0 }));
+    const done = l.filter((x) => x.done !== false);
+    e.setList = done.length ? done : [{ w: +l[0].w || 0, r: +l[0].r || 0, done: false }];
+  }
   const doneSets = (e) => ensureSets(e).filter(isDone);
   function syncEx(e) {
     const all = ensureSets(e), d = all.filter(isDone), l = d.length ? d : all;
@@ -2597,12 +2673,10 @@ body.setup .nav, body.setup .top { display: none; }
   }
   const setsText = (e) => { const d = doneSets(e), l = d.length ? d : ensureSets(e); return l.map((x) => (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r).join(", ") + (l.some((x) => x.w > 0) ? " " + e.unit : ""); };
   const setTxt = (x) => (x.w > 0 ? fmtW(x.w) + "×" + x.r : x.r + " reps");
-  const curSet = {}; // exercise id -> index of the set being edited (not saved); unset = the first set not logged yet
+  const curSet = {}; // exercise id -> index of the set being edited (not saved); unset = the latest set
   function curIdx(e) {
-    const l = ensureSets(e);
-    if (curSet[e.id] != null && curSet[e.id] < l.length) return curSet[e.id];
-    const k = l.findIndex((x) => !isDone(x));
-    return k < 0 ? l.length - 1 : k;
+    const n = ensureSets(e).length;
+    return curSet[e.id] != null && curSet[e.id] < n ? curSet[e.id] : n - 1;
   }
   function savedSessions(type, before) {
     return Object.keys(state.days).sort().filter((d) => (!before || d < before) && state.days[d].workout && state.days[d].workout.saved && (!type || state.days[d].workout.type === type));
@@ -2698,11 +2772,11 @@ body.setup .nav, body.setup .top { display: none; }
     Object.keys(S().plans || {}).forEach((t) => (S().plans[t] || []).forEach((x) => fix(x, t)));
     S().groupsSorted = true; save("settings");
   }
-  // An exercise for today, planned from the last time you did it (on any day type): same sets, none logged yet.
+  // An exercise for today: last time's sets (on any day type) as hints, and nothing done yet.
   function newEx(name, type, group) {
-    const last = prevExercise(name), sets = last ? doneSets(last.e).map((x) => ({ w: x.w, r: x.r, done: false })) : [];
+    const last = prevExercise(name), sets = last ? doneSets(last.e).map((x) => ({ w: x.w, r: x.r })) : [], first = sets[0] || { w: 0, r: 10 };
     const e = { id: uid(), name: last ? last.e.name : name, unit: last ? last.e.unit || S().unit : S().unit, group: group != null ? group : groupFor(name, type),
-      setList: sets.length ? sets : [{ w: 0, r: 10, done: false }] };
+      last: sets, setList: [{ w: first.w, r: first.r, done: false }] };
     syncEx(e);
     return e;
   }
@@ -2728,32 +2802,46 @@ body.setup .nav, body.setup .top { display: none; }
       toast("Coach moved " + ex.name + " to " + (hit.g ? GROUP_NAME[hit.g] : "Legs"), () => move(from));
     });
   }
-  const exState = (e) => { const l = ensureSets(e), n = l.filter(isDone).length; return n === 0 ? "plan" : n === l.length ? "done" : "part"; };
-  // The next exercise still to do, after the one you just finished (wrapping round to any you skipped past).
-  function nextOpen(w, after) {
-    const o = inOrder(w), i = o.findIndex((e) => e.id === after);
-    const n = o.slice(i + 1).concat(o.slice(0, Math.max(0, i))).find((e) => exState(e) !== "done");
-    return n ? n.id : null;
-  }
-  // "Try heavier": your last two sessions of it had the same top set (weight and reps), so on the third, suggest
-  // one step up (5 lb or 2.5 kg; one more rep for bodyweight moves). Only a suggestion: nothing changes until you tap it.
-  function heavier(e) {
+  // An exercise is started (and counts) once it has a set done; tapping it starts it, because that's the one you're doing.
+  const exState = (e) => (ensureSets(e).some(isDone) ? "done" : "plan");
+  function startEx(e) {
     const l = ensureSets(e);
-    if (l.some(isDone)) return null;
+    if (l.some(isDone)) return false;
+    l.length = 1; l[0].done = true;
+    syncEx(e);
+    return true;
+  }
+  // Last time's sets, with a "Try heavier" bump you accepted applied: what each of today's sets starts from.
+  function lastPlan(e) {
+    const b = e.bump;
+    return (e.last || []).map((x) => (b && b.w != null && x.w === b.at ? { w: b.w, r: x.r } : b && b.r != null && x.r === b.at ? { w: x.w, r: b.r } : x));
+  }
+  // A new set starts from what you did on that set last time, moved by however much you changed the set before it
+  // (so going 5 lb heavier carries on). Doing more sets than last time: a copy of the set before.
+  function nextSet(e) {
+    const l = doneSets(e), k = l.length, prev = l[k - 1], last = lastPlan(e), base = last[k], ref = last[k - 1];
+    if (!prev) return base ? { w: base.w, r: base.r } : { w: 0, r: 10 };
+    if (!base) return { w: prev.w, r: prev.r };
+    return { w: ref ? half(Math.max(0, base.w + (prev.w - ref.w))) : base.w, r: base.r };
+  }
+  // "Try heavier": your last two sessions of it had the same top set (weight and reps), so suggest one step up
+  // (5 lb or 2.5 kg; one more rep for bodyweight moves). Only a suggestion: nothing changes until you tap it.
+  function heavier(e) {
+    if (e.bump) return null;
     const ds = savedSessions(null, viewDate), hist = [];
     for (let i = ds.length - 1; i >= 0 && hist.length < 2; i--) {
       const x = state.days[ds[i]].workout.exercises.find((y) => exKey(y.name) === exKey(e.name));
       if (x) hist.push(doneSets(x).map((s) => ({ w: half(toUnit(s.w, x.unit || S().unit, e.unit)), r: s.r })));
     }
     if (hist.length < 2 || !hist[0].length || !hist[1].length) return null;
-    const top = (sets) => sets.reduce((b, x) => (x.w > b.w || (x.w === b.w && x.r > b.r) ? x : b)), a = top(hist[0]), b = top(hist[1]);
+    const top = (sets) => sets.reduce((b, x) => (x.w > b.w || (x.w === b.w && x.r > b.r) ? x : b)), a = top(hist[0]), b = top(hist[1]), today = doneSets(e);
     if (a.w !== b.w || a.r !== b.r) return null;
     if (a.w > 0) {
-      if (l.some((x) => x.w > a.w)) return null;
+      if (today.some((x) => x.w > a.w)) return null;
       const to = half(a.w + stepFor(e.unit));
       return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit, why: "You did " + fmtW(a.w) + " " + e.unit + " × " + a.r + " two times in a row." };
     }
-    if (l.some((x) => x.r > a.r)) return null;
+    if (today.some((x) => x.r > a.r)) return null;
     return { r: a.r + 1, at: a.r, text: "Try " + (a.r + 1) + " reps", why: "You did " + a.r + " reps two times in a row." };
   }
 
@@ -2790,7 +2878,6 @@ body.setup .nav, body.setup .top { display: none; }
 
   // wOpen: the one exercise shown in full. wAddGroup: the group whose add box is open (null = none; "" = Legs' list).
   let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null, wKeepAsk = null;
-  const touched = new Set(); // planned sets you've changed, shown in full ink: "exercise id:set index"
   function startWorkout(type) {
     const d = getDay(viewDate);
     if (!d.workout) {
@@ -2804,13 +2891,22 @@ body.setup .nav, body.setup .top { display: none; }
     const w = peekDay(viewDate).workout;
     wEdit = false; wConfirmDiscard = false; wKeepAsk = null; renaming = renameAsk = null;
     fixGroups(w);
+    if (!w.saved) w.exercises.forEach(prepDraftEx);
     wAddGroup = w.exercises.length ? null : groupsFor(w.type)[0];
-    wOpen = w.saved ? null : nextOpen(w, null);
+    wOpen = null; // you pick the exercise you're doing; nothing starts by itself
     sheet.classList.add("tall");
     sheet.hidden = backdrop.hidden = false;
     drawWorkout();
     sheet.scrollTop = 0;
     if (wAddGroup != null) setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) f.focus(); }, 60);
+  }
+  // Scroll the sheet just enough to show something: the set you're on (above the bottom buttons), or an exercise's row.
+  function showEl(el, pad) {
+    if (!el || sheet.hidden) return;
+    const sr = sheet.getBoundingClientRect(), r = el.getBoundingClientRect(), foot = sheet.querySelector(".sheet-foot");
+    const top = sr.top + (pad || 8), bot = Math.min(sr.bottom, innerHeight) - (foot ? foot.offsetHeight : 0) - 8;
+    const d = r.top < top ? r.top - top : r.bottom > bot ? Math.min(r.bottom - bot, r.top - top) : 0;
+    if (Math.abs(d) > 2) sheet.scrollTo({ top: sheet.scrollTop + d, behavior: reduceMotion ? "auto" : "smooth" });
   }
   // Scroll the sheet just enough to show the exercise that opened.
   function showOpen() {
@@ -2821,43 +2917,48 @@ body.setup .nav, body.setup .top { display: none; }
     const d = r.top < top ? r.top - top : r.bottom > bot ? Math.min(r.bottom - bot, r.top - top) : 0;
     if (Math.abs(d) > 2) sheet.scrollTo({ top: sheet.scrollTop + d, behavior: reduceMotion ? "auto" : "smooth" });
   }
-  function stepper(label, e, field, v, unitLabel) {
-    return '<div class="stepper-group"><div class="stepper-label">' + label + '</div><div class="stepper">' +
-      '<button class="sbtn" data-action="ex-step" data-id="' + e.id + '" data-f="' + field + '" data-d="-1" aria-label="Less ' + label.toLowerCase() + '">−</button>' +
-      '<div class="sval-wrap"><input class="sval num" id="ex-' + field + "-" + e.id + '" data-id="' + e.id + '" data-f="' + field + '" type="number" inputmode="decimal" step="any" min="0" value="' + String(v).replace(/,/g, "") + '" enterkeyhint="' + (field === "w" ? "next" : "done") + '" aria-label="' + label + '">' + (unitLabel ? '<span class="u">' + unitLabel + "</span>" : "") + "</div>" +
-      '<button class="sbtn" data-action="ex-step" data-id="' + e.id + '" data-f="' + field + '" data-d="1" aria-label="More ' + label.toLowerCase() + '">+</button></div></div>';
+  // One full-width row per number, so three digits (or 102.5) always fit. The box clears when you tap it, so you just
+  // type the new number; leave it empty and the old one comes back.
+  function srow(e, k, f, v) {
+    const w = f === "w", lab = w ? "weight" : "reps", at = ' data-id="' + e.id + '" data-k="' + k + '" data-f="' + f + '"';
+    return '<div class="srow"><button class="sbtn" data-action="ex-step"' + at + ' data-d="-1" aria-label="Less ' + lab + '">−</button>' +
+      '<label class="sbox"><input class="sval num" id="ex-' + f + "-" + e.id + '"' + at + ' type="text" inputmode="' + (w ? "decimal" : "numeric") + '" autocomplete="off" value="' + v + '" enterkeyhint="' + (w ? "next" : "done") + '" aria-label="' + (w ? "Weight" : "Reps") + '">' +
+      '<span class="u">' + (w ? e.unit : "reps") + "</span></label>" +
+      '<button class="sbtn" data-action="ex-step"' + at + ' data-d="1" aria-label="More ' + lab + '">+</button></div>';
   }
   const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const CHEV_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
   const mark = (st, label) => '<span class="mk ' + st + '">' + (st === "done" ? CHECK : label || "") + "</span>";
-  // What a planned exercise usually is: "3 × 30×12", or the set count and the top set when they differ.
+  const withUnit = (sets, e) => sets.map(setTxt).join(", ") + (sets.some((x) => x.w > 0) ? " " + e.unit : "");
+  // What an exercise you haven't started usually is: "3 × 30×12", or the set count and the top set when they differ.
   function planText(e) {
-    const l = ensureSets(e);
-    if (!prevExercise(e.name)) return "new";
+    const l = e.last && e.last.length ? e.last : null;
+    if (!l || !prevExercise(e.name)) return "new";
     const same = l.every((x) => x.w === l[0].w && x.r === l[0].r);
     return "usually " + (same ? l.length + " × " + setTxt(l[0]) : l.length + " sets, up to " + setTxt(l.reduce((b, x) => (e1rm(x.w, x.r) > e1rm(b.w, b.r) ? x : b))));
   }
   function exBlock(e, w) {
-    const l = ensureSets(e), st = exState(e), nd = l.filter(isDone).length;
+    const st = exState(e), sets = doneSets(e);
     if (wOpen !== e.id) {
-      const sub = st === "done" ? nd + (nd === 1 ? " set" : " sets") + " · best " + setTxt({ w: e.weight, r: e.reps }) + (e.weight > 0 ? " " + e.unit : "")
-        : st === "part" ? nd + " of " + l.length + " sets" : planText(e);
+      const sub = st === "done" ? sets.length + (sets.length === 1 ? " set" : " sets") + " · best " + setTxt({ w: e.weight, r: e.reps }) + (e.weight > 0 ? " " + e.unit : "") : planText(e);
       return '<button class="exr ' + st + '" data-action="ex-open" data-id="' + e.id + '">' + mark(st) + '<span class="exr-name">' + esc(e.name) + '</span><span class="exr-sub num">' + sub + "</span></button>";
     }
-    const ci = curIdx(e), cs = l[ci], hv = w.saved ? null : heavier(e);
+    // Open: the one you're doing. Its sets are what you did; the one you're on has the big steppers.
+    // "Last time": the hints the workout started with, or (reopening a saved one) the session before this one
+    const prevEx = e.last && e.last.length ? null : prevExercise(e.name), last = e.last && e.last.length ? e.last : prevEx ? doneSets(prevEx.e).map((x) => ({ w: half(toUnit(x.w, prevEx.e.unit || S().unit, e.unit)), r: x.r })) : [];
+    const ci = curIdx(e), cs = sets[ci] || sets[sets.length - 1], hv = w.saved ? null : heavier(e);
     const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
     const seg = isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
-    const rows = l.map((x, k) => {
-      const dn = isDone(x);
-      if (k !== ci) return '<button class="set ' + (dn ? "done" : "plan") + '" data-action="set-go" data-id="' + e.id + '" data-k="' + k + '">' + mark(dn ? "done" : "plan", k + 1) + '<span class="num">' + setTxt(x) + (x.w > 0 ? " <small>" + e.unit + "</small>" : "") + "</span></button>";
-      return '<div class="set cur ' + (dn ? "done" : "plan") + (touched.has(e.id + ":" + k) ? " touched" : "") + '"><div class="set-top"><span class="set-n">Set ' + (k + 1) + " <small>of " + l.length + "</small></span>" +
-        '<button class="log-btn' + (dn ? " on" : "") + '" data-action="set-log" data-id="' + e.id + '"' + (dn ? ' aria-label="Logged. Tap to undo"' : "") + ">" + (dn ? CHECK + " Logged" : "Log set " + CHECK) + "</button></div>" +
-        '<div class="two">' + stepper("Weight", e, "w", fmtW(x.w), e.unit) + stepper("Reps", e, "r", x.r) + "</div></div>";
+    const rows = sets.map((x, k) => {
+      if (k !== ci) return '<button class="set-row" data-action="set-go" data-id="' + e.id + '" data-k="' + k + '"><span class="set-k">' + (k + 1) + '</span><span class="num">' + setTxt(x) + (x.w > 0 ? " <small>" + e.unit + "</small>" : "") + '</span><span class="set-edit">' + PENCIL + "</span></button>";
+      return '<div class="set-cur"><div class="set-top"><span class="set-n">Set ' + (k + 1) + "</span>" + (conv ? '<span class="ex-sub num">' + conv + "</span>" : "") +
+        '<button class="linkbtn set-del" data-action="set-del" data-id="' + e.id + '">Remove</button></div>' + srow(e, k, "w", fmtW(x.w)) + srow(e, k, "r", x.r) + "</div>";
     }).join("");
-    return '<div class="ex open" data-id="' + e.id + '"><div class="ex-head"><button class="ex-name" data-action="ex-open" data-id="' + e.id + '" aria-expanded="true">' + esc(e.name) + "</button>" + (seg ? '<span class="ex-tools">' + seg + "</span>" : "") + "</div>" +
+    return '<div class="ex open" data-id="' + e.id + '"><div class="ex-head"><button class="ex-name" data-action="ex-done" data-id="' + e.id + '" aria-expanded="true">' + esc(e.name) + "</button>" +
+      (seg ? '<span class="ex-tools">' + seg + "</span>" : "") + '<button class="ex-close" data-action="ex-done" data-id="' + e.id + '" aria-label="Done with ' + esc(e.name) + '">' + CHEV_UP + "</button></div>" +
+      '<p class="ex-last num">' + (last.length ? "Last time: " + withUnit(last, e) : "New. Next time your numbers will be here.") + "</p>" +
       (hv ? '<button class="try" data-action="try-heavier" data-id="' + e.id + '"><b>' + hv.text + "?</b><span>" + hv.why + "</span></button>" : "") +
-      '<div class="sets">' + rows + "</div>" +
-      '<div class="set-tools"><button class="linkbtn" data-action="set-add" data-id="' + e.id + '">+ Add set</button>' + (l.length > 1 ? '<button class="linkbtn" data-action="set-del" data-id="' + e.id + '">Remove set ' + (ci + 1) + "</button>" : "") +
-      (conv ? '<span class="ex-sub num">' + conv + "</span>" : "") + "</div></div>";
+      '<div class="sets">' + rows + "</div></div>";
   }
   function addForm(w, g, empty) {
     return '<form class="form ex" id="wadd-form" data-g="' + g + '">' +
@@ -2888,20 +2989,24 @@ body.setup .nav, body.setup .top { display: none; }
           const foot = !label && !adding ? '<button class="btn secondary" data-action="wadd-open" data-g="">+ Add exercise</button>' : "";
           return '<div class="wg">' + head + list.map((e) => exBlock(e, w)).join("") + (adding ? addForm(w, g, !list.length) : "") + foot + "</div>";
         }).join("");
-    const nSets = w.exercises.reduce((a, e) => a + ensureSets(e).filter(isDone).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
+    const nSets = w.exercises.reduce((a, e) => a + doneSets(e).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
+    const open = wOpen && !wEdit ? w.exercises.find((e) => e.id === wOpen) : null;
     const intro = wEdit ? "Hold an exercise and drag it to move it" + (gs[0] ? ", or into another group" : "") + ". Tap a name to rename it."
       : !w.exercises.length ? (prev ? "" : "First " + tn + " day. Add what you do" + (gs[0] ? " under each group" : "") + ". Next time it's your plan, with your weights and sets.")
       : w.saved ? "Saved. Tap an exercise to change it."
-      : nSets ? "<b>" + nEx + " of " + w.exercises.length + "</b> exercises · <b>" + nSets + "</b> " + (nSets === 1 ? "set" : "sets") + " logged"
-      : prev ? "Your usual " + tn + " day. Grey is the plan: log each set as you do it, and change anything that went differently."
-      : "Log each set as you do it. Next time this is your plan.";
+      : nSets ? "<b>" + nEx + " of " + w.exercises.length + "</b> exercises · <b>" + nSets + "</b> " + (nSets === 1 ? "set" : "sets")
+      : prev ? "Your usual " + tn + " day. Tap an exercise when you start it. Each set starts from last time, so just change what's different."
+      : "Tap an exercise when you start it. Next time this is your plan.";
     const tools = (w.exercises.length ? '<button class="btn secondary" data-action="w-edit">' + (wEdit ? "Done" : "Reorder or remove") + "</button>" : "") +
       (!w.saved ? '<button class="btn danger" data-action="w-discard">' + (wConfirmDiscard ? "Tap again to discard" : "Not " + tn + " day? Discard") + "</button>" : "");
     sheet.innerHTML = '<div class="sheet-inner"><div class="grab"></div>' +
       '<div class="panel-head"><h2>' + typeName(w.type) + ' day</h2><span class="meta">' + (viewDate === todayISO() ? "Today" : "Day " + dayNum(viewDate)) + "</span></div>" +
       (intro ? '<p class="hint">' + intro + "</p>" : "") + body +
       (tools ? '<div class="btn-row">' + tools + "</div>" : "") +
-      '<div class="sheet-foot"><button class="btn wide" data-action="w-save"' + (nSets ? "" : " disabled") + ">" + (w.saved ? "Save changes" : nSets ? "Finish workout" : "Log a set to finish") + "</button></div>" +
+      // By your thumb: while an exercise is open, add a set or say you're done with it; otherwise, finish the workout.
+      '<div class="sheet-foot">' + (open
+        ? '<div class="foot-row"><button class="btn secondary" data-action="set-add" data-id="' + open.id + '">+ Set ' + (doneSets(open).length + 1) + '</button><button class="btn go" data-action="ex-done" data-id="' + open.id + '">Done ' + CHECK + "</button></div>"
+        : '<button class="btn wide" data-action="w-save"' + (nSets ? "" : " disabled") + ">" + (w.saved ? "Save changes" : nSets ? "Finish workout" : "Tap an exercise to start") + "</button>") + "</div>" +
       "</div>";
     sheet.scrollTop = scroll;
   }
@@ -3069,7 +3174,7 @@ body.setup .nav, body.setup .top { display: none; }
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
   const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
-    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-add", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard", "plan-today",
+    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard", "plan-today",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
     const cm = document.querySelector(".coach-card.menu-open");
@@ -3178,57 +3283,67 @@ body.setup .nav, body.setup .top { display: none; }
       case "fab-close": fabMenu(false); break;
       case "start-workout": fabMenu(false); startWorkout(el.dataset.type); break;
       case "open-workout": openWorkout(); break;
-      case "ex-open": wOpen = wOpen === el.dataset.id ? null : el.dataset.id; drawWorkout(); showOpen(); break;
-      case "ex-step": {
-        const e = findEx(el.dataset.id), f = el.dataset.f, dir = +el.dataset.d;
-        if (!e) break;
-        const ci = curIdx(e), cs = ensureSets(e)[ci];
-        if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
-        else cs.r = Math.max(0, (+cs.r || 0) + dir);
-        touched.add(e.id + ":" + ci);
-        syncEx(e); save(viewDate); drawWorkout(); break;
-      }
-      case "set-log": {
-        // Logs the set you're on (as shown) and moves to the next; when an exercise is done, the next one opens.
-        const e = findEx(el.dataset.id), w = day().workout;
-        if (!e) break;
-        const ci = curIdx(e), cs = ensureSets(e)[ci];
-        if (isDone(cs)) { cs.done = false; curSet[e.id] = ci; buzz("tick"); }
-        else { cs.done = true; delete curSet[e.id]; buzz("confirm"); if (exState(e) === "done") wOpen = nextOpen(w, e.id); }
-        syncEx(e); save(viewDate); render(); drawWorkout();
-        if (wOpen !== e.id) showOpen();
-        break;
-      }
-      case "set-go": { const e = findEx(el.dataset.id); if (e) { curSet[e.id] = +el.dataset.k; drawWorkout(); } break; }
-      case "set-add": {
+      case "ex-open": {
+        // Tapping an exercise starts it: that's the one you're doing now, with set 1 from last time.
         const e = findEx(el.dataset.id);
         if (!e) break;
-        const l = ensureSets(e), x = l[l.length - 1];
-        l.push({ w: x.w, r: x.r, done: false }); curSet[e.id] = l.length - 1;
+        if (wOpen === e.id) { wOpen = null; drawWorkout(); break; }
+        wOpen = e.id; delete curSet[e.id];
+        if (startEx(e)) { save(viewDate); render(); }
+        drawWorkout(); showOpen(); break;
+      }
+      case "ex-done": {
+        // Done with this exercise: it folds up with its sets, and you pick the next one.
+        const id = el.dataset.id;
+        wOpen = null; buzz("confirm"); drawWorkout();
+        showEl(sheet.querySelector('.exr[data-id="' + id + '"]'), 60);
+        break;
+      }
+      case "ex-step": {
+        const e = findEx(el.dataset.id), f = el.dataset.f, dir = +el.dataset.d, cs = e && ensureSets(e)[+el.dataset.k];
+        if (!cs) break;
+        if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
+        else cs.r = Math.max(0, (+cs.r || 0) + dir);
         syncEx(e); save(viewDate); drawWorkout(); break;
       }
+      case "set-go": { const e = findEx(el.dataset.id); if (e) { curSet[e.id] = +el.dataset.k; drawWorkout(); showEl(sheet.querySelector(".set-cur")); } break; }
+      case "set-add": {
+        // The set you were on is done; the next one starts from last time's matching set.
+        const e = findEx(el.dataset.id);
+        if (!e) break;
+        startEx(e);
+        ensureSets(e).push({ ...nextSet(e), done: true });
+        delete curSet[e.id];
+        buzz("confirm"); syncEx(e); save(viewDate); render(); drawWorkout();
+        showEl(sheet.querySelector(".set-cur"));
+        break;
+      }
       case "set-del": {
+        // Removing the only set means you're not doing this one today (with Undo).
         const e = findEx(el.dataset.id);
         if (!e) break;
         const l = ensureSets(e), ci = curIdx(e);
-        if (l.length > 1) { l.splice(ci, 1); delete curSet[e.id]; syncEx(e); save(viewDate); render(); drawWorkout(); }
-        break;
+        if (l.length > 1) { l.splice(ci, 1); delete curSet[e.id]; }
+        else {
+          const before = l.map((x) => ({ ...x })), base = lastPlan(e)[0] || l[0], id = e.id;
+          e.setList = [{ w: base.w, r: base.r, done: false }]; wOpen = null;
+          toast(e.name + ": not done today", () => { const x = findEx(id); if (!x) return; x.setList = before; syncEx(x); save(viewDate); wOpen = id; render(); if (!sheet.hidden) drawWorkout(); });
+        }
+        syncEx(e); save(viewDate); render(); drawWorkout(); break;
       }
       case "try-heavier": {
+        // Bumps today's sets at that weight (or reps), and every set after them starts from the new number.
         const e = findEx(el.dataset.id), hv = e && heavier(e);
         if (!hv) break;
-        ensureSets(e).forEach((x, k) => {
-          if (hv.w != null && x.w === hv.at) x.w = hv.w;
-          else if (hv.r != null && x.r === hv.at) x.r = hv.r;
-          else return;
-          touched.add(e.id + ":" + k);
-        });
+        e.bump = hv.w != null ? { w: hv.w, at: hv.at } : { r: hv.r, at: hv.at };
+        ensureSets(e).forEach((x) => { if (hv.w != null && x.w === hv.at) x.w = hv.w; else if (hv.r != null && x.r === hv.at) x.r = hv.r; });
         syncEx(e); save(viewDate); drawWorkout(); break;
       }
       case "ex-unit": {
         const e = findEx(el.dataset.id), u = el.dataset.u;
         if (!e || e.unit === u) break;
-        ensureSets(e).forEach((x) => (x.w = half(toUnit(x.w, e.unit, u))));
+        ensureSets(e).concat(e.last || []).forEach((x) => (x.w = half(toUnit(x.w, e.unit, u))));
+        if (e.bump && e.bump.w != null) { e.bump.w = half(toUnit(e.bump.w, e.unit, u)); e.bump.at = half(toUnit(e.bump.at, e.unit, u)); }
         e.unit = u; syncEx(e);
         save(viewDate); drawWorkout(); break;
       }
@@ -3252,7 +3367,7 @@ body.setup .nav, body.setup .top { display: none; }
       case "rename-cancel": renameAsk = null; drawWorkout(); break;
       case "wadd-open": wAddGroup = el.dataset.g || ""; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
       case "wadd-cancel": wAddGroup = null; drawWorkout(); break;
-      case "w-edit": wEdit = !wEdit; wAddGroup = null; renaming = renameAsk = null; drawWorkout(); break;
+      case "w-edit": wEdit = !wEdit; wAddGroup = null; wOpen = null; renaming = renameAsk = null; drawWorkout(); break;
       case "w-discard":
         if (!wConfirmDiscard) { wConfirmDiscard = true; drawWorkout(); break; }
         day().workout = null; save(viewDate); closeSheet(); render(true); toast("Workout discarded");
@@ -3264,18 +3379,20 @@ body.setup .nav, body.setup .top { display: none; }
         const kept = inOrder(w).filter((e) => exState(e) !== "plan");
         if (!kept.length) break;
         const before = savedSessions(w.type).some((k) => k > viewDate) ? null : planFor(w.type); // older days never change the plan
-        kept.forEach((e) => { e.setList = doneSets(e).map((x) => ({ w: x.w, r: x.r })); syncEx(e); });
+        kept.forEach((e) => { e.setList = doneSets(e).map((x) => ({ w: x.w, r: x.r })); delete e.last; delete e.bump; syncEx(e); });
         w.exercises = kept;
         const first = !w.saved;
         w.saved = true; w.savedAt = Date.now();
         autoMetricHabits(d, viewDate);
-        save(viewDate); touched.clear();
+        save(viewDate);
         buzz("confirm");
         if (before) {
           const now = kept.map((e) => ({ name: e.name, group: e.group })), has = (l, n) => l.some((x) => exKey(x.name) === exKey(n));
           const added = now.filter((x) => !has(before, x.name)).map((x) => x.name), skipped = before.filter((x) => !has(now, x.name)).map((x) => x.name);
           // Moving an exercise to another group always sticks; which exercises are on the list only changes if you say so.
           const regrouped = before.map((x) => { const m = now.find((y) => exKey(y.name) === exKey(x.name)); return m ? { name: m.name, group: m.group } : x; });
+          // Asked once, the first time it's saved; saving changes to it later keeps whatever you chose (groups still update).
+          if (before.length && (added.length || skipped.length) && !first) { setPlan(w.type, regrouped); closeSheet(); render(true); toast(typeName(w.type) + " day updated"); break; }
           if (before.length && (added.length || skipped.length)) {
             setPlan(w.type, regrouped);
             render(true);
@@ -3383,6 +3500,7 @@ body.setup .nav, body.setup .top { display: none; }
       const kg = knownGroup(name, w.type), gg = kg != null ? kg : guessAny(name), g = gg != null ? gg : f.dataset.g;
       const ne = newEx(name, w.type, g), known = !!prevExercise(name);
       w.exercises.push(ne);
+      startEx(ne);
       wAddGroup = null; wOpen = ne.id;
       buzz("confirm");
       save(viewDate); render(); drawWorkout(); showOpen();
@@ -3391,7 +3509,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (!known) {
         aiSortExercise(ne, w.type);
         const i = document.getElementById("ex-w-" + ne.id);
-        if (i) { i.focus(); try { i.select(); } catch (e) { /* ignore */ } fitTyping(); }
+        if (i) { i.focus(); fitTyping(); }
       }
     } else if (f.id.indexOf("step-form-") === 0) {
       const g = findGoal(f.dataset.goal), text = val("step-in-" + f.dataset.goal);
@@ -3447,10 +3565,13 @@ body.setup .nav, body.setup .top { display: none; }
   document.addEventListener("focusin", (ev) => {
     const t = ev.target;
     if (t.classList && t.classList.contains("inline-num")) { t.dataset.was = t.value; t.value = ""; }
+    // A set's weight or reps: same idea, with the old number showing faintly until you type
+    if (t.classList && t.classList.contains("sval")) { t.dataset.was = t.value; t.placeholder = t.value; t.value = ""; }
   });
   document.addEventListener("focusout", (ev) => {
     const t = ev.target;
     if (t.classList && t.classList.contains("inline-num") && t.value === "") { t.value = t.dataset.was || ""; t.dispatchEvent(new Event("input", { bubbles: true })); }
+    if (t.classList && t.classList.contains("sval") && t.value.trim() === "") t.value = t.dataset.was || "";
   });
 
   // Totals are saved when you leave the box; the bars then count up to the new number.
@@ -3477,13 +3598,12 @@ body.setup .nav, body.setup .top { display: none; }
       if (!hadGoal) autoProteinHabit(d);
       save(viewDate); renderSoon(); toast("Saved");
     } else if (t.classList.contains("sval")) {
-      const e = findEx(t.dataset.id), f = t.dataset.f, v = parseFloat(t.value);
-      if (!e || !(v >= 0)) { drawWorkoutSoon(); return; }
-      const ci = curIdx(e), cs = ensureSets(e)[ci];
+      const e = findEx(t.dataset.id), f = t.dataset.f, raw = t.value.trim().replace(",", "."), v = parseFloat(raw);
+      if (raw === "") return; // left empty: the old number comes back (focusout)
+      const cs = e && ensureSets(e)[+t.dataset.k];
+      if (!cs || !(v >= 0)) { t.value = t.dataset.was || ""; return; }
       if (f === "w") cs.w = half(v); else cs.r = Math.round(v);
-      touched.add(e.id + ":" + ci);
-      const c = t.closest(".set.cur");
-      if (c) c.classList.add("touched");
+      t.value = f === "w" ? String(cs.w) : String(cs.r);
       syncEx(e); save(viewDate);
     } else if (t.id.indexOf("focus-") === 0) {
       const g = findGoal(t.dataset.goal);
@@ -3519,7 +3639,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (ev.key === "Enter" && ev.target.classList && ev.target.classList.contains("sval")) {
       ev.preventDefault();
       const r = ev.target.dataset.f === "w" && document.getElementById("ex-r-" + ev.target.dataset.id);
-      if (r) { r.focus(); try { r.select(); } catch (e) { /* ignore */ } } else ev.target.blur();
+      if (r) r.focus(); else ev.target.blur();
     }
     if (ev.key === "Enter" && ev.target.id === "ex-rename-in") { ev.preventDefault(); ev.target.blur(); }
     if (ev.key === "Enter" && (ev.target.id === "in-kcal" || ev.target.id === "in-protein" || ev.target.id === "weight")) {
