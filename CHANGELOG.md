@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.19.1 · Workout calories counted more honestly
+- Watches tend to overestimate workout calories, especially lifting and "Other workout", where your heart rate stays up while you rest between sets. Calories burned now counts workout calories 20% lower for cardio and 35% lower for lifting. Your resting burn and everyday walking aren't changed.
+
 ## v0.19 · Whole-day calories and a cheer for every goal
 - Calories burned on the Stats tab is now your whole day: resting burn, plus workouts, plus walking outside them. Samsung Health only shares workout calories with other apps, so before this it showed only your workouts, and eaten − burned looked like a big surplus.
 - Hitting your protein, calorie, steps or sleep goal now gets a congratulations. A notification comes when the app is closed, and a message when you're in it. Each goal is celebrated once a day.
