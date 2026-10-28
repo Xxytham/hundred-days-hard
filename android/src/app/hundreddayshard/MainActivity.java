@@ -592,9 +592,6 @@ public class MainActivity extends Activity {
             });
         }
 
-        @JavascriptInterface
-        public void healthSync(String fromIso, String toIso) { healthSync(fromIso, toIso, "today"); }
-
         /** scope: "today" (what the Today tab needs) or "stats" (everything, for the Stats tab). */
         @JavascriptInterface
         public void healthSync(String fromIso, String toIso, String scope) {

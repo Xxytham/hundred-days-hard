@@ -1,6 +1,6 @@
 # 100 Days Hard
 
-My gym tracker for a 100-day challenge: daily calories and protein from Samsung Health, daily tasks, Push / Pull / Legs workouts, strength trends, body weight, and goal ladders.
+My gym tracker for a 100-day challenge: daily calories, protein and the rest of the food label from Samsung Health, daily tasks, Push / Pull / Legs workouts, strength trends, body, heart and sleep stats, goal ladders, and a coach that runs on the phone (Gemini Nano).
 
 ## Install or update on my phone
 1. On the phone, open this repo's **Releases** page and download the newest `100-days-hard-v….apk`.
@@ -20,7 +20,7 @@ Each friend starts with a short setup and their own empty tracker. None of my da
 - New phone or reinstall: install the app, tap **Restore from backup**, and pick the newest file.
 
 ## Keeping the app safe
-- **The code** lives in this private repo.
+- **The code** lives in this repo. It's public, because friends download the app from its Releases and GitHub Pages. No personal data is in the code; my data stays on my phone and in my backups.
 - **The signing key** (`hundred-days-hard.jks`) is stored as a GitHub secret, so GitHub can build updates. Keep your own copy in Google Drive too. Without it, future updates would need an uninstall, and uninstalling wipes the app's data. (Restoring from your backup file gets the data back.)
 
 ## Changing the app with Claude

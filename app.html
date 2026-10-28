@@ -243,12 +243,6 @@ body.kb .fab-wrap { display: none; }
 input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .form label > .seg { justify-self: start; }
-.suffix { position: relative; display: block; }
-.suffix .field { padding-right: 40px; }
-.suffix .u {
-  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  font-size: 12px; font-weight: 700; color: var(--ink); background: var(--sunk); padding: 3px 7px; border-radius: 6px; pointer-events: none;
-}
 
 /* Strength tickers */
 .tickers { display: grid; }
@@ -382,7 +376,6 @@ body.setup .nav, body.setup .top { display: none; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; }
 .pick button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 10px 14px; font-weight: 600; font-size: 14px; }
 .pick button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.big-field { font-family: var(--font-display); font-weight: 800; font-size: 40px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); width: 140px; }
 
 /* Lists */
 .list { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -459,11 +452,6 @@ body.setup .nav, body.setup .top { display: none; }
 .btn.danger { background: transparent; color: var(--red); box-shadow: inset 0 0 0 1px var(--line); }
 
 /* Goals tab: summary, groups, collapsible rows */
-.goals-sum { background: var(--surface); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; }
-.goals-sum-top { display: flex; align-items: baseline; gap: 8px; }
-.goals-sum-top b { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 0.9; color: var(--green); }
-.goals-sum-top span { font-weight: 600; color: var(--muted); }
-.goals-sum .hint { margin: 0; }
 .goal-list { display: grid; }
 .goal { border-top: 1px solid var(--line); }
 .goal:first-child { border-top: 0; }
@@ -671,9 +659,6 @@ body.setup .nav, body.setup .top { display: none; }
 .chart .gridl { stroke: var(--line); stroke-width: 1; }
 .chart .b { fill: var(--blue); }
 .chart .b.over { fill: var(--red); }
-.chart .wline { fill: none; stroke: var(--blue); stroke-width: 2; }
-.chart .warea { fill: var(--blue); opacity: 0.12; }
-.chart .wdot { fill: var(--blue); }
 
 /* Settings */
 .form { display: grid; gap: 12px; }
@@ -1688,8 +1673,10 @@ body.setup .nav, body.setup .top { display: none; }
   function coachWrite(force) {
     if (aiState !== "available" || coachBusy || !S().setupDone || coachMode() === "off") return;
     if (!introStarted()) { coachIntroWrite(); return; } // says hello first
-    const facts = buildFacts(), saved = coachSaved();
-    if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
+    const saved = coachSaved(), recent = saved && saved.date === todayISO() && Date.now() - saved.at < 2 * 3600000;
+    if (!force && recent) return; // checked before the facts, which take a while to work out
+    const facts = buildFacts();
+    if (!force && saved && saved.date === todayISO() && saved.facts === facts) return;
     // A note it writes on its own starts with a full sync (everything Stats reads too), so it's written from the latest
     // numbers. It waits for that sync (at most 20 s), then __healthResult calls back here. "Write a new note" skips this.
     if (!force && health === "granted") {
@@ -2541,7 +2528,6 @@ body.setup .nav, body.setup .top { display: none; }
   ].concat(NUTRIENTS.map(nutrStat));
   let statTab = "strength";
   const statSel = {}; // section -> open tile key ("" = closed); unset = the first tile
-  const lastDates = (n) => { const t = todayISO(), out = []; for (let i = n - 1; i >= 0; i--) out.push(addDays(t, -i)); return out; };
   // Day 1 of the challenge to today (or the last day, once it's over).
   const challengeDates = () => { const t = todayISO(), last = [t, addDays(S().startDate, TOTAL() - 1)].sort()[0], out = []; for (let d = S().startDate; d <= last; d = addDays(d, 1)) out.push(d); return out.length ? out : [t]; };
   function statData(m) {
@@ -2756,8 +2742,10 @@ body.setup .nav, body.setup .top { display: none; }
   function scoachWrite(sec, list, force) {
     if (!scoachOn()) return;
     if (scoach.busy) { if (scoach.busy !== sec) scoach.next = sec; return; }
-    const facts = sectionFacts(sec, list), saved = scoachAll()[sec];
-    if (!force && saved && saved.date === todayISO() && (saved.facts === facts || Date.now() - saved.at < 2 * 3600000)) return;
+    const saved = scoachAll()[sec];
+    if (!force && saved && saved.date === todayISO() && Date.now() - saved.at < 2 * 3600000) return; // before working out the facts
+    const facts = sectionFacts(sec, list);
+    if (!force && saved && saved.date === todayISO() && saved.facts === facts) return;
     scoach.busy = sec; scoach.err = ""; scoach.next = "";
     const label = STAT_TABS.find(([k]) => k === sec)[1], pk = choosePicks(secPicks, saved && saved.picks);
     // Food always names what they're shortest on (the top two); the lead still varies

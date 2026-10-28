@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.4 · Tidy-up
+- Behind the scenes: the coach no longer works out all your numbers on every tap just to check whether its note is still fresh, so the Stats tab and Today do a little less work. Unused leftovers were removed too.
+- Nothing you see changes.
+
 ## v0.23.3 · Fresher coach notes
 - The coach no longer opens with the same thing every time. The app now picks what it leads with at random from your few best things right now (a new best, your streak, calories on target, your weight trend, and so on), and never the same one twice in a row. The thing it nudges you on varies the same way.
 - Important nudges, like losing weight too fast or a plateau, still always come through.
