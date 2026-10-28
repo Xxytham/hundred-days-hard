@@ -1105,7 +1105,7 @@ body.setup .nav, body.setup .top { display: none; }
       }
       sync = "ok";
       setupReady = true;
-      regroupOnce();
+      regroupOnce(); othersOnce();
       persistLocal();
       render();
     }, () => { setupReady = true; setSync("err"); render(); });
@@ -2897,12 +2897,22 @@ body.setup .nav, body.setup .top { display: none; }
   // Each exercise shows under one day type: the home of its group (push-ups under Push even when done on a pull day,
   // abs under Pull). Its group: the one your plans and workouts agree on; when they differ, the one its name points to,
   // else the latest; with nothing saved, a guess from the name; with no guess, the day type it's done on most.
+  // Where an exercise lives in Progress: the group it's been logged in on a day of its own kind counts most (pull-ups
+  // under Back on a pull day), then what its name says, then wherever else it's been put. So pull-ups done on a push
+  // day still list under Pull, and abs (whose home is Pull) never list under Push.
   function homeOf(m) {
-    const cands = [];
-    Object.keys(GROUPS).forEach((t) => { const p = (storedPlan(t) || []).find((x) => exKey(x.name) === m.k); if (p && validGroup(p.group)) cands.push(p.group); });
-    Object.values(m.groups).forEach((g) => cands.push(g));
-    const uniq = [...new Set(cands)], guess = guessAny(m.name);
-    let g = uniq.length === 1 ? uniq[0] : uniq.length ? (uniq.includes(guess) ? guess : validGroup(m.lastGroup) ? m.lastGroup : uniq[0]) : guess;
+    const native = [];
+    Object.entries(m.groups).forEach(([t, g]) => { if (validGroup(g) && GROUP_HOME[g] === t) native.push(g); });
+    Object.keys(GROUPS).forEach((t) => { const p = (storedPlan(t) || []).find((x) => exKey(x.name) === m.k && !x.off); if (p && validGroup(p.group) && GROUP_HOME[p.group] === t) native.push(p.group); });
+    const nat = [...new Set(native)], guess = guessAny(m.name);
+    let g = nat.length === 1 ? nat[0] : nat.length ? (nat.includes(guess) ? guess : nat.includes(m.lastGroup) ? m.lastGroup : nat[0]) : guess;
+    if (g == null) {
+      const cands = [];
+      Object.keys(GROUPS).forEach((t) => { const p = (storedPlan(t) || []).find((x) => exKey(x.name) === m.k); if (p && validGroup(p.group)) cands.push(p.group); });
+      Object.values(m.groups).forEach((x) => cands.push(x));
+      const uniq = [...new Set(cands.filter(validGroup))];
+      g = uniq.length === 1 ? uniq[0] : uniq.length ? (validGroup(m.lastGroup) ? m.lastGroup : uniq[0]) : null;
+    }
     if (g == null) {
       const n = {}; m.pts.forEach((x) => (n[x.t] = (n[x.t] || 0) + 1));
       const t = Object.keys(n).filter((x) => TYPES.some((y) => y.id === x)).sort((a, b) => n[b] - n[a])[0] || "push";
@@ -3248,13 +3258,17 @@ body.setup .nav, body.setup .top { display: none; }
     w.exercises.splice(after ? w.exercises.indexOf(after) : w.exercises.length, 0, e);
     return e;
   }
-  // The groups a workout shows: the day's own, then any other group one of its exercises is in, with Abs last.
+  // The groups a workout shows: the day's own (Abs last), then one "Other" heading at the bottom for exercises from
+  // another day's groups (pull-ups on a push day). They keep their real group, so Progress lists them under their own day.
+  const OTHER = "*";
+  const inGroup = (e, g, own) => (g === OTHER ? !own.includes(e.group) : e.group === g);
   function sheetGroups(w) {
     const own = groupsFor(w.type);
-    return own.filter((g) => g !== "abs").concat(ALL_GROUPS.filter((g) => !own.includes(g) && w.exercises.some((e) => e.group === g)), own.includes("abs") ? ["abs"] : []);
+    return own.concat(w.exercises.some((e) => !own.includes(e.group)) ? [OTHER] : []);
   }
+  const sheetLabel = (g, type) => (g === OTHER || (validGroup(g) && !groupsFor(type).includes(g)) ? "Other" : groupLabel(g, type));
   // Today's exercises in the order they show: group by group, your order within each.
-  const inOrder = (w) => sheetGroups(w).flatMap((g) => w.exercises.filter((e) => e.group === g));
+  const inOrder = (w) => { const own = groupsFor(w.type); return sheetGroups(w).flatMap((g) => w.exercises.filter((e) => inGroup(e, g, own))); };
   function fixGroups(w) { w.exercises.forEach((e) => { if (!validGroup(e.group)) e.group = groupFor(e.name, w.type); }); }
   // Once, for groups saved before an exercise could sit outside its day's groups: anything left in a day's first
   // group only because nothing else fit (push-ups on a pull day landed in Back) moves to where its name says it goes.
@@ -3264,6 +3278,16 @@ body.setup .nav, body.setup .top { display: none; }
     Object.keys(state.days).forEach((d) => { const w = state.days[d].workout; if (w && w.exercises.map((x) => fix(x, w.type)).some(Boolean)) save(d, { keepStamp: false }); });
     Object.keys(S().plans || {}).forEach((t) => (S().plans[t] || []).forEach((x) => fix(x, t)));
     S().groupsSorted = true; save("settings");
+  }
+  // Once (v0.24, flag settings.othersSorted): an exercise sitting in one of its day's own groups although its name says
+  // it belongs to another day (pull-ups under Chest on a push day) moves to that group, so it shows under Other there
+  // and lists under its own day in Progress. Abs fit every day, so they never move.
+  function othersOnce() {
+    if (S().othersSorted || !Object.values(state.days).some((d) => d.workout)) return;
+    const fix = (x, type) => { const g = guessAny(x.name), own = groupsFor(type); if (GROUPS[type] && g != null && !own.includes(g) && own.includes(x.group)) { x.group = g; return true; } return false; };
+    Object.keys(state.days).forEach((d) => { const w = state.days[d].workout; if (w && w.exercises.map((x) => fix(x, w.type)).some(Boolean)) save(d, { keepStamp: false }); });
+    Object.keys(S().plans || {}).forEach((t) => (S().plans[t] || []).forEach((x) => fix(x, t)));
+    S().othersSorted = true; save("settings");
   }
   // An exercise for today: last time's sets (on any day type) as hints, and nothing done yet.
   function newEx(name, type, group) {
@@ -3292,7 +3316,7 @@ body.setup .nav, body.setup .top { display: none; }
       if (!hit || !ex || hit.g === from || ex.group !== from) return;
       const move = (g) => { const w2 = peekDay(d).workout, x = w2 && w2.exercises.find((y) => y.id === e.id); if (!x) return; x.group = g; save(d); if (!sheet.hidden && viewDate === d) drawWorkoutSoon(); };
       move(hit.g);
-      toast("Coach moved " + ex.name + " to " + (hit.g ? GROUP_NAME[hit.g] : "Legs"), () => move(from));
+      toast("Coach moved " + ex.name + " to " + (groupsFor(type).includes(hit.g) ? GROUP_NAME[hit.g] || "Legs" : "Other"), () => move(from));
     });
   }
   // An exercise is started (and counts) once it has a set done; tapping it starts it, because that's the one you're doing.
@@ -3465,13 +3489,13 @@ body.setup .nav, body.setup .top { display: none; }
     sheetDeferred = false;
     const w = peekDay(viewDate).workout;
     if (!w) { closeSheet(); return; }
-    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), shown = sheetEx(w), gs = sheetGroups({ type: w.type, exercises: shown }); // headings for not-started ones too
+    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), shown = sheetEx(w), gs = sheetGroups({ type: w.type, exercises: shown }), own = groupsFor(w.type); // headings for not-started ones too
     const body = wEdit
-      ? '<div class="wedit">' + gs.map((g) => (groupLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + groupLabel(g, w.type) + "</div>" : "") + w.exercises.filter((e) => e.group === g).map(editRow).join("")).join("") + "</div>"
+      ? '<div class="wedit">' + gs.map((g) => (sheetLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + sheetLabel(g, w.type) + "</div>" : "") + w.exercises.filter((e) => inGroup(e, g, own)).map(editRow).join("")).join("") + "</div>"
       : gs.map((g) => {
-          const list = shown.filter((e) => e.group === g), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g, label = groupLabel(g, w.type);
+          const list = shown.filter((e) => inGroup(e, g, own)), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g, label = sheetLabel(g, w.type);
           const head = label ? '<div class="wg-head"><h3>' + label + "</h3>" + (list.length ? '<span class="meta num">' + nDone + " of " + list.length + "</span>" : "") +
-            (adding ? "" : '<button class="linkbtn" data-action="wadd-open" data-g="' + g + '" aria-label="Add to ' + label + '">+ Add</button>') + "</div>" : "";
+            (adding || g === OTHER ? "" : '<button class="linkbtn" data-action="wadd-open" data-g="' + g + '" aria-label="Add to ' + label + '">+ Add</button>') + "</div>" : "";
           const foot = !label && !adding ? '<button class="btn secondary" data-action="wadd-open" data-g="">+ Add exercise</button>' : "";
           return '<div class="wg">' + head + list.map((e) => exBlock(e, w)).join("") + (adding ? addForm(w, g, !list.length) : "") + foot + "</div>";
         }).join("");
@@ -3620,10 +3644,14 @@ body.setup .nav, body.setup .top { display: none; }
       const seq = d.rows.map((r) => r.el), [m] = seq.splice(d.from, 1), order = [];
       seq.splice(d.to, 0, m);
       let g = sheetGroups(w)[0];
+      const own = groupsFor(w.type);
       seq.forEach((el) => {
         if (el.classList.contains("ex-ghead")) { g = el.dataset.g; return; }
         const e = w.exercises.find((x) => x.id === el.dataset.id);
-        if (e) { e.group = g; order.push(e); }
+        if (!e) return;
+        if (g !== OTHER) e.group = g;
+        else if (own.includes(e.group)) { const gg = guessAny(e.name); if (gg != null && !own.includes(gg)) e.group = gg; }
+        order.push(e);
       });
       w.exercises = order.concat(w.exercises.filter((e) => !order.includes(e)));
       save(viewDate); render();
@@ -4000,7 +4028,7 @@ body.setup .nav, body.setup .top { display: none; }
       buzz("confirm");
       save(viewDate); render(); drawWorkout(); showOpen();
       // Brand new to you: the coach sorts it into a group, and you go straight into its weight, keyboard still up.
-      if (g !== f.dataset.g) toast(ne.name + " went under " + (groupLabel(g, w.type) || "the list"));
+      if (g !== f.dataset.g) toast(ne.name + " went under " + (sheetLabel(g, w.type) || "the list"));
       if (!known) {
         aiSortExercise(ne, w.type);
         const i = document.getElementById("ex-w-" + ne.id);
@@ -4228,7 +4256,7 @@ body.setup .nav, body.setup .top { display: none; }
   render(true);
   healthSync();
   scheduleFileBackup();
-  regroupOnce();
+  regroupOnce(); othersOnce();
   cheered = { date: todayISO(), seen: new Set(metNow(todayISO())) };
   connect().catch(() => { setupReady = true; render(); });
   checkForUpdate();

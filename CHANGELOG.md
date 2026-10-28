@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.24 · An Other heading for off-day exercises
+- **Other, at the bottom of each day's log.** Each day shows only its own headings (Push: Chest, Triceps, Shoulders, Abs; Pull: Back, Biceps, Forearms, Abs; Legs). Anything from another day, like pull-ups or a dead hang on a push day, goes under **Other** at the bottom. If you add one under a push heading, it moves there and tells you.
+- **Progress keeps each exercise in its own day.** Pull-ups and other pull exercises list under Pull even when you do them on push day, and abs only ever list under Pull.
+- Exercises that had ended up under the wrong push heading (pull-ups under Chest, say) were moved once to where they belong.
+
 ## v0.23.5 · Workouts never drop off
 - **No more "keep changes?" question.** Finishing a workout just saves it. Nothing gets removed from your plan because you skipped it.
 - **Your whole push day comes back.** Every exercise the Progress tab lists under Push (and the same for Pull and Legs) is part of that day's plan, under the same Chest, Triceps and Shoulders headings, in the order you first logged them. If something went missing from your plan before, it's back.
