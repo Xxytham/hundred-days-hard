@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23.5 · Workouts never drop off
+- **No more "keep changes?" question.** Finishing a workout just saves it. Nothing gets removed from your plan because you skipped it.
+- **Your whole push day comes back.** Every exercise the Progress tab lists under Push (and the same for Pull and Legs) is part of that day's plan, under the same Chest, Triceps and Shoulders headings, in the order you first logged them. If something went missing from your plan before, it's back.
+- **Reopening today's workout** shows everything on the plan, not just what you've done so far. Tap any one to log it.
+- Something new you add joins your plan right after the exercise you did before it.
+- The only way an exercise comes off your plan is if you remove it yourself in **Reorder or remove**, and that has Undo.
+
 ## v0.23.4 · Tidy-up
 - Behind the scenes: the coach no longer works out all your numbers on every tap just to check whether its note is still fresh, so the Stats tab and Today do a little less work. Unused leftovers were removed too.
 - Nothing you see changes.

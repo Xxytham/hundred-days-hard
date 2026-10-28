@@ -233,7 +233,6 @@ body.kb .fab-wrap { display: none; }
 .btn.go svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .wedit { display: grid; gap: 6px; }
 .ex-ghead { padding: 10px 2px 2px; transition: transform 160ms var(--ease); }
-.keep-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .sbtn:disabled { opacity: 0.35; }
 .sheet-foot { display: grid; gap: 8px; position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); background: var(--surface); padding-block: 10px 6px; }
 .sheet.typing .sheet-foot { display: none; }
@@ -3046,7 +3045,7 @@ body.setup .nav, body.setup .top { display: none; }
     const f = focusId && document.getElementById(focusId);
     if (f) setTimeout(() => f.focus(), 60);
   }
-  function closeSheet() { wKeepAsk = null; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
+  function closeSheet() { wExtra = []; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
 
   // ---------- keyboard ----------
   // When the keyboard opens, the installed app's page gets shorter (on iPhone, the visual viewport does). While you
@@ -3194,13 +3193,61 @@ body.setup .nav, body.setup .top { display: none; }
   }
   // Where an exercise goes on a day: where you've had it, else a guess from its name.
   function groupFor(name, type) { const g = knownGroup(name, type); return g != null ? g : guessGroup(name, type); }
-  // The plan for a day type: the list you kept, or (until you've finished one since plans arrived) your last session of that type.
-  function planFor(type) {
-    const p = storedPlan(type), last = p ? null : lastSession(type, null);
-    const l = p || (last ? last.workout.exercises : []);
-    return l.map((x) => ({ name: x.name, group: fitGroup(x.group, x.name, type) }));
+  // The plan for a day type: the list you kept, plus every exercise from your past sessions of that type (newest first,
+  // each slotted in right after the exercise you did before it, so the order you logged them in holds), plus anything
+  // else the Progress tab lists under this day type. So nothing you've done ever drops off. The only way off is Remove
+  // in "Reorder or remove", which marks it off: true in the stored plan. `without` leaves out one day's session (the one
+  // being saved).
+  function homeExercises(type, without) {
+    return strengthData().filter((m) => m.pts.some((x) => x.date !== without)).map((m) => ({ m, h: homeOf(m) })).filter((x) => x.h.home === type).map((x) => ({ name: x.m.name, group: x.h.g }));
   }
-  function setPlan(type, list) { S().plans = { ...(S().plans || {}), [type]: list.map((x) => ({ name: x.name, group: x.group })) }; save("settings"); }
+  function mergeInto(list, seq, skip) {
+    const has = (n) => list.some((x) => exKey(x.name) === exKey(n));
+    seq.forEach((x, i) => {
+      if (has(x.name) || skip.has(exKey(x.name))) return;
+      const prevEx = seq.slice(0, i).reverse().find((y) => has(y.name));
+      list.splice(prevEx ? list.findIndex((z) => exKey(z.name) === exKey(prevEx.name)) + 1 : list.length, 0, { name: x.name, group: x.group });
+    });
+  }
+  function planFor(type, without) {
+    const p = storedPlan(type) || [], off = new Set(p.filter((x) => x.off).map((x) => exKey(x.name)));
+    const list = p.filter((x) => !x.off).map((x) => ({ name: x.name, group: x.group }));
+    savedSessions(type).filter((d) => d !== without).reverse().forEach((d) => mergeInto(list, state.days[d].workout.exercises, off));
+    if (GROUPS[type]) mergeInto(list, homeExercises(type, without), off);
+    return list.map((x) => ({ name: x.name, group: fitGroup(x.group, x.name, type) }));
+  }
+  // Stores the plan, keeping the exercises you removed marked off (one that's on the new list is back on).
+  function setPlan(type, list) {
+    const off = (storedPlan(type) || []).filter((x) => x.off && !list.some((y) => exKey(y.name) === exKey(x.name)));
+    S().plans = { ...(S().plans || {}), [type]: list.map((x) => ({ name: x.name, group: x.group })).concat(off.map((x) => ({ name: x.name, group: x.group, off: true }))) };
+    save("settings");
+  }
+  function planOff(type, name, off) {
+    if (!GROUPS[type]) return;
+    const l = (storedPlan(type) || planFor(type)).map((x) => ({ ...x })), x = l.find((y) => exKey(y.name) === exKey(name));
+    if (x) { if (off) x.off = true; else delete x.off; } else if (off) l.push({ name, group: groupFor(name, type), off: true });
+    S().plans = { ...(S().plans || {}), [type]: l }; save("settings");
+  }
+  const isLatest = (type, date) => !savedSessions(type).some((k) => k > date); // older days never change the plan
+  // Reopening a saved workout (the latest of its type): the rest of the plan shows too, not started, in plan order,
+  // so you can still log them. They're only added to the workout once you tap one.
+  let wExtra = [];
+  function sheetEx(w) {
+    if (!wExtra.length) return w.exercises;
+    const pi = {};
+    planFor(w.type).forEach((x, i) => (pi[exKey(x.name)] = i));
+    let r = -1;
+    const ranked = w.exercises.map((e) => { r = pi[exKey(e.name)] != null ? pi[exKey(e.name)] : r + 0.001; return [r, e]; });
+    wExtra.forEach((e) => ranked.push([pi[exKey(e.name)], e]));
+    return ranked.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  }
+  function takeExtra(w, id) {
+    const order = sheetEx(w), i = wExtra.findIndex((x) => x.id === id);
+    if (i < 0) return null;
+    const [e] = wExtra.splice(i, 1), after = order.slice(order.indexOf(e) + 1).find((x) => w.exercises.includes(x));
+    w.exercises.splice(after ? w.exercises.indexOf(after) : w.exercises.length, 0, e);
+    return e;
+  }
   // The groups a workout shows: the day's own, then any other group one of its exercises is in, with Abs last.
   function sheetGroups(w) {
     const own = groupsFor(w.type);
@@ -3323,7 +3370,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
 
   // wOpen: the one exercise shown in full. wAddGroup: the group whose add box is open (null = none; "" = Legs' list).
-  let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null, wKeepAsk = null;
+  let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null;
   function startWorkout(type) {
     const d = getDay(viewDate);
     if (!d.workout) {
@@ -3335,10 +3382,12 @@ body.setup .nav, body.setup .top { display: none; }
   }
   function openWorkout() {
     const w = peekDay(viewDate).workout;
-    wEdit = false; wConfirmDiscard = false; wKeepAsk = null; renaming = renameAsk = null;
+    wEdit = false; wConfirmDiscard = false; renaming = renameAsk = null;
     fixGroups(w);
     if (!w.saved) w.exercises.forEach(prepDraftEx);
-    wAddGroup = w.exercises.length ? null : groupsFor(w.type)[0];
+    wExtra = w.saved && GROUPS[w.type] && isLatest(w.type, viewDate)
+      ? planFor(w.type).filter((x) => !w.exercises.some((e) => exKey(e.name) === exKey(x.name))).map((x) => newEx(x.name, w.type, x.group)) : [];
+    wAddGroup = sheetEx(w).length ? null : groupsFor(w.type)[0];
     wOpen = null; // you pick the exercise you're doing; nothing starts by itself
     sheet.classList.add("tall");
     sheet.hidden = backdrop.hidden = false;
@@ -3412,24 +3461,15 @@ body.setup .nav, body.setup .top { display: none; }
       '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
       '<p class="hint">Done it before? Your last sets load in. Leave weight at 0 for bodyweight moves.</p></form>';
   }
-  function keepAskHTML() {
-    const k = wKeepAsk, tn = typeName(k.type), li = (a) => a.map(esc).join(", ");
-    return '<div class="sheet-inner"><div class="grab"></div><div class="panel-head"><h2>' + tn + ' day saved</h2></div>' +
-      "<p>This one went differently from your plan. Keep the changes for your next " + tn.toLowerCase() + " day?</p>" +
-      '<ul class="keep-list">' + (k.added.length ? "<li><b>Added</b> " + li(k.added) + "</li>" : "") + (k.skipped.length ? "<li><b>Not done</b> " + li(k.skipped) + "</li>" : "") + "</ul>" +
-      '<p class="hint">Keep: what you added joins your plan and what you didn\'t do comes off it. Just today: your plan stays as it was.</p>' +
-      '<div class="btn-row"><button class="btn" data-action="plan-keep">Keep for next time</button><button class="btn secondary" data-action="plan-today">Just today</button></div></div>';
-  }
   function drawWorkout() {
     sheetDeferred = false;
     const w = peekDay(viewDate).workout;
     if (!w) { closeSheet(); return; }
-    if (wKeepAsk) { sheet.innerHTML = keepAskHTML(); return; }
-    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), gs = sheetGroups(w);
+    const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), shown = sheetEx(w), gs = sheetGroups({ type: w.type, exercises: shown }); // headings for not-started ones too
     const body = wEdit
       ? '<div class="wedit">' + gs.map((g) => (groupLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + groupLabel(g, w.type) + "</div>" : "") + w.exercises.filter((e) => e.group === g).map(editRow).join("")).join("") + "</div>"
       : gs.map((g) => {
-          const list = w.exercises.filter((e) => e.group === g), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g, label = groupLabel(g, w.type);
+          const list = shown.filter((e) => e.group === g), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g, label = groupLabel(g, w.type);
           const head = label ? '<div class="wg-head"><h3>' + label + "</h3>" + (list.length ? '<span class="meta num">' + nDone + " of " + list.length + "</span>" : "") +
             (adding ? "" : '<button class="linkbtn" data-action="wadd-open" data-g="' + g + '" aria-label="Add to ' + label + '">+ Add</button>') + "</div>" : "";
           const foot = !label && !adding ? '<button class="btn secondary" data-action="wadd-open" data-g="">+ Add exercise</button>' : "";
@@ -3438,7 +3478,7 @@ body.setup .nav, body.setup .top { display: none; }
     const nSets = w.exercises.reduce((a, e) => a + doneSets(e).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
     const open = wOpen && !wEdit ? w.exercises.find((e) => e.id === wOpen) : null;
     const intro = wEdit ? "Hold an exercise and drag it to move it" + (gs[0] ? ", or into another group" : "") + ". Tap a name to rename it."
-      : !w.exercises.length ? (prev ? "" : "First " + tn + " day. Add what you do" + (gs[0] ? " under each group" : "") + ". Next time it's your plan, with your weights and sets.")
+      : !shown.length ? (prev ? "" : "First " + tn + " day. Add what you do" + (gs[0] ? " under each group" : "") + ". Next time it's your plan, with your weights and sets.")
       : w.saved ? "Saved. Tap an exercise to change it."
       : nSets ? "<b>" + nEx + " of " + w.exercises.length + "</b> exercises · <b>" + nSets + "</b> " + (nSets === 1 ? "set" : "sets")
       : prev ? "Your usual " + tn + " day. Tap an exercise when you start it. Each set starts from last time, so just change what's different."
@@ -3620,7 +3660,7 @@ body.setup .nav, body.setup .top { display: none; }
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
   const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
-    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard", "plan-today",
+    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
     const cm = document.querySelector(".coach-card.menu-open");
@@ -3731,7 +3771,7 @@ body.setup .nav, body.setup .top { display: none; }
       case "open-workout": openWorkout(); break;
       case "ex-open": {
         // Tapping an exercise starts it: that's the one you're doing now, with set 1 from last time.
-        const e = findEx(el.dataset.id);
+        const e = findEx(el.dataset.id) || takeExtra(day().workout, el.dataset.id);
         if (!e) break;
         if (wOpen === e.id) { wOpen = null; drawWorkout(); break; }
         wOpen = e.id; delete curSet[e.id];
@@ -3796,9 +3836,14 @@ body.setup .nav, body.setup .top { display: none; }
       case "ex-del": {
         const w = day().workout, i = w.exercises.findIndex((e) => e.id === el.dataset.id);
         if (i < 0) break;
-        const [gone] = w.exercises.splice(i, 1);
+        const [gone] = w.exercises.splice(i, 1), fromPlan = isLatest(w.type, viewDate) && !!GROUPS[w.type];
+        if (fromPlan) planOff(w.type, gone.name, true); // you said so: it stays off your plan until you add it again
         save(viewDate); drawWorkout(); render();
-        toast("Removed " + gone.name, () => { const w2 = getDay(viewDate).workout; if (!w2) return; w2.exercises.splice(Math.min(i, w2.exercises.length), 0, gone); save(viewDate); render(); if (!sheet.hidden) drawWorkout(); });
+        toast("Removed " + gone.name + (fromPlan ? " from your " + typeName(w.type).toLowerCase() + " day" : ""), () => {
+          const w2 = getDay(viewDate).workout; if (!w2) return;
+          w2.exercises.splice(Math.min(i, w2.exercises.length), 0, gone); if (fromPlan) planOff(w2.type, gone.name, false);
+          save(viewDate); render(); if (!sheet.hidden) drawWorkout();
+        });
         break;
       }
       case "ex-rename": {
@@ -3819,12 +3864,12 @@ body.setup .nav, body.setup .top { display: none; }
         day().workout = null; save(viewDate); closeSheet(); render(true); toast("Workout discarded");
         break;
       case "w-save": {
-        // Saves only the sets you logged. Exercises with none are left out today (and stay in your plan unless you say otherwise).
+        // Saves only the sets you logged. Exercises with none are left out today, and always stay in your plan.
         const d = day(), w = d.workout;
         if (!w) break;
         const kept = inOrder(w).filter((e) => exState(e) !== "plan");
         if (!kept.length) break;
-        const before = savedSessions(w.type).some((k) => k > viewDate) ? null : planFor(w.type); // older days never change the plan
+        const before = isLatest(w.type, viewDate) && GROUPS[w.type] ? planFor(w.type, viewDate) : null; // older days never change the plan
         kept.forEach((e) => { e.setList = doneSets(e).map((x) => ({ w: x.w, r: x.r })); delete e.last; delete e.bump; syncEx(e); });
         w.exercises = kept;
         const first = !w.saved;
@@ -3833,31 +3878,21 @@ body.setup .nav, body.setup .top { display: none; }
         save(viewDate);
         buzz("confirm");
         if (before) {
-          const now = kept.map((e) => ({ name: e.name, group: e.group })), has = (l, n) => l.some((x) => exKey(x.name) === exKey(n));
-          const added = now.filter((x) => !has(before, x.name)).map((x) => x.name), skipped = before.filter((x) => !has(now, x.name)).map((x) => x.name);
-          // Moving an exercise to another group always sticks; which exercises are on the list only changes if you say so.
-          const regrouped = before.map((x) => { const m = now.find((y) => exKey(y.name) === exKey(x.name)); return m ? { name: m.name, group: m.group } : x; });
-          // Asked once, the first time it's saved; saving changes to it later keeps whatever you chose (groups still update).
-          if (before.length && (added.length || skipped.length) && !first) { setPlan(w.type, regrouped); closeSheet(); render(true); toast(typeName(w.type) + " day updated"); break; }
-          if (before.length && (added.length || skipped.length)) {
-            setPlan(w.type, regrouped);
-            render(true);
-            wKeepAsk = { type: w.type, now, added, skipped };
-            drawWorkout(); sheet.scrollTop = 0;
-            break;
-          }
-          setPlan(w.type, now);
+          // The plan never loses anything without you saying so: it keeps every exercise, takes today's groups, and
+          // anything new joins it right after the exercise you did before it.
+          const now = kept.map((e) => ({ name: e.name, group: e.group })), same = (x, y) => exKey(x.name) === exKey(y.name);
+          const plan = before.map((x) => now.find((y) => same(x, y)) || x);
+          now.forEach((x, i) => {
+            if (plan.some((y) => same(x, y))) return;
+            const prevEx = now.slice(0, i).reverse().find((y) => plan.some((z) => same(y, z)));
+            plan.splice(prevEx ? plan.findIndex((z) => same(z, prevEx)) + 1 : 0, 0, x);
+          });
+          setPlan(w.type, plan);
         }
         closeSheet(); render(true);
         toast(typeName(w.type) + " day " + (first ? "saved" : "updated"));
         break;
       }
-      case "plan-keep": {
-        const k = wKeepAsk;
-        if (k) { setPlan(k.type, k.now); buzz("confirm"); toast("Plan updated for next " + typeName(k.type).toLowerCase() + " day"); }
-        closeSheet(); break;
-      }
-      case "plan-today": { const k = wKeepAsk; closeSheet(); if (k) toast(typeName(k.type) + " day saved. Plan unchanged"); break; }
       case "str-type": strType = strType === el.dataset.type ? null : el.dataset.type; strSel = null; render(true); break;
       case "str-sel": strSel = strSel === el.dataset.k ? null : el.dataset.k; render(true); break;
       case "close-sheet": closeSheet(); break;
@@ -3951,6 +3986,8 @@ body.setup .nav, body.setup .top { display: none; }
       const name = val("wadd-name").replace(/\s+/g, " ");
       const w = getDay(viewDate).workout;
       if (!name || !w) return;
+      const ex0 = wExtra.find((x) => exKey(x.name) === exKey(name)); // already on the plan, not started yet: start that one
+      if (ex0) { takeExtra(w, ex0.id); startEx(ex0); wAddGroup = null; wOpen = ex0.id; buzz("confirm"); save(viewDate); render(); drawWorkout(); showOpen(); return; }
       const dup = w.exercises.find((x) => exKey(x.name) === exKey(name));
       if (dup) { wAddGroup = null; wOpen = dup.id; drawWorkout(); showOpen(); toast(dup.name + " is already in this workout"); return; }
       // The heading you tapped "+ Add" under is only the fallback: an exercise goes where you've had it before, else
