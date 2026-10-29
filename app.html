@@ -1649,10 +1649,18 @@ body.setup .nav, body.setup .top { display: none; }
       out.push("Their goals: " + goals.slice(0, 6).map((g) => {
         const c = firstOpen(g), done = g.steps.filter((x) => x.done), last = done.reduce((a, x) => Math.max(a, x.doneDay || 0), 0), best = bestFor(g);
         return '"' + g.name + '" ' + done.length + " of " + g.steps.length + " steps done" + (c > 0 ? ', at "' + g.steps[c - 1].text + '"' : "") + (c < g.steps.length ? ', next "' + g.steps[c].text + '"' : ", finished") +
-          (last && c < g.steps.length ? ", last step " + (n - last === 0 ? "today" : n - last + " days ago") : "") + (best ? ", and " + best : "");
+          (last && c < g.steps.length ? ", last step " + (n - last === 0 ? "today" : n - last === 1 ? "yesterday" : n - last + " days ago") : "") + (best ? ", and " + best : "");
       }).join("; ") + ".");
-      const recent = goals.flatMap((g) => g.steps.filter((x) => x.done && x.doneDay >= n - 6).map((x) => { const best = bestFor(g); return '"' + g.name + '": "' + x.text + '"' + (best ? " (" + best + ")" : ""); }));
-      if (recent.length) { out.push("Goal steps they ticked this week (milestones they set themselves; the number in a step is the milestone, not a count of what they did): " + recent.join("; ") + "."); wins.push([0.85, "a goal step ticked this week, " + recent[0]]); }
+      // Per goal, the hardest step reached this week (steps are stored easiest first), so ticking 20 and then 25 reads as
+      // "now at 25", never as 20.
+      const recent = goals.map((g) => {
+        const wk = g.steps.filter((x) => x.done && x.doneDay >= n - 6);
+        if (!wk.length) return null;
+        const top = wk[wk.length - 1], c = firstOpen(g), best = bestFor(g);
+        return { day: Math.max(...wk.map((x) => x.doneDay || 0)), text: '"' + g.name + '": now at step "' + top.text + '"' + (wk.length > 1 ? " (up " + wk.length + " steps this week)" : "") +
+          (c < g.steps.length ? ', next "' + g.steps[c].text + '"' : ", the whole ladder done") + (best ? "; " + best : "") };
+      }).filter(Boolean).sort((a, b) => b.day - a.day).map((x) => x.text);
+      if (recent.length) { out.push("Goal steps reached this week (milestones they set themselves; a step's number is the milestone, not a count of what they did; always talk about the step they're now at): " + recent.join("; ") + "."); wins.push([0.85, "a goal step reached this week, " + recent[0]]); }
       const stuck = goals.filter((g) => firstOpen(g) < g.steps.length).map((g) => ({ g, last: g.steps.filter((x) => x.done).reduce((a, x) => Math.max(a, x.doneDay || 0), 0) })).filter((x) => n - x.last >= 14).sort((a, b) => a.last - b.last)[0];
       if (stuck) fixes.push([0.4, 'the goal "' + stuck.g.name + '", next step "' + stuck.g.steps[firstOpen(stuck.g)].text + '"' + (stuck.last ? ", no step for " + (n - stuck.last) + " days" : ", not started")]);
     }

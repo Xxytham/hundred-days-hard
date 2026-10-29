@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.24.2 · Coach talks about the goal step you're on
+- If you tick more than one step of a goal in a week (say 20, then 25 push-ups in one go), the coach now only hears about the one you're on now, 25, and that you went up 2 steps. Before, it was told about the first one, 20.
+
 ## v0.24.1 · Coach gets your real numbers for goals
 - When the coach mentions a goal step you ticked, like "20 in one go" on a push-ups goal, it now also knows your best logged set (say 25 reps), so it won't call the step's number what you did.
 - Small wording fix: "1 days ago" now reads "yesterday".
