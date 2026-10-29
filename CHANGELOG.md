@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.24.3 · Clearer goal facts for the coach
+- The coach once wrote "25 Shake up", which isn't in any of your goals. The app was giving it goal steps as bare numbers in quotes, and the on-phone AI filled in words of its own. Steps now read as plain phrases ("now at 25 push-ups in one go, next 30"), and the coach is told never to quote anything that isn't in your data and never to mix one goal's steps with another's.
+- A goal like "Two-person push-up" is no longer mistaken for regular push-ups.
+
 ## v0.24.2 · Coach talks about the goal step you're on
 - If you tick more than one step of a goal in a week (say 20, then 25 push-ups in one go), the coach now only hears about the one you're on now, 25, and that you went up 2 steps. Before, it was told about the first one, 20.
 

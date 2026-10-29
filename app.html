@@ -1639,16 +1639,19 @@ body.setup .nav, body.setup .top { display: none; }
     // exercise they log also gets their actual best set ("20 in one go" ticked, but the best logged set is 25 reps).
     const goals = state.goals.list.filter((g) => g.steps.length);
     if (goals.length) {
-      const words = (x) => exKey(x).replace(/[^a-z0-9]+/g, " ").replace(/s\b/g, "").trim();
+      // The exercise a goal is about: its words without the extras ("in one go", "close grip", "max"), plurals aside, so
+      // "Push-ups in one go" is push-ups but "Two-person push-up" isn't.
+      const words = (x) => exKey(x).replace(/[^a-z0-9]+/g, " ").replace(/\b(in one go|in a row|unbroken|wide grip|close grip|narrow grip|max|reps?)\b/g, " ").replace(/s\b/g, "").replace(/\s+/g, " ").trim();
       const bestFor = (g) => {
-        const k = words(g.name), m = sd.concat(strengthData().filter((x) => x.pts.length === 1)).filter((x) => { const e = words(x.name); return e.length >= 3 && (k === e || (" " + k + " ").includes(" " + e + " ")); }).sort((a, b) => words(b.name).length - words(a.name).length)[0];
+        const k = words(g.name), m = sd.concat(strengthData().filter((x) => x.pts.length === 1)).find((x) => k.length >= 3 && words(x.name) === k);
         if (!m) return "";
         const b = m.pts.reduce((a, x) => (x.score > a.score ? x : a), m.pts[0]);
         return "their best logged " + m.name + " set is " + wtxt(b) + ", on day " + dayNum(b.date);
       };
+      const stepTxt = (g, x) => (/^[\d.,]+$/.test(String(x.text).trim()) ? x.text.trim() + " " + g.name.toLowerCase().replace(/,/g, "") : x.text);
       out.push("Their goals: " + goals.slice(0, 6).map((g) => {
         const c = firstOpen(g), done = g.steps.filter((x) => x.done), last = done.reduce((a, x) => Math.max(a, x.doneDay || 0), 0), best = bestFor(g);
-        return '"' + g.name + '" ' + done.length + " of " + g.steps.length + " steps done" + (c > 0 ? ', at "' + g.steps[c - 1].text + '"' : "") + (c < g.steps.length ? ', next "' + g.steps[c].text + '"' : ", finished") +
+        return "the goal " + g.name + ": " + done.length + " of " + g.steps.length + " steps done" + (c > 0 ? ", now at " + stepTxt(g, g.steps[c - 1]) : "") + (c < g.steps.length ? ", next " + stepTxt(g, g.steps[c]) : ", finished") +
           (last && c < g.steps.length ? ", last step " + (n - last === 0 ? "today" : n - last === 1 ? "yesterday" : n - last + " days ago") : "") + (best ? ", and " + best : "");
       }).join("; ") + ".");
       // Per goal, the hardest step reached this week (steps are stored easiest first), so ticking 20 and then 25 reads as
@@ -1657,12 +1660,12 @@ body.setup .nav, body.setup .top { display: none; }
         const wk = g.steps.filter((x) => x.done && x.doneDay >= n - 6);
         if (!wk.length) return null;
         const top = wk[wk.length - 1], c = firstOpen(g), best = bestFor(g);
-        return { day: Math.max(...wk.map((x) => x.doneDay || 0)), text: '"' + g.name + '": now at step "' + top.text + '"' + (wk.length > 1 ? " (up " + wk.length + " steps this week)" : "") +
-          (c < g.steps.length ? ', next "' + g.steps[c].text + '"' : ", the whole ladder done") + (best ? "; " + best : "") };
+        return { day: Math.max(...wk.map((x) => x.doneDay || 0)), text: "the goal " + g.name + ": now at " + stepTxt(g, top) + (wk.length > 1 ? " (up " + wk.length + " steps this week)" : "") +
+          (c < g.steps.length ? ", next " + stepTxt(g, g.steps[c]) : ", the whole ladder done") + (best ? "; " + best : "") };
       }).filter(Boolean).sort((a, b) => b.day - a.day).map((x) => x.text);
       if (recent.length) { out.push("Goal steps reached this week (milestones they set themselves; a step's number is the milestone, not a count of what they did; always talk about the step they're now at): " + recent.join("; ") + "."); wins.push([0.85, "a goal step reached this week, " + recent[0]]); }
       const stuck = goals.filter((g) => firstOpen(g) < g.steps.length).map((g) => ({ g, last: g.steps.filter((x) => x.done).reduce((a, x) => Math.max(a, x.doneDay || 0), 0) })).filter((x) => n - x.last >= 14).sort((a, b) => a.last - b.last)[0];
-      if (stuck) fixes.push([0.4, 'the goal "' + stuck.g.name + '", next step "' + stuck.g.steps[firstOpen(stuck.g)].text + '"' + (stuck.last ? ", no step for " + (n - stuck.last) + " days" : ", not started")]);
+      if (stuck) fixes.push([0.4, "the goal " + stuck.g.name + ", next step " + stepTxt(stuck.g, stuck.g.steps[firstOpen(stuck.g)]) + (stuck.last ? ", no step for " + (n - stuck.last) + " days" : ", not started")]);
     }
     factPicks = { wins, fixes }; // chosen from when a note is written (choosePicks), so the facts themselves stay the same
     return out.join("\n");
@@ -1717,7 +1720,8 @@ body.setup .nav, body.setup .top { display: none; }
       "- One idea at a time, never a lecture.\n" +
       "- If the facts show a plateau, say so plainly but kindly, give the likely reason, and suggest the course correction they give. That's coaching, not criticism.\n" +
       "- If the facts give a pace check, use it: celebrate a pace inside the goal, nudge kindly when there's room to lose more, and warn gently when it's too fast.\n" +
-      "- A goal step is a milestone they set. Say they reached that milestone; for what they actually did, use their best logged set when the facts give it.\n\n" +
+      "- A goal step is a milestone they set. Say they reached that milestone; for what they actually did, use their best logged set when the facts give it. Each goal is separate: never mix one goal's steps into another.\n" +
+      "- Only put words in quotes if they appear in the facts exactly like that. Never make up a name, step or exercise.\n\n" +
       "What the app worked out from their data:\n" + facts + "\n\n" +
       (pk.lead ? "Open with this today (the app picks a different one each time, so your notes stay fresh): " + pk.lead + ". " : "") +
       (pk.nudge ? "If it fits, one thing to nudge: " + pk.nudge + ". " : "") + "After that, say whatever else you think matters most.\n\n" +
