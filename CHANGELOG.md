@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.24.1 · Coach gets your real numbers for goals
+- When the coach mentions a goal step you ticked, like "20 in one go" on a push-ups goal, it now also knows your best logged set (say 25 reps), so it won't call the step's number what you did.
+- Small wording fix: "1 days ago" now reads "yesterday".
+
 ## v0.24 · An Other heading for off-day exercises
 - **Other, at the bottom of each day's log.** Each day shows only its own headings (Push: Chest, Triceps, Shoulders, Abs; Pull: Back, Biceps, Forearms, Abs; Legs). Anything from another day, like pull-ups or a dead hang on a push day, goes under **Other** at the bottom. If you add one under a push heading, it moves there and tells you.
 - **Progress keeps each exercise in its own day.** Pull-ups and other pull exercises list under Pull even when you do them on push day, and abs only ever list under Pull.
