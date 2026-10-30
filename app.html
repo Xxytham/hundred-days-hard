@@ -749,9 +749,11 @@ body.setup .nav, body.setup .top { display: none; }
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-top: 10px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  max-height: 88vh; overflow-y: auto;
+  max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
   animation: up 0.22s ease-out;
 }
+/* While a sheet is up, the page behind it stays put */
+html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: none; }
 .sheet-inner { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
 .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 4px; }
 @keyframes up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
@@ -3144,6 +3146,11 @@ body.setup .nav, body.setup .top { display: none; }
     const f = focusId && document.getElementById(focusId);
     if (f) setTimeout(() => f.focus(), 60);
   }
+  // While a sheet is up, the page behind it can't scroll: swiping a sheet with nothing to scroll (or the dimmed area
+  // around it) used to move the page underneath.
+  new MutationObserver(() => document.documentElement.classList.toggle("sheet-open", !sheet.hidden)).observe(sheet, { attributes: true, attributeFilter: ["hidden"] });
+  sheet.addEventListener("touchmove", (ev) => { if (sheet.scrollHeight <= sheet.clientHeight + 1 && !(drag && drag.active) && !ev.target.closest("input")) ev.preventDefault(); }, { passive: false });
+  backdrop.addEventListener("touchmove", (ev) => ev.preventDefault(), { passive: false });
   function closeSheet() { wExtra = []; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
 
   // ---------- keyboard ----------

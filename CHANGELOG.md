@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.25.1 · No more buzz on long press
+- Pressing and holding anywhere no longer makes the phone buzz. The app's own buzzes (ticking a task, finishing a workout) still work, and holding − or + still steps.
+- Swiping inside a workout, or on the dimmed area around it, no longer scrolls the page behind it.
+
 ## v0.25 · Safer workouts and a new Settings
 **Workouts**
 - **Logged sets can't be thrown away by accident.** "Discard" only shows before you've logged anything, and if you do discard, there's Undo.

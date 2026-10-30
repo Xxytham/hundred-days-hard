@@ -79,6 +79,10 @@ public class MainActivity extends Activity {
 
         root = new FrameLayout(this);
         web = new WebView(this);
+        // A long press does nothing outside a text box: no buzz, no selection or menu. (The page's own haptics still
+        // work; they skip this view setting.) In a text box it still selects and pastes.
+        web.setHapticFeedbackEnabled(false);
+        web.setOnLongClickListener(v -> web.getHitTestResult().getType() != WebView.HitTestResult.EDIT_TEXT_TYPE);
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         applyTheme();
@@ -495,7 +499,7 @@ public class MainActivity extends Activity {
                 default: k = HapticFeedbackConstants.CLOCK_TICK;
             }
             final int effect = k;
-            runOnUiThread(() -> web.performHapticFeedback(effect));
+            runOnUiThread(() -> web.performHapticFeedback(effect, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING));
         }
 
         @JavascriptInterface
