@@ -159,7 +159,8 @@ body.kb .fab-wrap { display: none; }
 }
 .ex-rename svg { flex: none; width: 14px; height: 14px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ex-edit.lifted { transition: none; position: relative; z-index: 3; scale: 1.02; border-color: var(--muted); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35); }
-.ex-edit.renaming { padding: 8px; }
+.ex-edit.renaming { padding: 8px; gap: 8px; }
+.ex-edit.renaming .btn { flex: none; padding: 11px 16px; }
 .ex-ask { display: grid; gap: 10px; }
 .ex-ask p { margin: 0; display: grid; gap: 2px; }
 .ex-ask .btn-row { align-items: center; }
@@ -222,7 +223,7 @@ body.kb .fab-wrap { display: none; }
 .set-n { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
 .set-top .set-del { margin-left: auto; color: var(--muted); font-size: 13px; }
 .srow { display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; gap: 8px; align-items: center; }
-.srow .sbtn { height: 52px; font-size: 24px; color: var(--ink); }
+.srow .sbtn { height: 52px; font-size: 24px; color: var(--ink); touch-action: manipulation; }
 .sbox { position: relative; display: block; height: 52px; border-radius: 10px; background: var(--bg); }
 .sbox .sval { width: 100%; height: 100%; padding: 0 48px; text-align: center; font-size: 30px; border-radius: 10px; color: var(--ink); }
 .sbox .sval::placeholder { color: var(--muted); opacity: 0.6; }
@@ -491,6 +492,39 @@ body.setup .nav, body.setup .top { display: none; }
 .goal-group-head { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .goal-row { cursor: pointer; }
 .goal-new { display: grid; gap: 12px; }
+/* Settings: grouped rows. Name and value on the left (the value in blue), a switch on the right where there is one;
+   tapping the name opens a short description and the controls under it. */
+.st-label { margin: 20px 6px 8px; font-family: var(--font-body); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; text-transform: none; color: var(--muted); }
+.st-label:first-child { margin-top: 4px; }
+.st-group { background: var(--surface); border-radius: 22px; overflow: hidden; }
+.st-item + .st-item::before { content: ""; display: block; height: 1px; margin: 0 18px; background: var(--line); }
+.st-line { display: flex; align-items: center; min-height: 64px; }
+.st-main { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 10px; border: 0; background: none; text-align: left; padding: 12px 18px; color: var(--ink); border-radius: 0; }
+.st-main:active { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.st-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.st-title { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.st-val { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--blue); line-height: 1.3; }
+.st-val.muted { color: var(--muted); }
+.st-val .dot { width: 7px; height: 7px; }
+.st-chev { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--t) var(--ease); }
+.st-item.open .st-chev { transform: rotate(90deg); }
+.st-sep { flex: none; width: 1px; height: 30px; background: var(--line); }
+.switch { flex: none; position: relative; width: 52px; height: 30px; margin: 0 18px 0 14px; padding: 0; border: 0; border-radius: 15px; background: var(--sunk); box-shadow: inset 0 0 0 1.5px var(--line); transition: background-color var(--t) ease; }
+.switch i { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); transition: transform var(--t) var(--ease); }
+.switch[aria-checked="true"] { background: var(--blue); box-shadow: none; }
+.switch[aria-checked="true"] i { transform: translateX(22px); }
+.switch.flip-on i { animation: sw-on var(--t) var(--ease) both; }
+.switch.flip-off i { animation: sw-off var(--t) var(--ease) both; }
+@keyframes sw-on { from { transform: none; } to { transform: translateX(22px); } }
+@keyframes sw-off { from { transform: translateX(22px); } to { transform: none; } }
+.st-body { padding: 0 18px 18px; display: grid; gap: 12px; animation: coach-in var(--t) var(--ease) both; }
+.st-body > .seg { justify-self: start; }
+.st-desc { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.st-desc b { color: var(--ink); }
+.st-field { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.st-field .field { max-width: 220px; }
+.st-body .list .row:first-child { border-top: 0; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch i, .st-chev { transition: none; } .switch.flip-on i, .switch.flip-off i, .st-body { animation: none; } }
 /* Stats */
 .big-stat { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .big-stat b { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 0.9; }
@@ -737,7 +771,7 @@ body.setup .nav, body.setup .top { display: none; }
 <div class="app">
   <header class="top">
     <div class="top-text">
-      <div class="eyebrow"><span id="hdr-date"></span><button class="bk-dot" id="bk-dot" data-action="open-settings" data-to="h-bk" hidden></button></div>
+      <div class="eyebrow"><span id="hdr-date"></span><button class="bk-dot" id="bk-dot" data-action="open-settings" data-to="st-backup" hidden></button></div>
       <h1 id="hdr-title">Today</h1>
     </div>
     <button class="plate" id="plate" data-action="open-settings" aria-label="Challenge day. Open settings.">
@@ -1105,7 +1139,7 @@ body.setup .nav, body.setup .top { display: none; }
       }
       sync = "ok";
       setupReady = true;
-      regroupOnce(); othersOnce();
+      regroupOnce(); othersOnce(); closeOldDrafts(false);
       persistLocal();
       render();
     }, () => { setupReady = true; setSync("err"); render(); });
@@ -1267,6 +1301,7 @@ body.setup .nav, body.setup .top { display: none; }
     setTimeout(() => { try { bridge.notifyPermission(); } catch (e) { /* ignore */ } }, 1500);
   }
   window.__onResume = function () {
+    if (typeof dayCheck === "function") dayCheck(); // back after midnight: yesterday's workout closes
     if (bridge && bridge.healthStatus) health = bridge.healthStatus();
     if (upd.state === "permission" && bridge.canInstallUpdates && bridge.canInstallUpdates()) { upd = { state: "idle" }; startUpdate(); }
     coachCheck();
@@ -1765,13 +1800,6 @@ body.setup .nav, body.setup .top { display: none; }
       '<div class="coach-body' + (enter ? " enter" : "") + '" id="coach-body" aria-live="polite">' + body + "</div></section>";
   }
   // Settings: on, minimized to one line, or off (installed app, on phones that can run the coach).
-  function coachSection() {
-    if (mode !== "apk" || !["available", "downloadable", "downloading"].includes(aiState)) return "";
-    const m = coachMode(), b = (v, l) => '<button data-action="coach-mode" data-v="' + v + '" aria-pressed="' + (m === v) + '">' + l + "</button>";
-    return '<section class="panel" aria-labelledby="h-co"><h2 id="h-co">Coach</h2>' +
-      '<div class="form"><span class="hint">A short note on Today about your week, your daily tasks and your goals. Gemini Nano writes it on this phone, so nothing leaves it.</span>' +
-      '<span class="seg" role="group" aria-label="Coach">' + b("on", "On") + b("min", "Minimized") + b("off", "Off") + "</span></div></section>";
-  }
 
   // ---------- day counter ----------
   const GEAR = "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.47.47 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z";
@@ -1900,31 +1928,7 @@ body.setup .nav, body.setup .top { display: none; }
     });
     qrLib.then(() => { const b = document.getElementById("share-qr"); if (b) paint(); }, () => { box.hidden = true; });
   }
-  function shareSection() {
-    return '<section class="panel" aria-labelledby="h-share"><h2 id="h-share">Share this app with your friends</h2>' +
-      '<p class="hint">Only the app is shared. Your tracker stays on your phone, and each friend sets up their own.</p>' +
-      '<div class="share-row"><div class="share-qr" id="share-qr" aria-label="QR code for the download page"></div>' +
-      '<div class="form" style="flex:1;min-width:0"><span class="share-link" id="share-link">' + SHARE_URL + "</span>" +
-      '<div class="btn-row">' + (bridge && bridge.shareText ? '<button class="btn" data-action="share-app">Share link</button>' : "") + '<button class="btn secondary" data-action="copy-link">Copy link</button></div></div></div>' +
-      '<p class="hint">Send the link, or let a friend scan the code. The page walks them through it:</p>' +
-      '<ol class="steps"><li><b>Android:</b> tap <b>Download for Android</b>, open the file, then tap <b>Install</b>.</li><li><b>iPhone:</b> open the link in Safari, tap <b>Open the app</b>, then <b>Share → Add to Home Screen</b>.</li></ol>' +
-      "</section>";
-  }
 
-  function updateSection() {
-    if (isWebApp) return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2><p class="hint">This app updates itself whenever you open it with an internet connection.</p></section>';
-    if (!bridge || !bridge.appVersion) return "";
-    const ver = bridge.appVersion();
-    const status = update ? "Version " + esc(update) + " is ready" + (updateAbout ? ": " + esc(updateAbout) : "") + ". You have " + esc(ver) + "."
-      : updateFailed ? "You have version " + esc(ver) + ". Couldn't check for a newer one just now."
-      : updateChecked ? "You have the latest version (" + esc(ver) + "). Checked " + fmtTime(updateChecked) + "."
-      : "You have version " + esc(ver) + ".";
-    return '<section class="panel" aria-labelledby="h-up"><h2 id="h-up">App updates</h2>' +
-      '<div class="sync"><span class="dot ' + (update ? "" : updateChecked ? "ok" : "") + '"></span><span>' + status + "</span></div>" +
-      (updBusy() ? '<p class="hint">' + (upd.state === "downloading" ? "Downloading " + Math.max(0, upd.pct) + "%…" : "Opening the installer…") + "</p>"
-        : '<div class="btn-row"><button class="btn' + (update ? "" : " secondary") + '" data-action="get-update">' + (update ? "Update to version " + esc(update) : "Reinstall the latest version") + "</button></div>") +
-      '<p class="hint">The app downloads the update and Android asks you to confirm it. Your tracker stays as it is.</p></section>';
-  }
 
   // ---------- first-time setup ----------
   let setupStep = 0;
@@ -2972,100 +2976,164 @@ body.setup .nav, body.setup .top { display: none; }
     "</section>";
   }
 
-  function backupSection() {
-    let status, dot, buttons = "", how = "";
+
+  // Goal notifications and the widget (installed app only).
+  window.__notifyPermission = function () { if (view === "settings") render(true); };
+
+
+
+  // ---------- settings: grouped rows, like a phone's settings ----------
+  // Each row is a setting's name with its current value under it (blue), and a switch on the right where there's
+  // something to switch. Tapping the name opens the row: a short description and its controls. One row is open at a
+  // time (setOpen); Back closes it. The switch just toggled slides its knob (swJust), since a redraw makes a new one.
+  let setOpen = null, swJust = "";
+  const CHEV_R = '<svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  function stRow(k, title, value, body, opt) {
+    opt = opt || {};
+    const open = setOpen === k && !!body, sw = opt.sw;
+    const swHTML = sw ? '<span class="st-sep" aria-hidden="true"></span><button class="switch' + (swJust === sw.action ? (sw.on ? " flip-on" : " flip-off") : "") + '" role="switch" aria-checked="' + !!sw.on + '" aria-label="' + esc(title) + '" data-action="' + sw.action + '" data-v="' + sw.v + '"><i></i></button>' : "";
+    return '<div class="st-item' + (open ? " open" : "") + '" id="st-' + k + '"><div class="st-line">' +
+      '<button class="st-main" data-action="st-open" data-k="' + k + '" aria-expanded="' + open + '">' +
+      '<span class="st-text"><span class="st-title">' + title + "</span>" +
+      (value ? '<span class="st-val' + (opt.muted ? " muted" : "") + '">' + (opt.dot != null ? '<i class="dot ' + opt.dot + '"></i>' : "") + value + "</span>" : "") + "</span>" +
+      (sw ? "" : CHEV_R) + "</button>" + swHTML + "</div>" +
+      (open ? '<div class="st-body">' + body + "</div>" : "") + "</div>";
+  }
+  const stGroup = (label, rows) => { const r = rows.filter(Boolean); return r.length ? '<h2 class="st-label">' + label + '</h2><div class="st-group">' + r.join("") + "</div>" : ""; };
+  const stDesc = (t) => '<p class="st-desc">' + t + "</p>";
+  const stSeg = (opts) => '<span class="seg" role="group">' + opts.map(([action, attr, v, label, on]) => '<button data-action="' + action + '" ' + attr + '="' + v + '" aria-pressed="' + on + '">' + label + "</button>").join("") + "</span>";
+  const stNum = (id, label, value, extra) => '<label class="st-field">' + label + '<input class="field num" id="' + id + '" type="number" ' + extra + ' value="' + value + '"></label>';
+  const LATER = " Changes count from today on; past days keep the goal they had.";
+
+  function renderSettings() {
+    const s = S(), lose = calAim() === "lose", hasHealth = bridge && health !== "unavailable", apk = mode === "apk";
+    const tasks = activeTasks();
+    const goals = stGroup("Goals", [
+      stRow("cal", "Calorie goal", (lose ? "Lose fat · " + calGoalText() : "Build muscle · at least " + fmt(s.calorieGoal)) + " kcal",
+        stDesc((lose ? "Land anywhere in a 200-calorie range around this number." : "Eat at least this much each day.") + LATER) +
+        stSeg([["cal-aim", "data-v", "lose", "Lose fat", lose], ["cal-aim", "data-v", "build", "Build muscle", !lose]]) +
+        stNum("set-kcal", lose ? "Middle of the range" : "At least", s.calorieGoal, 'inputmode="numeric" min="0" step="50"')),
+      stRow("protein", "Protein", fmt(s.proteinGoal) + " g a day",
+        stDesc('"Hit protein goal" ticks itself once you reach this.' + LATER) + stNum("set-protein", "Grams a day", s.proteinGoal, 'inputmode="numeric" min="0" step="5"')),
+      stRow("steps", "Steps", fmt(s.stepsTarget) + " a day",
+        stDesc((hasHealth ? "The steps task ticks itself when Samsung Health counts this many." : "Your daily steps target.") + LATER) + stNum("set-steps", "Steps a day", s.stepsTarget, 'inputmode="numeric" min="0" step="500"')),
+      stRow("sleep", "Sleep", s.sleepTarget + " h a night",
+        stDesc((hasHealth ? "Counts the night that ends that morning, minus time awake." : "Your nightly sleep target.") + LATER) + stNum("set-sleep", "Hours a night", s.sleepTarget, 'inputmode="decimal" min="0" step="0.5"')),
+      stRow("workouts", "Workouts a day", String(workoutsTarget()),
+        stDesc(hasHealth ? esc(workoutRule()) : "How many workouts tick the workout task.") + stNum("set-workouts", "Workouts a day", workoutsTarget(), 'inputmode="numeric" min="1" max="5"')),
+      stRow("unit", "Weight unit", s.unit,
+        stDesc("For your body weight and your lifts. Cable machines can still use their own unit.") +
+        stSeg([["unit", "data-unit", "lb", "lb", s.unit === "lb"], ["unit", "data-unit", "kg", "kg", s.unit === "kg"]])),
+    ]);
+    const taskRow = stGroup("Daily tasks", [
+      stRow("tasks", "Daily tasks", tasks.length + (tasks.length === 1 ? " task" : " tasks"),
+        '<ul class="list">' + tasks.map((h) => '<li class="row"><div class="row-main"><div class="row-title">' + esc(taskName(h)) + "</div>" + (h.id === "workout" ? '<div class="row-sub">' + (hasHealth ? esc(workoutRule()) : "Ticks itself when you save a workout") + "</div>" : METRICS[h.id] && hasHealth ? '<div class="row-sub">Ticks itself from Samsung Health</div>' : "") + '</div><button class="del" data-action="del-habit" data-id="' + h.id + '" aria-label="Remove ' + esc(taskName(h)) + '">×</button></li>').join("") + "</ul>" +
+        '<form class="inline" id="habit-form"><input class="field" id="new-habit" placeholder="Add a task, e.g. 10k steps" maxlength="60" autocomplete="off"><button class="btn" type="submit">Add</button></form>' +
+        stDesc('"Hit protein goal" ticks itself at ' + fmt(s.proteinGoal) + ' g, and "Workout" when you save a workout. A new task counts from the day you add it; one you remove still counts on the days it was there.')),
+    ]);
+    let notif = "";
+    if (apk) {
+      const on = s.goalNotifs !== false, allowed = bridge.notifyStatus ? bridge.notifyStatus() === "granted" : false, bg = healthMissing().includes("background updates");
+      notif = stGroup("Notifications and widget", [
+        stRow("notifs", "Goal notifications", on ? (allowed ? "On" : "On, but Android hasn't allowed them yet") : "Off",
+          stDesc("A note when Samsung Health shows you've hit your protein, calories, steps or sleep goal while the app is closed.") +
+          (on && !allowed ? '<div class="btn-row"><button class="btn" data-action="notify-allow">Allow notifications</button></div>' : ""),
+          { sw: { action: "goal-notifs", v: on ? "0" : "1", on }, muted: !on }),
+        stRow("widget", "Home-screen widget", bg && health !== "unavailable" ? "Updates when you open the app" : "Updates about once an hour",
+          stDesc("Touch and hold your home screen, tap <b>Widgets</b>, then <b>100 Days Hard</b>.") +
+          (bg && health !== "unavailable" ? stDesc("To update about once an hour in the background, let Samsung Health share in the background.") + '<div class="btn-row"><button class="btn secondary" data-action="health-connect">Allow background updates</button></div>' : "")),
+      ]);
+    }
+    let coach = "";
+    if (apk && ["available", "downloadable", "downloading"].includes(aiState)) {
+      const m = coachMode();
+      coach = stGroup("Coach", [
+        stRow("coach", "Coach", aiState === "downloadable" ? "Needs a one-time download" : aiState === "downloading" ? "Getting ready…" : { on: "On", min: "Minimized to one line", off: "Off" }[m],
+          stDesc("A short note on Today, and under each Stats section, about your week, your daily tasks and your goals. Gemini Nano writes it on this phone, so nothing leaves it.") +
+          stSeg([["coach-mode", "data-v", "on", "On", m === "on"], ["coach-mode", "data-v", "min", "Minimized", m === "min"], ["coach-mode", "data-v", "off", "Off", m === "off"]]),
+          { sw: { action: "coach-mode", v: m === "off" ? "on" : "off", on: m !== "off" }, muted: m === "off" }),
+      ]);
+    }
+    const challenge = stGroup("Challenge", [
+      stRow("length", "Challenge length", TOTAL() + " days",
+        stDesc("How many days this round lasts. The day counter and The " + TOTAL() + " grid follow it.") + stNum("set-len", "Days", TOTAL(), 'inputmode="numeric" min="1" max="1000"')),
+      stRow("day", "Today is day", String(Math.min(dayNum(todayISO()), TOTAL())),
+        stDesc("Day 1 was " + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day " + TOTAL() + " lands on " + fmtDate(addDays(s.startDate, TOTAL() - 1), { weekday: "long", month: "long", day: "numeric" }) + ".") +
+        stNum("set-day", "Day", Math.min(dayNum(todayISO()), TOTAL()), 'inputmode="numeric" min="1" max="' + TOTAL() + '"')),
+      stRow("round", "Start a new round", "",
+        stDesc("Makes today day 1 of a fresh round. Nothing is deleted: your history stays.") + '<div class="btn-row"><button class="btn secondary" data-action="new-round">Start a new round</button></div>'),
+    ]);
+    let healthG = "";
+    if (apk && health !== "unavailable") {
+      const on = health === "granted", missing = healthMissing();
+      healthG = stGroup("Samsung Health", [
+        stRow("health", "Samsung Health", on ? (missing.length ? "Connected, some data not shared" : "Connected") : "Not connected",
+          stDesc(on ? "Food, weight, steps, sleep and workouts fill in by themselves when you open the app." : "Connect to fill in food, weight, steps, sleep and workouts automatically.") +
+          (on && missing.length ? stDesc("Not shared yet: " + missing.join(", ") + ".") : "") +
+          '<div class="btn-row">' + (on && !missing.length ? '<button class="btn secondary" data-action="health-sync">Check now</button>' : '<button class="btn" data-action="health-connect">' + (on ? "Allow the rest" : "Connect Samsung Health") + "</button>") +
+          '<button class="btn secondary" data-action="health-settings">Health Connect settings</button></div>' +
+          '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let Samsung Health share <b>Nutrition</b>, <b>Weight</b>, <b>Steps</b>, <b>Sleep</b> and <b>Exercise</b>.</li><li>Here, tap <b>Connect</b> and allow them.</li><li>Numbers you type in yourself always win over synced ones.</li></ol>',
+          { dot: on ? "ok" : "" }),
+      ]);
+    }
+    return goals + taskRow + notif + coach + challenge + healthG + stGroup("App", [updateRow(), shareRow(), backupRow()]);
+  }
+  function updateRow() {
+    if (isWebApp) return stRow("updates", "App updates", "Updates itself", stDesc("This app updates itself whenever you open it with an internet connection."));
+    if (!bridge || !bridge.appVersion) return "";
+    const ver = bridge.appVersion();
+    const status = update ? "Version " + esc(update) + " is ready" + (updateAbout ? ": " + esc(updateAbout) : "") + ". You have " + esc(ver) + "."
+      : updateFailed ? "You have version " + esc(ver) + ". Couldn't check for a newer one just now."
+      : updateChecked ? "You have the latest version (" + esc(ver) + "). Checked " + fmtTime(updateChecked) + "."
+      : "You have version " + esc(ver) + ".";
+    return stRow("updates", "App updates", update ? "Version " + esc(update) + " is ready" : "Version " + esc(ver) + (updateChecked && !updateFailed ? ", up to date" : ""),
+      stDesc(status) +
+      (updBusy() ? stDesc(upd.state === "downloading" ? "Downloading " + Math.max(0, upd.pct) + "%…" : "Opening the installer…")
+        : '<div class="btn-row"><button class="btn' + (update ? "" : " secondary") + '" data-action="get-update">' + (update ? "Update to version " + esc(update) : "Reinstall the latest version") + "</button></div>") +
+      stDesc("The app downloads the update and Android asks you to confirm it. Your tracker stays as it is."),
+      { dot: update ? "warn" : updateChecked && !updateFailed ? "ok" : null });
+  }
+  function shareRow() {
+    return stRow("share", "Share with friends", "Only the app, never your data",
+      stDesc("Only the app is shared. Your tracker stays on your phone, and each friend sets up their own.") +
+      '<div class="share-row"><div class="share-qr" id="share-qr" aria-label="QR code for the download page"></div>' +
+      '<div class="form" style="flex:1;min-width:0"><span class="share-link" id="share-link">' + SHARE_URL + "</span>" +
+      '<div class="btn-row">' + (bridge && bridge.shareText ? '<button class="btn" data-action="share-app">Share link</button>' : "") + '<button class="btn secondary" data-action="copy-link">Copy link</button></div></div></div>' +
+      stDesc("Send the link, or let a friend scan the code. The page walks them through it:") +
+      '<ol class="steps"><li><b>Android:</b> tap <b>Download for Android</b>, open the file, then tap <b>Install</b>.</li><li><b>iPhone:</b> open the link in Safari, tap <b>Open the app</b>, then <b>Share → Add to Home Screen</b>.</li></ol>', { muted: true });
+  }
+  function backupRow() {
+    let status, short, buttons = "", how = "";
     if (mode === "apk") {
-      const info = apkBackupInfo();
-      const at = info.at || lastFileBackup;
-      dot = at ? "ok" : "";
+      const info = apkBackupInfo(), at = info.at || lastFileBackup;
+      short = S().lastExport ? "Last sent off the phone " + fmtWhen(S().lastExport) : "Saved on the phone, not sent anywhere yet"; // matches the dot by the date
       status = at
         ? "Automatic backup is on. Every change is copied to <b>" + esc(info.path || "Download/100 Days Hard") + "</b> on this phone. Last copied " + fmtWhen(at) + "."
         : "Automatic backup is on. A backup file appears in <b>Download/100 Days Hard</b> as soon as you log something.";
       buttons = '<button class="btn" data-action="save-backup">Send a copy to Drive or email</button><button class="btn secondary" data-action="restore">Restore from file</button>';
-      how = "<ol class=\"steps\"><li>The backup file updates by itself and stays on your phone even if you uninstall the app.</li><li>Once a week or so, tap <b>Send a copy</b> and pick Google Drive, so your history is safe if you lose the phone.</li><li>On a new phone or after reinstalling, tap <b>Restore from file</b> and pick the newest backup.</li></ol>";
+      how = '<ol class="steps"><li>The backup file updates by itself and stays on your phone even if you uninstall the app.</li><li>Once a week or so, tap <b>Send a copy</b> and pick Google Drive, so your history is safe if you lose the phone.</li><li>On a new phone or after reinstalling, tap <b>Restore from file</b> and pick the newest backup.</li></ol>';
     } else if (mode === "claude") {
-      dot = sync === "ok" ? "ok" : sync === "err" ? "err" : "";
+      short = sync === "err" ? "Couldn't reach your account" : "Saved to your Claude account";
       status = sync === "err"
         ? "Couldn't reach your account just now. Changes are kept in this browser and will sync when it reconnects."
         : "Automatic backup is on. Every change saves to your Claude account, so it's on any device where you open this link.";
       if (downloads) buttons += '<button class="btn" data-action="save-backup">Save a backup file</button>';
       buttons += '<button class="btn secondary" data-action="restore">Restore from file</button>';
-      how = '<p class="hint">' + (S().lastExport ? "Last backup file saved " + fmtWhen(S().lastExport) + ". " : "") + "A backup file moves your history into the installed app, or back here from it.</p>";
+      how = stDesc((S().lastExport ? "Last backup file saved " + fmtWhen(S().lastExport) + ". " : "") + "A backup file moves your history into the installed app, or back here from it.");
     } else if (isWebApp) {
-      const bk = backupState();
-      dot = bk ? (bk.level === "ok" ? "ok" : bk.level === "bad" ? "err" : "") : "";
+      short = S().lastExport ? "Last file " + fmtWhen(S().lastExport) : "Saved on this phone";
       status = "Saved on this phone. " + (S().lastExport ? "Last backup file saved " + fmtWhen(S().lastExport) + "." : "Save a backup file now and then, in case the phone clears its storage.");
       buttons = '<button class="btn" data-action="save-backup">Save a backup file</button><button class="btn secondary" data-action="restore">Restore from file</button>';
-      how = '<p class="hint">On iPhone, choose <b>Save to Files</b> and keep it in iCloud Drive.</p>';
+      how = stDesc("On iPhone, choose <b>Save to Files</b> and keep it in iCloud Drive.");
     } else {
-      dot = "";
+      short = "This browser only";
       status = "Saved in this browser only. Open the app from your Claude link to keep it in your account.";
       buttons = '<button class="btn secondary" data-action="restore">Restore from file</button>';
     }
-    const bkState = backupState();
-    if (bkState && mode !== "claude") how += '<p class="hint">The dot next to the date shows this: green means a copy was saved in the last week, yellow after a week, red after two weeks or if there\'s no copy yet.</p>';
-    return '<section class="panel" aria-labelledby="h-bk"><h2 id="h-bk">Backup &amp; restore</h2>' +
-      '<div class="sync"><span class="dot ' + dot + '"></span><span>' + status + "</span></div>" +
-      '<div class="btn-row">' + buttons + "</div>" + how + "</section>";
-  }
-
-  // Goal notifications and the widget (installed app only).
-  function notifySection() {
-    if (mode !== "apk") return "";
-    const on = S().goalNotifs !== false, allowed = bridge.notifyStatus ? bridge.notifyStatus() === "granted" : false;
-    const bg = healthMissing().includes("background updates");
-    return '<section class="panel" aria-labelledby="h-nt"><h2 id="h-nt">Notifications &amp; widget</h2>' +
-      '<div class="form"><span class="hint">Tell me when Samsung Health shows I\'ve hit my protein, calories, steps or sleep goal while the app is closed</span>' +
-      '<span class="seg" role="group"><button data-action="goal-notifs" data-v="1" aria-pressed="' + on + '">On</button><button data-action="goal-notifs" data-v="0" aria-pressed="' + !on + '">Off</button></span></div>' +
-      (on && !allowed ? '<div class="btn-row"><button class="btn" data-action="notify-allow">Allow notifications</button></div>' : "") +
-      (bg && health !== "unavailable" ? '<p class="hint">The widget and notifications update about once an hour in the background. Let Samsung Health share in the background for that:</p><div class="btn-row"><button class="btn secondary" data-action="health-connect">Allow background updates</button></div>' : "") +
-      '<p class="hint">Add the widget: touch and hold your home screen, tap <b>Widgets</b>, then <b>100 Days Hard</b>.</p></section>';
-  }
-  window.__notifyPermission = function () { if (view === "settings") render(true); };
-
-  function healthSection() {
-    if (mode !== "apk" || health === "unavailable") return "";
-    const on = health === "granted", missing = healthMissing();
-    return '<section class="panel" aria-labelledby="h-sh"><h2 id="h-sh">Samsung Health</h2>' +
-      '<div class="sync"><span class="dot ' + (on ? "ok" : "") + '"></span><span>' +
-      (on ? "Connected. Food, weight, steps, sleep and workouts fill in by themselves each time you open the app." : "Not connected. Connect to fill in food, weight, steps, sleep and workouts automatically.") + "</span></div>" +
-      (on && missing.length ? '<p class="hint">Not shared yet: ' + missing.join(", ") + ".</p>" : "") +
-      '<div class="btn-row">' + (on && !missing.length ? '<button class="btn secondary" data-action="health-sync">Check now</button>' : '<button class="btn" data-action="health-connect">' + (on ? "Allow the rest" : "Connect Samsung Health") + "</button>") +
-      '<button class="btn secondary" data-action="health-settings">Health Connect settings</button></div>' +
-      '<ol class="steps"><li>In Samsung Health, open <b>Settings → Health Connect</b> and let Samsung Health share <b>Nutrition</b>, <b>Weight</b>, <b>Steps</b>, <b>Sleep</b> and <b>Exercise</b>.</li><li>Here, tap <b>Connect</b> and allow them.</li><li>Numbers you type in yourself always win over synced ones.</li></ol></section>';
-  }
-
-  function renderSettings() {
-    const s = S();
-    return (
-      '<section class="panel" aria-labelledby="h-go"><h2 id="h-go">Goals</h2><div class="form">' +
-        '<label>Calorie goal<span class="seg" role="group"><button data-action="cal-aim" data-v="lose" aria-pressed="' + (calAim() === "lose") + '">Lose fat</button><button data-action="cal-aim" data-v="build" aria-pressed="' + (calAim() === "build") + '">Build muscle</button></span></label>' +
-        '<div class="two"><label>' + (calAim() === "lose" ? "Calories (middle of range)" : "Calories (at least)") + '<input class="field num" id="set-kcal" type="number" inputmode="numeric" min="0" step="50" value="' + s.calorieGoal + '"></label>' +
-        '<label>Protein per day (g)<input class="field num" id="set-protein" type="number" inputmode="numeric" min="0" step="5" value="' + s.proteinGoal + '"></label></div>' +
-        '<p class="hint">' + (calAim() === "lose" ? "Your range: " + calGoalText() + " kcal. Landing anywhere in it counts." : "Eat at least this much each day.") + "</p>" +
-        '<div class="three"><label>Workouts a day<input class="field num" id="set-workouts" type="number" inputmode="numeric" min="1" max="5" value="' + workoutsTarget() + '"></label>' +
-        '<label>Steps<input class="field num" id="set-steps" type="number" inputmode="numeric" min="0" step="500" value="' + s.stepsTarget + '"></label>' +
-        '<label>Sleep (hours)<input class="field num" id="set-sleep" type="number" inputmode="decimal" min="0" step="0.5" value="' + s.sleepTarget + '"></label></div>' +
-        (bridge && health !== "unavailable" ? '<p class="hint">' + esc(workoutRule()) + "</p>" : "") +
-        '<label>Weight unit<span class="seg" role="group"><button data-action="unit" data-unit="lb" aria-pressed="' + (s.unit === "lb") + '">lb</button><button data-action="unit" data-unit="kg" aria-pressed="' + (s.unit === "kg") + '">kg</button></span></label>' +
-      "</div></section>" +
-      '<section class="panel" aria-labelledby="h-ht"><div class="panel-head"><h2 id="h-ht">Daily tasks</h2><span class="meta num">' + activeTasks().length + "</span></div>" +
-        '<ul class="list">' + activeTasks().map((h) => '<li class="row"><div class="row-main"><div class="row-title">' + esc(taskName(h)) + "</div>" + (h.id === "workout" ? '<div class="row-sub">' + (bridge && health !== "unavailable" ? esc(workoutRule()) : "Ticks itself when you save a workout") + "</div>" : METRICS[h.id] && bridge && health !== "unavailable" ? '<div class="row-sub">Ticks itself from Samsung Health</div>' : "") + '</div><button class="del" data-action="del-habit" data-id="' + h.id + '" aria-label="Remove ' + esc(taskName(h)) + '">×</button></li>').join("") + "</ul>" +
-        '<form class="inline" id="habit-form"><input class="field" id="new-habit" placeholder="Add a task, e.g. 10k steps" maxlength="60" autocomplete="off"><button class="btn" type="submit">Add</button></form>' +
-        '<p class="hint">"Hit protein goal" ticks itself at ' + fmt(s.proteinGoal) + ' g, and "Workout" when you save a workout. A new task counts from the day you add it.</p>' +
-      "</section>" +
-      '<section class="panel" aria-labelledby="h-ch"><h2 id="h-ch">Challenge</h2><div class="form">' +
-        '<div class="two"><label>Length (days)<input class="field num" id="set-len" type="number" inputmode="numeric" min="1" max="1000" value="' + TOTAL() + '"></label>' +
-        '<label>Today is day<input class="field num" id="set-day" type="number" inputmode="numeric" min="1" max="' + TOTAL() + '" value="' + Math.min(dayNum(todayISO()), TOTAL()) + '"></label></div>' +
-        '<p class="hint">Day 1 was ' + fmtDate(s.startDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ". Day " + TOTAL() + " lands on " + fmtDate(addDays(s.startDate, TOTAL() - 1), { weekday: "long", month: "long", day: "numeric" }) + ".</p>" +
-        '<button class="btn secondary" data-action="new-round">Start a new round</button>' +
-      "</div></section>" +
-      notifySection() + coachSection() +
-      healthSection() +
-      updateSection() +
-      shareSection() +
-      backupSection()
-    );
+    const bk = backupState();
+    if (bk && mode !== "claude") how += stDesc("The dot next to the date shows this: green means a copy was sent off the phone in the last week, yellow after a week, red after two weeks or if there's no copy yet.");
+    const dot = mode === "claude" ? (sync === "ok" ? "ok" : sync === "err" ? "err" : "") : bk ? (bk.level === "ok" ? "ok" : bk.level === "bad" ? "err" : "warn") : "";
+    return stRow("backup", "Backup and restore", short, stDesc(status) + '<div class="btn-row">' + buttons + "</div>" + how, { dot });
   }
 
   // ---------- exercise sheet ----------
@@ -3099,6 +3167,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (innerWidth !== kbWidth) { kbWidth = innerWidth; kbFull = h; }
     kbFull = Math.max(kbFull, h);
     const a = document.activeElement, typing = !!a && a.tagName === "INPUT" && kbFull - h > 120;
+    if (sheet.classList.contains("typing") && !typing) sheetJump = Date.now(); // the keyboard just closed
     document.body.classList.toggle("kb", typing);
     sheet.classList.toggle("typing", typing && sheet.contains(a));
     fitTyping();
@@ -3416,6 +3485,51 @@ body.setup .nav, body.setup .top { display: none; }
 
   // wOpen: the one exercise shown in full. wAddGroup: the group whose add box is open (null = none; "" = Legs' list).
   let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null;
+  // Saves a day's workout: only the sets you logged. Exercises with none are left out of that day, and always stay in
+  // your plan. Returns null if nothing was logged.
+  function finishWorkout(date) {
+    const d = getDay(date), w = d.workout;
+    if (!w) return null;
+    const kept = inOrder(w).filter((e) => exState(e) !== "plan");
+    if (!kept.length) return null;
+    const before = isLatest(w.type, date) && GROUPS[w.type] ? planFor(w.type, date) : null; // older days never change the plan
+    kept.forEach((e) => { e.setList = doneSets(e).map((x) => ({ w: x.w, r: x.r })); delete e.last; delete e.bump; syncEx(e); });
+    w.exercises = kept;
+    const first = !w.saved;
+    w.saved = true; w.savedAt = Date.now();
+    autoMetricHabits(d, date);
+    save(date);
+    if (before) {
+      // The plan never loses anything without you saying so: it keeps every exercise, takes today's groups, and
+      // anything new joins it right after the exercise you did before it.
+      const now = kept.map((e) => ({ name: e.name, group: e.group })), same = (x, y) => exKey(x.name) === exKey(y.name);
+      const plan = before.map((x) => now.find((y) => same(x, y)) || x);
+      now.forEach((x, i) => {
+        if (plan.some((y) => same(x, y))) return;
+        const prevEx = now.slice(0, i).reverse().find((y) => plan.some((z) => same(y, z)));
+        plan.splice(prevEx ? plan.findIndex((z) => same(z, prevEx)) + 1 : 0, 0, x);
+      });
+      setPlan(w.type, plan);
+    }
+    return { type: w.type, first };
+  }
+  // A new day closes yesterday's workout: one left unfinished is finished for you (the sets you logged are saved), and
+  // one with nothing logged goes away. A workout open on screen at midnight closes too. The day you're looking at in
+  // the sheet is left alone unless the day itself just changed.
+  function closeOldDrafts(dayChanged) {
+    const t = todayISO();
+    if (dayChanged && !sheet.hidden && viewDate < t) closeSheet();
+    const done = [];
+    Object.keys(state.days).filter((d) => d < t && state.days[d].workout && !state.days[d].workout.saved).forEach((d) => {
+      if (!sheet.hidden && d === viewDate) return;
+      const r = finishWorkout(d);
+      if (r) done.push(typeName(r.type));
+      else { state.days[d].workout = null; save(d); }
+    });
+    if (done.length) toast("Saved your unfinished " + done.join(" and ").toLowerCase() + " day");
+    return done.length;
+  }
+
   function startWorkout(type) {
     const d = getDay(viewDate);
     if (!d.workout) {
@@ -3467,6 +3581,37 @@ body.setup .nav, body.setup .top { display: none; }
       '<button class="sbtn" data-action="ex-step"' + at + ' data-d="1" aria-label="More ' + lab + '">+</button></div>';
   }
   const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  // One step of − or + on a set's weight or reps; the number in the box updates in place.
+  function stepOnce(btn) {
+    const e = findEx(btn.dataset.id), f = btn.dataset.f, dir = +btn.dataset.d, cs = e && ensureSets(e)[+btn.dataset.k];
+    if (!cs) return false;
+    if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
+    else cs.r = Math.max(0, (+cs.r || 0) + dir);
+    syncEx(e);
+    const box = document.getElementById("ex-" + f + "-" + e.id);
+    if (box) box.value = f === "w" ? fmtW(cs.w) : cs.r;
+    return true;
+  }
+  // Holding − or + keeps stepping: after a moment it repeats, getting quicker the longer you hold. It saves and
+  // redraws once you let go (and that release doesn't count as one more tap).
+  let hold = null, holdEnded = 0, holdKey = "";
+  const stepKey = (b) => [b.dataset.id, b.dataset.k, b.dataset.f, b.dataset.d].join("|");
+  sheet.addEventListener("pointerdown", (ev) => {
+    const b = ev.target.closest('.sbtn[data-action="ex-step"]');
+    if (!b || b.disabled) return;
+    clearTimeout(hold && hold.t);
+    hold = { b, n: 0 };
+    const rep = () => { if (!hold || !stepOnce(hold.b)) return; hold.n++; buzz("tick"); hold.t = setTimeout(rep, Math.max(60, 140 - hold.n * 8)); };
+    hold.t = setTimeout(rep, 380);
+  });
+  const endHold = () => {
+    if (!hold) return;
+    clearTimeout(hold.t);
+    const n = hold.n, k = stepKey(hold.b); hold = null;
+    if (n) { holdEnded = Date.now(); holdKey = k; save(viewDate); drawWorkout(); }
+  };
+  ["pointerup", "pointercancel"].forEach((t) => document.addEventListener(t, endHold));
+  sheet.addEventListener("click", (ev) => { const b = ev.target.closest('[data-action="ex-step"]'); if (b && Date.now() - holdEnded < 400 && stepKey(b) === holdKey) { ev.stopPropagation(); ev.preventDefault(); } }, true);
   const CHEV_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
   const mark = (st, label) => '<span class="mk ' + st + '">' + (st === "done" ? CHECK : label || "") + "</span>";
   const withUnit = (sets, e) => sets.map(setTxt).join(", ") + (sets.some((x) => x.w > 0) ? " " + e.unit : "");
@@ -3529,7 +3674,7 @@ body.setup .nav, body.setup .top { display: none; }
       : prev ? "Your usual " + tn + " day. Tap an exercise when you start it. Each set starts from last time, so just change what's different."
       : "Tap an exercise when you start it. Next time this is your plan.";
     const tools = (w.exercises.length ? '<button class="btn secondary" data-action="w-edit">' + (wEdit ? "Done" : "Reorder or remove") + "</button>" : "") +
-      (!w.saved ? '<button class="btn danger" data-action="w-discard">' + (wConfirmDiscard ? "Tap again to discard" : "Not " + tn + " day? Discard") + "</button>" : "");
+      (!w.saved && !nSets ? '<button class="btn danger" data-action="w-discard">' + (wConfirmDiscard ? "Tap again to discard" : "Not " + tn + " day? Discard") + "</button>" : ""); // gone once a set is logged
     sheet.innerHTML = '<div class="sheet-inner"><div class="grab"></div>' +
       '<div class="panel-head"><h2>' + typeName(w.type) + ' day</h2><span class="meta">' + (viewDate === todayISO() ? "Today" : "Day " + dayNum(viewDate)) + "</span></div>" +
       (intro ? '<p class="hint">' + intro + "</p>" : "") + body +
@@ -3560,7 +3705,8 @@ body.setup .nav, body.setup .top { display: none; }
       return '<div class="ex ex-ask"><p><b>Rename “' + esc(renameAsk.from) + "” to “" + esc(renameAsk.to) + '”?</b><span class="hint">It\'s also in ' + n + " other workout" + (n === 1 ? "" : "s") + ".</span></p>" +
         '<div class="btn-row"><button class="btn" data-action="rename-all">Everywhere</button><button class="btn secondary" data-action="rename-one">Just this workout</button><button class="linkbtn" data-action="rename-cancel">Cancel</button></div></div>';
     }
-    if (renaming === e.id) return '<div class="ex ex-edit renaming"><input class="field" id="ex-rename-in" value="' + esc(e.name) + '" maxlength="60" autocomplete="off" enterkeyhint="done" aria-label="New name"></div>';
+    if (renaming === e.id) return '<div class="ex ex-edit renaming"><input class="field" id="ex-rename-in" value="' + esc(e.name) + '" maxlength="60" autocomplete="off" enterkeyhint="done" aria-label="New name">' +
+      '<button class="btn" data-action="rename-save" data-keepfocus>Save</button></div>';
     return '<div class="ex ex-edit" data-id="' + e.id + '"><span class="grip" aria-hidden="true">' + GRIP + "</span>" +
       '<button class="ex-rename" data-action="ex-rename" data-id="' + e.id + '" aria-label="Rename ' + esc(e.name) + '"><span>' + esc(e.name) + "</span>" + PENCIL + "</button>" +
       '<button class="del" data-action="ex-del" data-id="' + e.id + '" aria-label="Remove ' + esc(e.name) + '">×</button></div>';
@@ -3597,7 +3743,7 @@ body.setup .nav, body.setup .top { display: none; }
   }
   function commitRename(value) {
     const e = findEx(renaming), name = String(value || "").trim().replace(/\s+/g, " ");
-    renaming = null;
+    renaming = null; sheetJump = Date.now(); // the row changes size now: a tap meant for something else mustn't land on Finish
     if (!e || !name || name === e.name) { drawWorkoutSoon(); return; }
     const n = otherWorkoutsWith(e.name);
     if (n) renameAsk = { id: e.id, from: e.name, to: name, n };
@@ -3684,6 +3830,15 @@ body.setup .nav, body.setup .top { display: none; }
   // While a row is held, the finger moves the row, not the page; and the long press never opens a menu.
   document.addEventListener("touchmove", (ev) => { if (drag && drag.active) ev.preventDefault(); }, { passive: false });
   sheet.addEventListener("click", (ev) => { if (Date.now() - dragEnded < 350) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+  sheet.addEventListener("pointerdown", (ev) => { if (ev.target.closest("[data-keepfocus]")) ev.preventDefault(); });
+  // Right after the keyboard closes or a row changes size, the sheet jumps; for a moment, taps on the buttons that save,
+  // throw away or remove something are ignored, so a tap meant for something else can't land on them.
+  let sheetJump = 0;
+  const RISKY = new Set(["w-save", "w-discard", "ex-del", "set-del"]);
+  sheet.addEventListener("click", (ev) => {
+    const el = ev.target.closest("[data-action]");
+    if (el && RISKY.has(el.dataset.action) && Date.now() - sheetJump < 450) { ev.stopPropagation(); ev.preventDefault(); }
+  }, true);
   sheet.addEventListener("focusout", (ev) => { if (ev.target.id === "ex-rename-in" && renaming) commitRename(ev.target.value); });
 
   function findEx(id) { const w = peekDay(viewDate).workout; return w && w.exercises.find((e) => e.id === id); }
@@ -3718,6 +3873,7 @@ body.setup .nav, body.setup .top { display: none; }
     if (!el) return;
     const a = el.dataset.action;
     if (TAP_BUZZ.has(a)) buzz("tick");
+    if (el.classList.contains("switch")) { swJust = a; buzz("tick"); setTimeout(() => { swJust = ""; }, 400); } // its knob slides on the redraw
     const day = () => getDay(viewDate);
     switch (a) {
       case "tab": {
@@ -3733,12 +3889,18 @@ body.setup .nav, body.setup .top { display: none; }
       case "open-day": viewDate = el.dataset.date; view = "today"; render(true); window.scrollTo(0, 0); break;
       case "toggle-habit": { const d = day(); buzz(d.habits[el.dataset.id] ? "tick" : "confirm"); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; d.autoTicks = { ...d.autoTicks, [el.dataset.id]: false }; save(viewDate); render(true); break; }
       case "open-settings": {
-        view = "settings"; render(true);
+        view = "settings"; setOpen = el.dataset.to ? el.dataset.to.replace(/^st-/, "") : null; render(true);
         const to = el.dataset.to && document.getElementById(el.dataset.to);
         if (to) to.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
         checkForUpdate(); break;
       }
       case "get-update": startUpdate(); break;
+      case "st-open": {
+        setOpen = setOpen === el.dataset.k ? null : el.dataset.k; render(true);
+        const row = document.getElementById("st-" + el.dataset.k);
+        if (setOpen && row) { const r = row.getBoundingClientRect(); if (r.bottom > innerHeight - 90) window.scrollBy({ top: Math.min(r.top - 80, r.bottom - innerHeight + 110), behavior: reduceMotion ? "auto" : "smooth" }); }
+        break;
+      }
       case "share-app": if (bridge && bridge.shareText) bridge.shareText("I'm tracking my 100-day gym challenge with this app. Get it here: " + SHARE_URL); break;
       case "copy-link": {
         const ok = () => toast("Link copied");
@@ -3835,11 +3997,8 @@ body.setup .nav, body.setup .top { display: none; }
         break;
       }
       case "ex-step": {
-        const e = findEx(el.dataset.id), f = el.dataset.f, dir = +el.dataset.d, cs = e && ensureSets(e)[+el.dataset.k];
-        if (!cs) break;
-        if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
-        else cs.r = Math.max(0, (+cs.r || 0) + dir);
-        syncEx(e); save(viewDate); drawWorkout(); break;
+        if (stepOnce(el)) { save(viewDate); drawWorkout(); }
+        break;
       }
       case "set-go": { const e = findEx(el.dataset.id); if (e) { curSet[e.id] = +el.dataset.k; drawWorkout(); showEl(sheet.querySelector(".set-cur")); } break; }
       case "set-add": {
@@ -3905,41 +4064,22 @@ body.setup .nav, body.setup .top { display: none; }
         if (renameAsk) { renameExercise(renameAsk.id, renameAsk.to, a === "rename-all"); renameAsk = null; render(); drawWorkout(); }
         break;
       case "rename-cancel": renameAsk = null; drawWorkout(); break;
+      case "rename-save": { const f = document.getElementById("ex-rename-in"); if (f && renaming) { commitRename(f.value); f.blur(); } break; }
       case "wadd-open": wAddGroup = el.dataset.g || ""; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
       case "wadd-cancel": wAddGroup = null; drawWorkout(); break;
       case "w-edit": wEdit = !wEdit; wAddGroup = null; wOpen = null; renaming = renameAsk = null; drawWorkout(); break;
       case "w-discard":
         if (!wConfirmDiscard) { wConfirmDiscard = true; drawWorkout(); break; }
-        day().workout = null; save(viewDate); closeSheet(); render(true); toast("Workout discarded");
+        const d0 = viewDate, gone = day().workout;
+        if (gone.exercises.some((e) => exState(e) === "done")) break; // a workout with sets in it is never thrown away
+        day().workout = null; save(viewDate); closeSheet(); render(true);
+        toast("Workout discarded", () => { const d = getDay(d0); if (!d.workout) { d.workout = gone; save(d0); render(true); } });
         break;
       case "w-save": {
-        // Saves only the sets you logged. Exercises with none are left out today, and always stay in your plan.
-        const d = day(), w = d.workout;
-        if (!w) break;
-        const kept = inOrder(w).filter((e) => exState(e) !== "plan");
-        if (!kept.length) break;
-        const before = isLatest(w.type, viewDate) && GROUPS[w.type] ? planFor(w.type, viewDate) : null; // older days never change the plan
-        kept.forEach((e) => { e.setList = doneSets(e).map((x) => ({ w: x.w, r: x.r })); delete e.last; delete e.bump; syncEx(e); });
-        w.exercises = kept;
-        const first = !w.saved;
-        w.saved = true; w.savedAt = Date.now();
-        autoMetricHabits(d, viewDate);
-        save(viewDate);
-        buzz("confirm");
-        if (before) {
-          // The plan never loses anything without you saying so: it keeps every exercise, takes today's groups, and
-          // anything new joins it right after the exercise you did before it.
-          const now = kept.map((e) => ({ name: e.name, group: e.group })), same = (x, y) => exKey(x.name) === exKey(y.name);
-          const plan = before.map((x) => now.find((y) => same(x, y)) || x);
-          now.forEach((x, i) => {
-            if (plan.some((y) => same(x, y))) return;
-            const prevEx = now.slice(0, i).reverse().find((y) => plan.some((z) => same(y, z)));
-            plan.splice(prevEx ? plan.findIndex((z) => same(z, prevEx)) + 1 : 0, 0, x);
-          });
-          setPlan(w.type, plan);
-        }
-        closeSheet(); render(true);
-        toast(typeName(w.type) + " day " + (first ? "saved" : "updated"));
+        const r = finishWorkout(viewDate);
+        if (!r) break;
+        buzz("confirm"); closeSheet(); render(true);
+        toast(typeName(r.type) + " day " + (r.first ? "saved" : "updated"));
         break;
       }
       case "str-type": strType = strType === el.dataset.type ? null : el.dataset.type; strSel = null; render(true); break;
@@ -4204,6 +4344,7 @@ body.setup .nav, body.setup .top { display: none; }
       return false;
     }
     if (view === "stats" && statSel[statTab]) { statSel[statTab] = ""; render(true); return true; }
+    if (view === "settings" && setOpen) { setOpen = null; render(true); return true; }
     if (editingGoal || openGoal || strSel) { editingGoal = confirmDelete = openGoal = strSel = null; render(true); return true; }
     if (view !== "today" || viewDate !== todayISO()) { view = "today"; viewDate = todayISO(); render(true); window.scrollTo(0, 0); return true; }
     return false;
@@ -4270,14 +4411,15 @@ body.setup .nav, body.setup .top { display: none; }
 
   // Roll over to the new day if the app stays open past midnight.
   let lastToday = todayISO();
-  setInterval(() => { const t = todayISO(); if (t !== lastToday) { if (viewDate === lastToday) viewDate = t; lastToday = t; render(); } }, 60000);
+  function dayCheck() { const t = todayISO(); if (t !== lastToday) { const was = lastToday; lastToday = t; closeOldDrafts(true); if (viewDate === was) viewDate = t; render(); } }
+  setInterval(dayCheck, 60000);
 
   // Upgrade anything saved by the meal-by-meal version.
   if (Object.values(state.days).length) persistLocal();
   render(true);
   healthSync();
   scheduleFileBackup();
-  regroupOnce(); othersOnce();
+  regroupOnce(); othersOnce(); closeOldDrafts(false);
   cheered = { date: todayISO(), seen: new Set(metNow(todayISO())) };
   connect().catch(() => { setupReady = true; render(); });
   checkForUpdate();

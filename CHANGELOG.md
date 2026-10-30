@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.25 · Safer workouts and a new Settings
+**Workouts**
+- **Logged sets can't be thrown away by accident.** "Discard" only shows before you've logged anything, and if you do discard, there's Undo.
+- **Renaming has a Save button**, so you don't have to tap blank space. Right after the keyboard closes, the screen jumps, so for a moment Finish, Discard and Remove ignore taps. That way a tap meant for something else can't land on them.
+- **Yesterday's workout closes by itself.** If you leave a workout unfinished, the next day it's saved with the sets you logged, and one with nothing logged goes away. A workout left open on screen at midnight closes.
+- **Hold − or +** to change weight or reps quickly. It starts slow and speeds up the longer you hold.
+
+**Settings**
+- Redesigned like a phone's settings screen: groups of rows, each with the setting's name and its current value, and a switch where there's something to switch (goal notifications, coach). Tap a name to open it and see what it does and change it.
+
 ## v0.24.3 · Clearer goal facts for the coach
 - The coach once wrote "25 Shake up", which isn't in any of your goals. The app was giving it goal steps as bare numbers in quotes, and the on-phone AI filled in words of its own. Steps now read as plain phrases ("now at 25 push-ups in one go, next 30"), and the coach is told never to quote anything that isn't in your data and never to mix one goal's steps with another's.
 - A goal like "Two-person push-up" is no longer mistaken for regular push-ups.
