@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.25.4 · Reorder shows everything
+- **Reorder or remove** now shows your whole list, including the exercises you haven't done yet today, so the headings aren't empty any more. Nothing was missing: they just weren't shown there.
+- Dragging them works, and the order you set is the order next time.
+- Renaming one you haven't done yet renames it everywhere, in your plan too.
+- Removing one takes it off your plan, with Undo.
+
 ## v0.25.3 · One Add button, exercises sort themselves
 - The "+ Add" next to every heading is gone. There's one **+ Add exercise** button next to **Reorder or remove**. Once you've logged a set, it takes the place where Discard was.
 - Whatever you add goes under the right heading by itself: where you've done it before, or where its name says (chin-ups on push day go under Other). A short message tells you where it went. Only when the name gives no clue does the coach sort it, and you can undo that.

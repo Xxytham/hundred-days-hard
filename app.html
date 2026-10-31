@@ -3719,7 +3719,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     if (!w) { closeSheet(); return; }
     const scroll = sheet.scrollTop, prev = savedSessions(w.type).some((d) => d !== viewDate), tn = typeName(w.type).toLowerCase(), shown = sheetEx(w), gs = sheetGroups({ type: w.type, exercises: shown }), own = groupsFor(w.type); // headings for not-started ones too
     const body = wEdit
-      ? '<div class="wedit">' + gs.map((g) => (sheetLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + sheetLabel(g, w.type) + "</div>" : "") + w.exercises.filter((e) => inGroup(e, g, own)).map(editRow).join("")).join("") + "</div>"
+      ? '<div class="wedit">' + gs.map((g) => (sheetLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + sheetLabel(g, w.type) + "</div>" : "") + shown.filter((e) => inGroup(e, g, own)).map(editRow).join("")).join("") + "</div>"
       : gs.map((g) => {
           const list = shown.filter((e) => inGroup(e, g, own)), nDone = list.filter((e) => exState(e) === "done").length, label = sheetLabel(g, w.type);
           if (!list.length) return ""; // no "+ Add" per heading any more: an added exercise sorts itself
@@ -3734,7 +3734,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       : nSets ? "<b>" + nEx + " of " + w.exercises.length + "</b> exercises · <b>" + nSets + "</b> " + (nSets === 1 ? "set" : "sets")
       : prev ? "Your usual " + tn + " day. Tap an exercise when you start it. Each set starts from last time, so just change what's different."
       : "Tap an exercise when you start it. Next time this is your plan.";
-    const tools = (w.exercises.length ? '<button class="btn secondary" data-action="w-edit">' + (wEdit ? "Done" : "Reorder or remove") + "</button>" : "") +
+    const tools = (shown.length ? '<button class="btn secondary" data-action="w-edit">' + (wEdit ? "Done" : "Reorder or remove") + "</button>" : "") +
       (!wEdit && wAddGroup == null ? '<button class="btn secondary" data-action="wadd-open">+ Add exercise</button>' : "") +
       (!w.saved && !nSets ? '<button class="btn danger" data-action="w-discard">' + (wConfirmDiscard ? "Tap again to discard" : "Not " + tn + " day? Discard") + "</button>" : ""); // gone once a set is logged
     sheet.innerHTML = '<div class="sheet-inner"><div class="grab"></div>' +
@@ -3787,7 +3787,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   // Rename one exercise, here or in every workout. Taking a name you've used before joins their history
   // (the chart and "last time" follow the name), and uses that name's exact spelling.
   function renameExercise(id, name, everywhere) {
-    const e = findEx(id);
+    const e = findShown(id);
     if (!e) return;
     const old = exKey(e.name), known = lastExercise(name, null);
     const joins = !!known && exKey(known.e.name) !== old;
@@ -3801,12 +3801,22 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       hit.forEach((x) => (x.name = to));
       mergeSame(wk); save(d); n++;
     });
+    if (everywhere) {
+      // The plans follow too (one entry per name), so the old name doesn't come back as a separate exercise
+      Object.keys(S().plans || {}).forEach((t) => {
+        const seen = new Set();
+        S().plans[t] = (S().plans[t] || []).map((x) => (exKey(x.name) === old ? { ...x, name: to } : x)).filter((x) => { const k = exKey(x.name); if (seen.has(k)) return false; seen.add(k); return true; });
+      });
+      save("settings");
+      if (!findEx(id)) e.name = to; // a not-yet-done row on screen
+    }
     toast(joins ? "Joined with " + to + "'s history" : everywhere && n > 1 ? "Renamed in " + n + " workouts" : "Renamed to " + to);
   }
   function commitRename(value) {
-    const e = findEx(renaming), name = String(value || "").trim().replace(/\s+/g, " ");
+    const e = findShown(renaming), name = String(value || "").trim().replace(/\s+/g, " ");
     renaming = null; sheetJump = Date.now(); // the row changes size now: a tap meant for something else mustn't land on Finish
     if (!e || !name || name === e.name) { drawWorkoutSoon(); return; }
+    if (!findEx(e.id)) { renameExercise(e.id, name, true); render(); drawWorkoutSoon(); return; } // not in today's workout: everywhere
     const n = otherWorkoutsWith(e.name);
     if (n) renameAsk = { id: e.id, from: e.name, to: name, n };
     else { renameExercise(e.id, name, false); render(); }
@@ -3876,13 +3886,19 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       const own = groupsFor(w.type);
       seq.forEach((el) => {
         if (el.classList.contains("ex-ghead")) { g = el.dataset.g; return; }
-        const e = w.exercises.find((x) => x.id === el.dataset.id);
+        const e = findShown(el.dataset.id);
         if (!e) return;
         if (g !== OTHER) e.group = g;
         else if (own.includes(e.group)) { const gg = guessAny(e.name); if (gg != null && !own.includes(gg)) e.group = gg; }
         order.push(e);
       });
-      w.exercises = order.concat(w.exercises.filter((e) => !order.includes(e)));
+      const real = w.exercises;
+      w.exercises = order.filter((e) => real.includes(e)).concat(real.filter((e) => !order.includes(e)));
+      wExtra = order.filter((e) => wExtra.includes(e)).concat(wExtra.filter((e) => !order.includes(e)));
+      if (isLatest(w.type, viewDate) && GROUPS[w.type]) { // the order you set is the order next time
+        const same = (x, y) => exKey(x.name) === exKey(y.name);
+        setPlan(w.type, order.map((e) => ({ name: e.name, group: e.group })).concat(planFor(w.type).filter((x) => !order.some((e) => same(e, x)))));
+      }
       save(viewDate); render();
     }
     drawWorkout();
@@ -3904,6 +3920,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   sheet.addEventListener("focusout", (ev) => { if (ev.target.id === "ex-rename-in" && renaming) commitRename(ev.target.value); });
 
   function findEx(id) { const w = peekDay(viewDate).workout; return w && w.exercises.find((e) => e.id === id); }
+  const findShown = (id) => findEx(id) || wExtra.find((e) => e.id === id); // also the plan's not-yet-done ones
 
   // ---------- toast ----------
   const toastEl = document.getElementById("toast");
@@ -4105,7 +4122,14 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       }
       case "ex-del": {
         const w = day().workout, i = w.exercises.findIndex((e) => e.id === el.dataset.id);
-        if (i < 0) break;
+        if (i < 0) {
+          const j = wExtra.findIndex((e) => e.id === el.dataset.id);
+          if (j < 0) break;
+          const [gone] = wExtra.splice(j, 1);
+          planOff(w.type, gone.name, true); drawWorkout(); render();
+          toast("Removed " + gone.name + " from your " + typeName(w.type).toLowerCase() + " day", () => { planOff(w.type, gone.name, false); wExtra.splice(Math.min(j, wExtra.length), 0, gone); if (!sheet.hidden) drawWorkout(); render(); });
+          break;
+        }
         const [gone] = w.exercises.splice(i, 1), fromPlan = isLatest(w.type, viewDate) && !!GROUPS[w.type];
         if (fromPlan) planOff(w.type, gone.name, true); // you said so: it stays off your plan until you add it again
         save(viewDate); drawWorkout(); render();
