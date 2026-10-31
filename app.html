@@ -1620,7 +1620,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       " (last week " + lifts(prevWeek).length + ") and " + cardio + " cardio session" + (cardio === 1 ? "" : "s") + "." + (since.length ? " Last done: " + since.join(", ") + "." : ""));
     const lastLift = savedSessions().pop();
     if (lastLift && dayNum(t) - dayNum(lastLift) >= 4) fixes.push([0.6, "training: no lifting for " + (dayNum(t) - dayNum(lastLift)) + " days"]);
-    const sd = strengthData().filter((m) => m.pts.length >= 2), wtxt = (p) => (p.w > 0 ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps");
+    const sd = strengthData().filter((m) => m.pts.length >= 2), wtxt = (p) => ptText(p, unit) + (p.kind !== "weight" ? " at " + fmtW(p.bw) + " " + unit + " body weight" : "");
     const prs = sd.filter((m) => { const l = m.pts[m.pts.length - 1]; return l.date >= week[0] && l.score > Math.max(...m.pts.slice(0, -1).map((p) => p.score)); });
     const stalled = sd.filter((m) => m.pts.length >= 3 && m.pts[m.pts.length - 1].date >= addDays(t, -21) && m.pts[m.pts.length - 1].score <= m.pts[m.pts.length - 3].score);
     const gains = sd.map((m) => ({ m, g: m.pts[0].score > 0 ? (m.pts[m.pts.length - 1].score / m.pts[0].score - 1) * 100 : 0 })).filter((x) => x.g > 0.5).sort((a, b) => b.g - a.g);
@@ -2444,11 +2444,11 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   // Strength as one number: each exercise's est. 1RM compared with its first session, averaged over every
   // exercise you do (overall) and over each day type's exercises. Uses the latest session of each exercise so far.
   function strengthTrend() {
-    const first = {}, latest = {}, types = {}, series = { all: [], push: [], pull: [], legs: [] };
+    const first = {}, latest = {}, types = {}, series = { all: [], push: [], pull: [], legs: [] }, bodyOn = bodyFinder();
     savedSessions().forEach((d) => {
       const w = state.days[d].workout;
       w.exercises.forEach((e) => {
-        const k = exKey(e.name), sc = e1rm(toUnit(+e.weight || 0, e.unit || S().unit, "lb"), +e.reps || 0);
+        const k = exKey(e.name), sc = sessionBest(e, bodyOn(d)).score;
         if (!(sc > 0)) return;
         if (first[k] == null) first[k] = sc;
         latest[k] = sc / first[k];
@@ -2794,7 +2794,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       // One candidate per exercise that's gone up, and per new best this week, so the note can be about any of them
       best.filter((x) => x.g > 0.5).forEach((x, i) => wins.push([0.8 - i * 0.02, x.m.name + " up " + signed(x.g, 0, "%") + " since they started"]));
       sd.filter((m) => { const l = m.pts[m.pts.length - 1]; return l.date >= addDays(t, -6) && l.score > Math.max(...m.pts.slice(0, -1).map((q) => q.score)); })
-        .forEach((m) => { const l = m.pts[m.pts.length - 1]; wins.push([0.78, "a new best on " + m.name + " this week (" + (l.w > 0 ? fmtW(l.w) + " " + S().unit + " × " + l.r : l.r + " reps") + ")"]); });
+        .forEach((m) => { const l = m.pts[m.pts.length - 1]; wins.push([0.78, "a new best on " + m.name + " this week (" + ptText(l, S().unit) + ")"]); });
       const n = savedSessions().filter((d) => d >= addDays(t, -6)).length;
       if (n >= 3) wins.push([0.7, n + " lifting sessions this week"]);
       const stalled = sd.filter((m) => m.pts.length >= 3 && m.pts[m.pts.length - 1].score <= m.pts[m.pts.length - 3].score)[0];
@@ -2879,20 +2879,38 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   }
 
   let strType, strSel = null; // strType null = list folded away; undefined = not chosen yet (opens on the last workout's type)
+  // One point per session: its best set by what it really lifted (assisted and bodyweight moves use that day's body
+  // weight), with that load's est. 1RM as the score.
+  function sessionBest(e, bw) {
+    const u = e.unit || S().unit, sets = doneSets(e).length ? doneSets(e) : ensureSets(e);
+    let best = null;
+    sets.forEach((x) => {
+      const wt = toUnit(+x.w || 0, u, S().unit), load = loadOf(e.name, wt, bw), score = e1rm(load, +x.r || 0);
+      if (!best || score > best.score) best = { w: Math.round(wt * 10) / 10, rawW: +x.w || 0, r: +x.r || 0, load: Math.round(load * 10) / 10, score };
+    });
+    return best || { w: 0, rawW: 0, r: 0, load: 0, score: 0 };
+  }
   function strengthData() {
-    const map = {};
+    const map = {}, bodyOn = bodyFinder();
     savedSessions().forEach((d) => {
-      const w = state.days[d].workout;
+      const w = state.days[d].workout, bw = bodyOn(d);
       w.exercises.forEach((e, i) => {
         const k = exKey(e.name);
         const m = map[k] || (map[k] = { k, name: e.name, types: {}, groups: {}, pts: [] });
         m.name = e.name; m.types[w.type] = i; // shows under every day type it was done on, in that day's order
         if (validGroup(e.group)) { m.groups[w.type] = e.group; m.lastGroup = e.group; } // and the group it was last logged in
-        const wt = Math.round(toUnit(+e.weight || 0, e.unit || S().unit, S().unit) * 10) / 10;
-        m.pts.push({ date: d, n: dayNum(d), t: w.type, w: wt, r: +e.reps || 0, s: +e.sets || 0, rawW: +e.weight || 0, rawU: e.unit || S().unit, score: e1rm(wt, +e.reps || 0) });
+        const b = sessionBest(e, bw), kind = liftKind(e.name, b.w);
+        m.kind = kind;
+        m.pts.push({ date: d, n: dayNum(d), t: w.type, w: b.w, r: b.r, s: doneSets(e).length || +e.sets || 0, rawW: b.rawW, rawU: e.unit || S().unit, load: b.load, bw, kind, score: b.score });
       });
     });
     return Object.values(map);
+  }
+  // A session's best set in words: "125 lb assist × 6", "26 reps", "+25 lb × 8" (weight added to a bodyweight move), "185 lb × 8".
+  function ptText(p, unit) {
+    if (p.kind === "assist") return fmtW(p.w) + " " + unit + " assist × " + p.r;
+    if (p.kind === "body") return p.w > 0 ? "+" + fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps";
+    return fmtW(p.w) + " " + unit + " × " + p.r;
   }
   const pctChange = (pts) => {
     if (pts.length < 2) return null;
@@ -2911,9 +2929,19 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   }
 
   // One upbeat line over the chart: what you've gained, or your best to aim for.
-  function strengthNote(m, bw, unit) {
+  function strengthNote(m, bw, unit, pct) {
     const all = m.pts, first = all[0], last = all[all.length - 1];
     const best = all.reduce((b, p) => (p.score > b.score ? p : b), first);
+    if (pct) { // bodyweight and assisted moves: in % since the first session
+      const pc = (p) => (first.score ? (p.score / first.score - 1) * 100 : 0), g = pc(last), bg = pc(best), f = (v) => Math.abs(v).toFixed(1) + "%";
+      const msg = all.length === 1 ? "First one logged. Beat it next time."
+        : last.score >= best.score && g > 0.05 ? "<b>Best yet.</b> Up <b>" + f(g) + "</b> since day " + first.n + "."
+        : g > 0.05 ? "Up <b>" + f(g) + "</b> since day " + first.n + ". Best: +" + f(bg) + "."
+        : bg > 0.05 ? "Your best is <b>+" + f(bg) + "</b> (day " + best.n + "). Go get it."
+        : g < -0.05 ? "<b>−" + f(g) + "</b> since day " + first.n + ". " + (last.kind === "assist" ? "Being lighter means less lifted at the same assist, so a little less assist moves it up." : "Being lighter makes the same reps count for less, so one more rep moves it up.")
+        : "Level with day " + first.n + ". " + (last.kind === "assist" ? "A little less assist moves it up." : "One more rep moves it up.");
+      return '<p class="str-note"><span class="str-what">with body weight</span>' + msg + "</p>";
+    }
     const u = bw ? " reps" : " " + unit, gain = Math.round(last.score - first.score);
     const what = bw ? "reps" : "est. 1RM";
     let msg;
@@ -2924,17 +2952,19 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     return '<p class="str-note"><span class="str-what">' + what + "</span>" + msg + "</p>";
   }
   function strengthChart(m) {
-    const pts = m.pts, unit = S().unit, bw = pts.every((p) => p.w === 0);
+    const unit = S().unit, bw = false, viaBody = m.pts.some((p) => p.kind !== "weight"), base = m.pts[0].score || 1;
+    // Bodyweight and assisted moves: what they lift includes your body weight, so the chart shows the change since the first session, in %
+    const pts = viaBody ? m.pts.map((p) => ({ ...p, score: (p.score / base - 1) * 100 })) : m.pts;
     const W = 340, H = 180, L = 36, R = 16, T = 30, B = 22, pw = W - L - R, ph = H - T - B;
     const ys = pts.map((p) => p.score);
     // Round grid lines (50, 60, 70) instead of odd decimals.
-    const dataLo = Math.min(...ys), dataHi = Math.max(...ys), span = Math.max(dataHi - dataLo, dataHi * 0.08, 2);
+    const dataLo = Math.min(...ys), dataHi = Math.max(...ys), span = Math.max(dataHi - dataLo, viaBody ? 4 : dataHi * 0.08, 2);
     const step = [1, 2, 5, 10, 20, 25, 50, 100].find((k) => span / k <= 3) || 100;
-    const lo = Math.max(0, Math.floor((dataLo - span * 0.1) / step) * step), hi = Math.ceil((dataHi + span * 0.1) / step) * step;
+    const lo = viaBody ? Math.floor((dataLo - span * 0.1) / step) * step : Math.max(0, Math.floor((dataLo - span * 0.1) / step) * step), hi = Math.ceil((dataHi + span * 0.1) / step) * step;
     const x = (i) => L + (pts.length === 1 ? pw / 2 : (i / (pts.length - 1)) * pw);
     const y = (v) => T + ph * (1 - (v - lo) / (hi - lo));
     let s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(m.name) + ' strength by session">';
-    for (let v = lo; v <= hi + 0.001; v += step) s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + v + "</text>";
+    for (let v = lo; v <= hi + 0.001; v += step) s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/><text class="num" x="' + (L - 6) + '" y="' + (y(v) + 3).toFixed(1) + '" text-anchor="end">' + (viaBody ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v) + "%" : v) + "</text>";
     // Line, dots and shading share one color per stretch: green going up or holding, red going down.
     const dir = (i) => (pts[i].score >= pts[i - 1].score * 0.9995 ? "up" : "down");
     const dotDir = (i) => (pts.length < 2 ? "up" : dir(Math.max(1, i)));
@@ -2956,11 +2986,13 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     }
     pts.forEach((p, i) => {
       const cx = x(i).toFixed(1), cy = y(p.score);
-      s += '<circle class="sdot ' + dotDir(i) + '" cx="' + cx + '" cy="' + cy.toFixed(1) + '" r="4"><title>Day ' + p.n + ": " + (p.w ? fmtW(p.w) + " " + unit + " × " : "") + p.r + " reps</title></circle>";
+      s += '<circle class="sdot ' + dotDir(i) + '" cx="' + cx + '" cy="' + cy.toFixed(1) + '" r="4"><title>Day ' + p.n + ": " + ptText(p, unit) + "</title></circle>";
       if (pts.length <= 7 || i === 0 || i === pts.length - 1) {
         const anchor = i === 0 && pts.length > 1 ? "start" : i === pts.length - 1 && pts.length > 1 ? "end" : "middle";
-        s += '<text class="slabel num" x="' + cx + '" y="' + (cy - 16).toFixed(1) + '" text-anchor="' + anchor + '">' + (bw ? p.r : fmtW(p.w)) + "</text>";
-        s += '<text class="sreps num" x="' + cx + '" y="' + (cy - 7).toFixed(1) + '" text-anchor="' + anchor + '">' + (bw ? "reps" : "×" + p.r) + "</text>";
+        const top = p.kind === "assist" ? "−" + fmtW(p.w) : p.kind === "body" ? (p.w > 0 ? "+" + fmtW(p.w) : String(p.r)) : fmtW(p.w);
+        const sub = p.kind === "body" && !(p.w > 0) ? "reps" : "×" + p.r;
+        s += '<text class="slabel num" x="' + cx + '" y="' + (cy - 16).toFixed(1) + '" text-anchor="' + anchor + '">' + top + "</text>";
+        s += '<text class="sreps num" x="' + cx + '" y="' + (cy - 7).toFixed(1) + '" text-anchor="' + anchor + '">' + sub + "</text>";
         s += '<text class="num" x="' + cx + '" y="' + (H - 6) + '" text-anchor="' + anchor + '">day ' + p.n + "</text>";
       }
     });
@@ -2968,9 +3000,11 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const rows = m.pts.slice(-6).map((p, i, arr) => {
       const idx = m.pts.length - arr.length + i;
       const c = idx > 0 && m.pts[idx - 1].score > 0 ? ((p.score - m.pts[idx - 1].score) / m.pts[idx - 1].score) * 100 : null;
-      return '<li><span>Day ' + p.n + " · " + (Object.keys(m.types).length > 1 ? typeName(p.t) + " · " : "") + (p.w ? fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps") + " · " + p.s + ' sets</span><span class="r num">' + (bw ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
+      return '<li><span>Day ' + p.n + " · " + (Object.keys(m.types).length > 1 ? typeName(p.t) + " · " : "") + ptText(p, unit) + " · " + p.s + (p.s === 1 ? " set" : " sets") + '</span><span class="r num">' + (bw || viaBody ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
     }).reverse().join("");
-    return '<div class="tick-detail" data-action="str-sel" data-k="' + esc(m.k) + '">' + strengthNote(m, bw, unit) + s + '<ul class="sessions">' + rows + "</ul></div>";
+    const last = pts[pts.length - 1];
+    const how = viaBody ? '<p class="hint">Counts your body weight that day (' + fmtW(last.bw) + " " + unit + " on day " + last.n + ")" + (last.kind === "assist" ? " minus the assist. As you get lighter the same assist lifts less, so less assist is how this goes up" : last.w > 0 ? " plus the added weight" : ", so the same reps count for a little less as you get lighter") + ". The chart shows the change since your first session. Log a weigh-in on Today to keep it right.</p>" : "";
+    return '<div class="tick-detail" data-action="str-sel" data-k="' + esc(m.k) + '">' + strengthNote(m, bw, unit, viaBody) + s + '<ul class="sessions">' + rows + "</ul>" + how + "</div>";
   }
 
   // Each exercise shows under one day type: the home of its group (push-ups under Push even when done on a pull day,
@@ -3014,7 +3048,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       const row = '<button class="tick" data-action="str-sel" data-k="' + esc(m.k) + '" aria-expanded="' + open + '">' +
         '<span class="tick-name">' + esc(m.name) + "<small>" + m.pts.length + " session" + (m.pts.length === 1 ? "" : "s") + (also.length ? " · also on " + also.join(" & ") : "") + "</small></span>" +
         sparkline(m.pts, cls) +
-        '<span class="tick-val num">' + (last.w > 0 ? fmtW(last.rawW) + " " + last.rawU : last.r + " reps") + "<small>" + (last.w > 0 ? "× " + last.r + " · " : "") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
+        '<span class="tick-val num">' + (last.kind === "body" && !(last.w > 0) ? last.r + " reps" : (last.kind === "body" ? "+" : "") + fmtW(last.rawW) + " " + last.rawU + (last.kind === "assist" ? " assist" : "")) + "<small>" + (last.kind === "body" && !(last.w > 0) ? "" : "× " + last.r + " · ") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
         '<span class="chg ' + cls + '">' + chgText(c) + "</span></button>";
       const item = open ? '<div class="tick-focus ' + (cls === "down" ? "down" : "up") + '">' + row + strengthChart(m) + "</div>" : row;
       if (!m.g || (i > 0 && list[i - 1].g === m.g)) return item;
@@ -3269,10 +3303,31 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     e.setList = done.length ? done : [{ w: +l[0].w || 0, r: +l[0].r || 0, done: false }];
   }
   const doneSets = (e) => ensureSets(e).filter(isDone);
-  function syncEx(e) {
+  // Bodyweight and assisted moves count your body weight that day. An exercise with "assist" anywhere in its name lifts
+  // your body weight minus the assist, so the same assist is a different real weight as you get lighter. Push-ups,
+  // pull-ups, dips and the like, and anything logged at 0, lift your body weight plus any weight added. (Function
+  // declarations, so they work however early they're needed.)
+  function isAssisted(name) { return /assist/i.test(String(name)); }
+  function isBodyMove(name) { return /push.?ups?|pull.?ups?|chin.?ups?|\bdips?\b|muscle.?ups?|pistol|hand.?stand|inverted rows?/i.test(String(name)); }
+  function liftKind(name, w) { return isAssisted(name) ? "assist" : !(w > 0) || isBodyMove(name) ? "body" : "weight"; }
+  // What a set really lifts, in the same unit as w and bw.
+  function loadOf(name, w, bw) { const k = liftKind(name, w); return k === "assist" ? Math.max(0, bw - w) : k === "body" ? bw + (w || 0) : w; }
+  // Body weight (in your unit) on a day: the weigh-in on or before it, else the first one after, else a stand-in.
+  function bodyFinder() {
+    const ks = Object.keys(state.days).filter((k) => state.days[k] && state.days[k].weight > 0).sort();
+    return (date) => {
+      if (!ks.length) return S().unit === "kg" ? 82 : 180;
+      let k = ks[0];
+      for (const x of ks) { if (x <= date) k = x; else break; }
+      return state.days[k].weight;
+    };
+  }
+  function syncEx(e, bwIn) {
     const all = ensureSets(e), d = all.filter(isDone), l = d.length ? d : all;
+    const bw = toUnit(bwIn != null ? bwIn : bodyFinder()(viewDate || todayISO()), S().unit, e.unit || S().unit);
+    const sc = (x) => e1rm(loadOf(e.name, +x.w || 0, bw), +x.r || 0);
     let best = l[0];
-    l.forEach((x) => { if (e1rm(x.w, x.r) > e1rm(best.w, best.r)) best = x; });
+    l.forEach((x) => { if (sc(x) > sc(best)) best = x; });
     e.weight = best.w; e.reps = best.r; e.sets = l.length;
   }
   const setsText = (e) => { const d = doneSets(e), l = d.length ? d : ensureSets(e); return l.map((x) => (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r).join(", ") + (l.some((x) => x.w > 0) ? " " + e.unit : ""); };
@@ -3500,8 +3555,14 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       if (x) hist.push(doneSets(x).map((s) => ({ w: half(toUnit(s.w, x.unit || S().unit, e.unit)), r: s.r })));
     }
     if (hist.length < 2 || !hist[0].length || !hist[1].length) return null;
-    const top = (sets) => sets.reduce((b, x) => (x.w > b.w || (x.w === b.w && x.r > b.r) ? x : b)), a = top(hist[0]), b = top(hist[1]), today = doneSets(e);
+    const assist = isAssisted(e.name), better = (x, b) => (assist ? x.w < b.w : x.w > b.w) || (x.w === b.w && x.r > b.r);
+    const top = (sets) => sets.reduce((b, x) => (better(x, b) ? x : b)), a = top(hist[0]), b = top(hist[1]), today = doneSets(e);
     if (a.w !== b.w || a.r !== b.r) return null;
+    if (assist && a.w > 0) { // harder = less help
+      if (today.some((x) => x.w < a.w)) return null;
+      const to = Math.max(0, half(a.w - stepFor(e.unit)));
+      return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit + " assist", why: "You did " + fmtW(a.w) + " " + e.unit + " assist × " + a.r + " two times in a row." };
+    }
     if (a.w > 0) {
       if (today.some((x) => x.w > a.w)) return null;
       const to = half(a.w + stepFor(e.unit));
@@ -3636,7 +3697,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const w = f === "w", lab = w ? "weight" : "reps", at = ' data-id="' + e.id + '" data-k="' + k + '" data-f="' + f + '"';
     return '<div class="srow"><button class="sbtn" data-action="ex-step"' + at + ' data-d="-1" aria-label="Less ' + lab + '">−</button>' +
       '<label class="sbox"><input class="sval num" id="ex-' + f + "-" + e.id + '"' + at + ' type="text" inputmode="' + (w ? "decimal" : "numeric") + '" autocomplete="off" value="' + v + '" enterkeyhint="' + (w ? "next" : "done") + '" aria-label="' + (w ? "Weight" : "Reps") + '">' +
-      '<span class="u">' + (w ? e.unit : "reps") + "</span></label>" +
+      '<span class="u">' + (w ? e.unit + (isAssisted(e.name) ? " assist" : "") : "reps") + "</span></label>" +
       '<button class="sbtn" data-action="ex-step"' + at + ' data-d="1" aria-label="More ' + lab + '">+</button></div>';
   }
   const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -3679,7 +3740,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const l = e.last && e.last.length ? e.last : null;
     if (!l || !prevExercise(e.name)) return "new";
     const same = l.every((x) => x.w === l[0].w && x.r === l[0].r);
-    return "usually " + (same ? l.length + " × " + setTxt(l[0]) : l.length + " sets, up to " + setTxt(l.reduce((b, x) => (e1rm(x.w, x.r) > e1rm(b.w, b.r) ? x : b))));
+    return "usually " + (same ? l.length + " × " + setTxt(l[0]) : l.length + " sets, " + (isAssisted(e.name) ? "best " : "up to ") + setTxt(l.reduce((b, x) => { const bw = 1000; return e1rm(loadOf(e.name, x.w, bw), x.r) > e1rm(loadOf(e.name, b.w, bw), b.r) ? x : b; })));
   }
   function exBlock(e, w) {
     const st = exState(e), sets = doneSets(e);

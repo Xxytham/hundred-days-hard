@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.26 · Body weight counts on assisted and bodyweight moves
+- Put "assist" anywhere in an exercise's name (Assisted dips, Assisted pull-ups) and the app counts what you really lifted: your body weight that day minus the assist. So 125 lb of assist at 240 lb is more work than the same 125 lb of assist at 220 lb, and Progress shows it.
+- Push-ups, pull-ups, chin-ups, dips and anything you log at 0 now count your body weight too (plus any weight you add).
+- It uses your weigh-in from that day, or the last one before it. The more often you weigh in, the more accurate it is.
+- Their charts on Progress show the change since your first session, in %. The weight box says "lb assist", and Try heavier offers less assist instead of more.
+- Your best set on an assisted move is now the one with the least assist, not the most.
+
 ## v0.25.4 · Reorder shows everything
 - **Reorder or remove** now shows your whole list, including the exercises you haven't done yet today, so the headings aren't empty any more. Nothing was missing: they just weren't shown there.
 - Dragging them works, and the order you set is the order next time.
