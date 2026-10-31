@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.25.2 · Task boxes that fill up
+- The tasks that tick themselves (steps, sleep, workouts, protein) now show how close you are: the checkbox fills with green from the bottom, and the check pops in once it's full. When Samsung Health brings new numbers, the box counts up smoothly, just like the calorie bar, and the phone gives one buzz as it ticks.
+- Tapping one of these tasks still ticks or unticks it straight away.
+
 ## v0.25.1 · No more buzz on long press
 - Pressing and holding anywhere no longer makes the phone buzz. The app's own buzzes (ticking a task, finishing a workout) still work, and holding − or + still steps.
 - Swiping inside a workout, or on the dimmed area around it, no longer scrolls the page behind it.

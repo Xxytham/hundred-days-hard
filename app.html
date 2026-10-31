@@ -642,7 +642,7 @@ body.setup .nav, body.setup .top { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .tick-focus { animation: none; }
   .ptr.busy .spin { animation-duration: 2.4s; }
-  .ex-edit, .ex-ghead, .coach-menu, .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
+  .check, .check-mark, .ex-edit, .ex-ghead, .coach-menu, .chev, .g-gear, .gs, .gs .mark, .goal-bar i, .tot-fill, .tot-num, .fab svg, .fab-menu, .fab-menu button, .fab-scrim { transition: none !important; }
 }
 
 /* Habits */
@@ -654,6 +654,17 @@ body.setup .nav, body.setup .top { display: none; }
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .habit.done .check { background: var(--green); border-color: var(--green); }
+/* Tasks that tick themselves fill from the bottom as you get there (--p, 0–1), brightening as they near it; the check
+   appears once the fill reaches the top. The fill is scaled, not resized. */
+.check.meter { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--green) calc(var(--p, 0) * 70%), var(--line)); }
+.check-fill { position: absolute; inset: 0; transform-origin: 50% 100%; transform: scaleY(var(--p, 0));
+  background: color-mix(in srgb, var(--green) calc(var(--fade-floor) + (82% - var(--fade-floor)) * var(--p, 0)), var(--sunk)); transition: background-color var(--t) ease; }
+.check.meter.full .check-fill { background: var(--green); } /* full brightness only once it's ticked */
+.check-mark { position: relative; }
+.check.meter .check-mark { opacity: 0; transform: scale(0.6); transition: opacity 120ms ease, transform var(--t) var(--ease); }
+.check.meter.full .check-mark { opacity: 1; transform: none; }
+.habit.done .check.meter { background: none; }
+.habit.done .check.meter.full { border-color: var(--green); }
 .habit.done .habit-name { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .habit-name { font-weight: 600; }
 
@@ -1063,7 +1074,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       steps: fmt(h.steps) + " steps. Step goal crushed!", sleep: hm(h.sleepMin) + " of sleep. Well rested!" };
     const names = { protein: "protein", calories: "calorie", steps: "step", sleep: "sleep" };
     toast(say.length === 1 ? line[say[0]] : "You hit your " + say.map((g) => names[g]).join(say.length === 2 ? " and " : ", ").replace(/, (?=[^,]*$)/, " and ") + " goals. Great work!");
-    buzz("confirm");
+    if (!checkAnim && !foodAnim) buzz("confirm"); // a filling checkbox or food bar buzzes as it gets there instead
   }
   function pushWidget() {
     setTimeout(cheerGoals, 850);
@@ -1348,7 +1359,9 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   const main = document.getElementById("main");
   let deferred = false;
   // A light buzz: "tick" for small things, "confirm" for something done, "start"/"end" around a drag.
+  let lastConfirm = 0;
   function buzz(kind) {
+    if (kind === "confirm") { if (Date.now() - lastConfirm < 900) return; lastConfirm = Date.now(); } // one goal, one buzz (the check filling and its toast land together)
     try {
       if (bridge && bridge.haptic) bridge.haptic(kind);
       else if (navigator.vibrate) navigator.vibrate(kind === "confirm" ? 14 : 6);
@@ -1381,7 +1394,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     document.getElementById("hdr-date").textContent = view === "today" ? fmtDate(viewDate, { weekday: "long", month: "short", day: "numeric" }) : "100 Days Hard";
     main.innerHTML = view === "today" ? renderToday() : view === "stats" ? renderStats() : view === "progress" ? renderProgress() : view === "goals" ? renderGoals() : renderSettings();
     if (view === "settings") drawShareQR();
-    if (view === "today") animateFood();
+    if (view === "today") { animateFood(); animateChecks(); }
   }
 
   // A new tab slides in from the side it sits on (a plain fade when coming from Settings).
@@ -2128,6 +2141,40 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     a.raf = requestAnimationFrame(frame);
   }
 
+  // How far a self-ticking task is (0–1): steps, sleep and workouts against their targets, protein against its goal.
+  function taskProgress(h, day, st) {
+    if (h.id === "protein") return st.proteinGoal > 0 && day.protein != null ? Math.min(1, day.protein / st.proteinGoal) : null;
+    const m = METRICS[h.id], v = m ? m.value(day, st) : null, t = m ? m.target(st) : 0;
+    return v != null && t > 0 ? Math.min(1, Math.max(0, v / t)) : null;
+  }
+  // The task checkboxes count up like the food bars: from what they showed to the new amount over about 0.7 s (a tap
+  // fills or empties one in 0.25 s). Opening the app or another day draws them as they are.
+  const checkShown = {};
+  let checkAnim = 0, checkQuick = false;
+  function setCheck(el, v, live) {
+    el.style.setProperty("--p", v.toFixed(4));
+    const full = v >= 0.999 && el.closest(".habit").classList.contains("done");
+    if (full !== el.classList.contains("full")) { el.classList.toggle("full", full); if (full && live) buzz("confirm"); }
+  }
+  function animateChecks() {
+    const d = viewDate, shown = checkShown[d] || (checkShown[d] = {}), quick = checkQuick, jobs = [];
+    checkQuick = false;
+    cancelAnimationFrame(checkAnim);
+    document.querySelectorAll(".check.meter").forEach((el) => {
+      const k = el.dataset.k, to = +el.dataset.p, from = shown[k];
+      if (from == null || reduceMotion || Math.abs(from - to) < 0.001) { shown[k] = to; setCheck(el, to, false); return; }
+      jobs.push({ el, k, from, to });
+    });
+    if (!jobs.length) return;
+    const dur = quick ? 250 : 700, t0 = performance.now();
+    const frame = (now) => {
+      const t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+      jobs.forEach((j) => { const v = t < 1 ? j.from + (j.to - j.from) * e : j.to; shown[j.k] = v; setCheck(j.el, v, !quick); });
+      checkAnim = t < 1 ? requestAnimationFrame(frame) : 0;
+    };
+    checkAnim = requestAnimationFrame(frame);
+  }
+
   function sourceHTML(day, isToday) {
     if (health === "granted") {
       if (day.kcalSrc === "manual") return '<div class="source"><span>Typed in by you.</span><button class="linkbtn" data-action="use-health">Use Samsung Health numbers</button></div>';
@@ -2151,8 +2198,13 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
           const on = !!(day.habits && day.habits[h.id]);
           const st = TG(viewDate), m = METRICS[h.id], v = m ? m.value(day, st) : null, txt = m && v != null ? m.show(v, st, day) : "";
           const sub = txt ? '<small class="habit-sub num">' + esc(txt) + "</small>" : "";
+          const pr = on ? 1 : taskProgress(h, day, st), meter = pr != null && (m || h.id === "protein");
+          const shownP = meter ? ((checkShown[viewDate] || {})[h.id] ?? pr) : 0;
+          const box = meter
+            ? '<span class="check meter' + (on && shownP >= 0.999 ? " full" : "") + '" data-k="' + h.id + '" data-p="' + pr.toFixed(4) + '" style="--p:' + shownP.toFixed(4) + '" aria-hidden="true"><i class="check-fill"></i><b class="check-mark">✓</b></span>'
+            : '<span class="check" aria-hidden="true">' + (on ? "✓" : "") + "</span>";
           return '<button class="habit' + (on ? " done" : "") + '" data-action="toggle-habit" data-id="' + h.id + '" aria-pressed="' + on + '">' +
-            '<span class="check" aria-hidden="true">' + (on ? "✓" : "") + '</span><span class="habit-text"><span class="habit-name">' + esc(taskName(h, st)) + "</span>" + sub + "</span></button>";
+            box + '<span class="habit-text"><span class="habit-name">' + esc(taskName(h, st)) + "</span>" + sub + "</span></button>";
         }).join("") + "</div>" +
         (needsPerm ? '<button class="linkbtn" data-action="health-connect">Let Samsung Health tick steps, sleep and workouts</button>' : "")
       : '<p class="empty">No daily tasks yet. Add them in Settings.</p>';
@@ -3894,7 +3946,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       case "prev-day": viewDate = addDays(viewDate, -1); render(true); break;
       case "next-day": if (viewDate < todayISO()) viewDate = addDays(viewDate, 1); render(true); break;
       case "open-day": viewDate = el.dataset.date; view = "today"; render(true); window.scrollTo(0, 0); break;
-      case "toggle-habit": { const d = day(); buzz(d.habits[el.dataset.id] ? "tick" : "confirm"); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; d.autoTicks = { ...d.autoTicks, [el.dataset.id]: false }; save(viewDate); render(true); break; }
+      case "toggle-habit": { checkQuick = true; const d = day(); buzz(d.habits[el.dataset.id] ? "tick" : "confirm"); d.habits = { ...d.habits, [el.dataset.id]: !d.habits[el.dataset.id] }; d.autoTicks = { ...d.autoTicks, [el.dataset.id]: false }; save(viewDate); render(true); break; }
       case "open-settings": {
         view = "settings"; setOpen = el.dataset.to ? el.dataset.to.replace(/^st-/, "") : null; render(true);
         const to = el.dataset.to && document.getElementById(el.dataset.to);
