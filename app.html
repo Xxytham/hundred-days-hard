@@ -3542,7 +3542,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     fabBtn.setAttribute("aria-label", open ? "Close" : "Log a workout");
   }
 
-  // wOpen: the one exercise shown in full. wAddGroup: the group whose add box is open (null = none; "" = Legs' list).
+  // wOpen: the one exercise shown in full. wAddGroup: "" while the add box (under the list) is open, null otherwise.
   let wEdit = false, wAddGroup = null, wConfirmDiscard = false, wOpen = null;
   // Saves a day's workout: only the sets you logged. Exercises with none are left out of that day, and always stay in
   // your plan. Returns null if nothing was logged.
@@ -3605,7 +3605,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     if (!w.saved) w.exercises.forEach(prepDraftEx);
     wExtra = w.saved && GROUPS[w.type] && isLatest(w.type, viewDate)
       ? planFor(w.type).filter((x) => !w.exercises.some((e) => exKey(e.name) === exKey(x.name))).map((x) => newEx(x.name, w.type, x.group)) : [];
-    wAddGroup = sheetEx(w).length ? null : groupsFor(w.type)[0];
+    wAddGroup = sheetEx(w).length ? null : "";
     wOpen = null; // you pick the exercise you're doing; nothing starts by itself
     sheet.classList.add("tall");
     sheet.hidden = backdrop.hidden = false;
@@ -3704,11 +3704,14 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       (hv ? '<button class="try" data-action="try-heavier" data-id="' + e.id + '"><b>' + hv.text + "?</b><span>" + hv.why + "</span></button>" : "") +
       '<div class="sets">' + rows + "</div></div>";
   }
-  function addForm(w, g, empty) {
-    return '<form class="form ex" id="wadd-form" data-g="' + g + '">' +
-      "<label>" + (groupLabel(g, w.type) ? "Add to " + groupLabel(g, w.type) : "Add an exercise") + '<input class="field" id="wadd-name" placeholder="' + (empty ? GROUP_EG[g] || "Squat" : "") + '" maxlength="60" autocomplete="off" enterkeyhint="done" required></label>' +
-      '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
-      '<p class="hint">Done it before? Your last sets load in. Leave weight at 0 for bodyweight moves.</p></form>';
+  // One add box, under the list. The exercise sorts itself: where you've done it before, else where its name says,
+  // else the coach sorts it (or it lands in the day's first group).
+  function addForm(w, empty) {
+    const g0 = groupsFor(w.type)[0];
+    return '<form class="form ex" id="wadd-form">' +
+      '<label>Add an exercise<input class="field" id="wadd-name" placeholder="' + (empty ? GROUP_EG[g0] || "Squat" : "") + '" maxlength="60" autocomplete="off" enterkeyhint="done" required></label>' +
+      '<div class="btn-row"><button class="btn" type="submit">Add</button>' + (w.exercises.length || wExtra.length ? '<button class="btn secondary" type="button" data-action="wadd-cancel">Cancel</button>' : "") + "</div>" +
+      '<p class="hint">It goes under the right heading by itself. Done it before? Your last sets load in. Leave weight at 0 for bodyweight moves.</p></form>';
   }
   function drawWorkout() {
     sheetDeferred = false;
@@ -3718,21 +3721,21 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const body = wEdit
       ? '<div class="wedit">' + gs.map((g) => (sheetLabel(g, w.type) ? '<div class="ex-ghead" data-g="' + g + '">' + sheetLabel(g, w.type) + "</div>" : "") + w.exercises.filter((e) => inGroup(e, g, own)).map(editRow).join("")).join("") + "</div>"
       : gs.map((g) => {
-          const list = shown.filter((e) => inGroup(e, g, own)), nDone = list.filter((e) => exState(e) === "done").length, adding = wAddGroup === g, label = sheetLabel(g, w.type);
-          const head = label ? '<div class="wg-head"><h3>' + label + "</h3>" + (list.length ? '<span class="meta num">' + nDone + " of " + list.length + "</span>" : "") +
-            (adding || g === OTHER ? "" : '<button class="linkbtn" data-action="wadd-open" data-g="' + g + '" aria-label="Add to ' + label + '">+ Add</button>') + "</div>" : "";
-          const foot = !label && !adding ? '<button class="btn secondary" data-action="wadd-open" data-g="">+ Add exercise</button>' : "";
-          return '<div class="wg">' + head + list.map((e) => exBlock(e, w)).join("") + (adding ? addForm(w, g, !list.length) : "") + foot + "</div>";
-        }).join("");
+          const list = shown.filter((e) => inGroup(e, g, own)), nDone = list.filter((e) => exState(e) === "done").length, label = sheetLabel(g, w.type);
+          if (!list.length) return ""; // no "+ Add" per heading any more: an added exercise sorts itself
+          const head = label ? '<div class="wg-head"><h3>' + label + '</h3><span class="meta num">' + nDone + " of " + list.length + "</span></div>" : "";
+          return '<div class="wg">' + head + list.map((e) => exBlock(e, w)).join("") + "</div>";
+        }).join("") + (wAddGroup != null ? addForm(w, !shown.length) : "");
     const nSets = w.exercises.reduce((a, e) => a + doneSets(e).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
     const open = wOpen && !wEdit ? w.exercises.find((e) => e.id === wOpen) : null;
     const intro = wEdit ? "Hold an exercise and drag it to move it" + (gs[0] ? ", or into another group" : "") + ". Tap a name to rename it."
-      : !shown.length ? (prev ? "" : "First " + tn + " day. Add what you do" + (gs[0] ? " under each group" : "") + ". Next time it's your plan, with your weights and sets.")
+      : !shown.length ? (prev ? "" : "First " + tn + " day. Add what you do, and each exercise sorts itself into its group. Next time it's your plan, with your weights and sets.")
       : w.saved ? "Saved. Tap an exercise to change it."
       : nSets ? "<b>" + nEx + " of " + w.exercises.length + "</b> exercises · <b>" + nSets + "</b> " + (nSets === 1 ? "set" : "sets")
       : prev ? "Your usual " + tn + " day. Tap an exercise when you start it. Each set starts from last time, so just change what's different."
       : "Tap an exercise when you start it. Next time this is your plan.";
     const tools = (w.exercises.length ? '<button class="btn secondary" data-action="w-edit">' + (wEdit ? "Done" : "Reorder or remove") + "</button>" : "") +
+      (!wEdit && wAddGroup == null ? '<button class="btn secondary" data-action="wadd-open">+ Add exercise</button>' : "") +
       (!w.saved && !nSets ? '<button class="btn danger" data-action="w-discard">' + (wConfirmDiscard ? "Tap again to discard" : "Not " + tn + " day? Discard") + "</button>" : ""); // gone once a set is logged
     sheet.innerHTML = '<div class="sheet-inner"><div class="grab"></div>' +
       '<div class="panel-head"><h2>' + typeName(w.type) + ' day</h2><span class="meta">' + (viewDate === todayISO() ? "Today" : "Day " + dayNum(viewDate)) + "</span></div>" +
@@ -4124,7 +4127,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
         break;
       case "rename-cancel": renameAsk = null; drawWorkout(); break;
       case "rename-save": { const f = document.getElementById("ex-rename-in"); if (f && renaming) { commitRename(f.value); f.blur(); } break; }
-      case "wadd-open": wAddGroup = el.dataset.g || ""; wEdit = false; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
+      case "wadd-open": wAddGroup = ""; wEdit = false; wOpen = null; drawWorkout(); setTimeout(() => { const f = document.getElementById("wadd-name"); if (f) { f.focus(); fitTyping(); } }, 30); break;
       case "wadd-cancel": wAddGroup = null; drawWorkout(); break;
       case "w-edit": wEdit = !wEdit; wAddGroup = null; wOpen = null; renaming = renameAsk = null; drawWorkout(); break;
       case "w-discard":
@@ -4238,9 +4241,9 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       if (ex0) { takeExtra(w, ex0.id); startEx(ex0); wAddGroup = null; wOpen = ex0.id; buzz("confirm"); save(viewDate); render(); drawWorkout(); showOpen(); return; }
       const dup = w.exercises.find((x) => exKey(x.name) === exKey(name));
       if (dup) { wAddGroup = null; wOpen = dup.id; drawWorkout(); showOpen(); toast(dup.name + " is already in this workout"); return; }
-      // The heading you tapped "+ Add" under is only the fallback: an exercise goes where you've had it before, else
-      // where its name says (push-ups added under Back on a pull day go to Chest), and says so.
-      const kg = knownGroup(name, w.type), gg = kg != null ? kg : guessAny(name), g = gg != null ? gg : f.dataset.g;
+      // It sorts itself: where you've had it before, else where its name says (push-ups on a pull day go to Chest,
+      // under Other), else the day's first group until the coach sorts it. A toast says where it went.
+      const kg = knownGroup(name, w.type), gg = kg != null ? kg : guessAny(name), g = gg != null ? gg : groupsFor(w.type)[0];
       const ne = newEx(name, w.type, g), known = !!prevExercise(name);
       w.exercises.push(ne);
       startEx(ne);
@@ -4248,9 +4251,9 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       buzz("confirm");
       save(viewDate); render(); drawWorkout(); showOpen();
       // Brand new to you: the coach sorts it into a group, and you go straight into its weight, keyboard still up.
-      if (g !== f.dataset.g) toast(ne.name + " went under " + (sheetLabel(g, w.type) || "the list"));
+      if (sheetLabel(g, w.type)) toast(ne.name + " went under " + sheetLabel(g, w.type));
       if (!known) {
-        aiSortExercise(ne, w.type);
+        if (gg == null) aiSortExercise(ne, w.type); // only when neither your history nor the name says where it goes
         const i = document.getElementById("ex-w-" + ne.id);
         if (i) { i.focus(); fitTyping(); }
       }

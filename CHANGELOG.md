@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.25.3 · One Add button, exercises sort themselves
+- The "+ Add" next to every heading is gone. There's one **+ Add exercise** button next to **Reorder or remove**. Once you've logged a set, it takes the place where Discard was.
+- Whatever you add goes under the right heading by itself: where you've done it before, or where its name says (chin-ups on push day go under Other). A short message tells you where it went. Only when the name gives no clue does the coach sort it, and you can undo that.
+- Headings with nothing under them are hidden, so the list is shorter.
+
 ## v0.25.2 · Task boxes that fill up
 - The tasks that tick themselves (steps, sleep, workouts, protein) now show how close you are: the checkbox fills with green from the bottom, and the check pops in once it's full. When Samsung Health brings new numbers, the box counts up smoothly, just like the calorie bar, and the phone gives one buzz as it ticks.
 - Tapping one of these tasks still ticks or unticks it straight away.
