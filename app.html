@@ -240,6 +240,8 @@ body.kb .fab-wrap { display: none; }
 }
 .key:active { background: color-mix(in srgb, var(--ink) 18%, var(--sunk)); }
 .key.fn { font-family: var(--font-body); font-size: 15px; }
+.key.wide { grid-column: span 2; }
+.key.wider { grid-column: span 3; }
 .key.next { grid-row: span 3; height: auto; background: var(--blue); color: var(--on-color); align-content: center; gap: 4px; }
 .key.next:active { background: color-mix(in srgb, var(--ink) 20%, var(--blue)); }
 .key svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -449,7 +451,8 @@ button.tot-box { width: 100%; border: 0; padding: 0; text-align: left; color: va
 .tot-box.editing .tot-edit { display: flex; }
 /* What the number pad is typing into: a fresh box shows the old number selected (the next key replaces it); once you
    type, a thin caret follows the digits. Empty shows the old number faintly, and it comes back if you leave it empty. */
-.np-v.fresh { background: color-mix(in srgb, var(--blue) 30%, transparent); border-radius: 4px; padding: 0 2px; }
+.np-v { display: inline-block; line-height: 1; }
+.np-v.fresh { background: color-mix(in srgb, var(--blue) 30%, transparent); border-radius: 4px; padding: 2px 4px 1px; margin: -2px -4px -1px; }
 .np-v.empty { color: var(--muted); opacity: 0.55; }
 .np-v.typed::after { content: ""; display: inline-block; width: 2px; height: 0.85em; margin-left: 2px; vertical-align: -0.05em; background: var(--blue); }
 .wbtn { width: 120px; height: 44px; text-align: left; font-weight: 600; color: var(--ink); touch-action: manipulation; }
@@ -3781,12 +3784,15 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const k = (v, lab, cls, x) => '<button class="key' + (cls ? " " + cls : "") + '" data-action="np-key" data-k="' + v + '"' + (x || "") + ">" + (lab || v) + "</button>";
     return '<div class="keys" role="group" aria-label="Number pad">' + k("1") + k("2") + k("3") + k("del", NP_DEL, "fn", ' aria-label="Delete"') +
       k("4") + k("5") + k("6") + k("next", next, "fn next") + k("7") + k("8") + k("9") +
-      (npDec() ? k(".") : "<span></span>") + k("0") + k("hide", NP_HIDE, "fn", ' aria-label="Close the number pad"') + "</div>";
+      (np.t === "set" // the workout's pad is always there, so no key to put it away: 0 gets the room
+        ? (npDec() ? k(".") + k("0", "", "wide") : k("0", "", "wider"))
+        : (npDec() ? k(".") + k("0") : k("0", "", "wide")) + k("hide", NP_HIDE, "fn", ' aria-label="Close the number pad"')) + "</div>";
   };
   const NP_DEL = '<svg viewBox="0 0 24 24"><path d="M9 6h11v12H9l-6-6 6-6zM12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>';
   const NP_HIDE = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
   const NP_NEXT = '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
-  const npNextLabel = () => (np.t === "set" && np.f === "w" ? NP_NEXT + "Reps" : np.t === "kcal" ? NP_NEXT + "Protein" : CHECK + "OK");
+  const NP_BACK = '<svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>';
+  const npNextLabel = () => (np.t === "set" ? (np.f === "w" ? NP_NEXT + "Reps" : NP_BACK + "Weight") : np.t === "kcal" ? NP_NEXT + "Protein" : CHECK + "OK");
   // Today's pad (the workout's lives in its remote)
   const numpadEl = document.getElementById("numpad");
   function drawNumpad() {
@@ -3825,9 +3831,9 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   }
   function npKey(k) {
     if (!np) return;
-    if (k === "hide") { npClose(); return; }
+    if (k === "hide") { if (np.t !== "set") npClose(); return; }
     if (k === "next") {
-      if (np.t === "set" && np.f === "w") { npOpen({ t: "set", id: np.id, f: "r" }); return; }
+      if (np.t === "set") { npOpen({ t: "set", id: np.id, f: np.f === "w" ? "r" : "w" }); return; } // the pad stays: switch number
       if (np.t === "kcal") { npOpen({ t: "protein" }); return; }
       npClose(); return;
     }
@@ -3959,6 +3965,10 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const nSets = w.exercises.reduce((a, e) => a + doneSets(e).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
     const open = wOpen && !wEdit ? w.exercises.find((e) => e.id === wOpen) : null;
     if (np && np.t === "set" && (!open || np.id !== open.id)) np = null; // the pad belongs to the open exercise
+    if (open && !np) { // and is always open while one is, so the remote never changes shape: on the weight, or the reps for a bodyweight move at 0
+      const c0 = ensureSets(open)[curIdx(open)];
+      np = { t: "set", id: open.id, f: c0 && c0.w > 0 ? "w" : "r", buf: null };
+    }
     // Up next: the first exercise not started yet after the one you just finished (or from the top)
     const order = gs.flatMap((g) => shown.filter((e) => inGroup(e, g, own))), from = Math.max(0, order.findIndex((e) => e.id === wLast));
     const up = open || wEdit || w.saved ? null : order.slice(from).concat(order.slice(0, from)).find((e) => exState(e) === "plan");
@@ -4314,8 +4324,8 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       }
       case "np-key": buzz("tick"); npKey(el.dataset.k); break;
       case "np-set": {
-        // Tap a number in the remote to type it; tap it again to put the pad away.
-        if (npOn("set", el.dataset.id, el.dataset.f)) npClose(); else npOpen({ t: "set", id: el.dataset.id, f: el.dataset.f });
+        // Tap a number in the remote to type into it (tapping it again starts it fresh).
+        npOpen({ t: "set", id: el.dataset.id, f: el.dataset.f });
         break;
       }
       case "np-food": {
@@ -4333,7 +4343,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
         if (!e) break;
         startEx(e);
         ensureSets(e).push({ ...nextSet(e), done: true });
-        delete curSet[e.id]; np = null;
+        delete curSet[e.id]; if (np) np.buf = null;
         buzz("confirm"); syncEx(e); save(viewDate); render(); drawWorkout();
         showEl(sheet.querySelector(".set-cur"));
         break;
@@ -4619,7 +4629,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   document.addEventListener("keydown", (ev) => {
     // A computer keyboard drives the number pad too (the web version on a laptop)
     if (np && !(ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA")) {
-      const k = /^[0-9.]$/.test(ev.key) ? ev.key : ev.key === "," ? "." : { Backspace: "del", Enter: "next", Tab: "next", Escape: "hide" }[ev.key];
+      const k = /^[0-9.]$/.test(ev.key) ? ev.key : ev.key === "," ? "." : { Backspace: "del", Enter: "next", Tab: "next", Escape: np.t === "set" ? null : "hide" }[ev.key];
       if (k) { ev.preventDefault(); npKey(k); return; }
     }
     if (ev.key === "Escape" && fabWrap.classList.contains("open")) fabMenu(false);
@@ -4630,7 +4640,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
   document.addEventListener("visibilitychange", () => { if (document.hidden && np) npCommit(); });
   window.__appBack = function () {
-    if (np) { npClose(); return true; } // Back puts the number pad away first (keeping what you typed)
+    if (np && np.t !== "set") { npClose(); return true; } // Back puts Today's number pad away first (keeping what you typed)
     if (fabWrap.classList.contains("open")) { fabMenu(false); return true; }
     const cm = document.querySelector(".coach-card.menu-open");
     if (cm) { cm.classList.remove("menu-open"); return true; }

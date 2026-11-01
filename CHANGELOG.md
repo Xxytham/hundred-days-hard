@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.1 · Number pad always open
+- In a workout, the number pad now stays open while an exercise is open, so nothing moves: the − and +, the keys, **+ Set** and **Done** are always in the same spot.
+- It starts on the weight, or on the reps for bodyweight moves like push-ups and dips. The big blue key switches between weight and reps, and tapping either number picks it too.
+- The ▾ key is gone in workouts, so 0 is bigger. Back closes the workout like before.
+- The highlight on a selected number is now a neat box around the digits instead of a tall bar.
+
 ## v0.27 · A number pad and a workout remote
 - Typing numbers no longer brings up the phone's keyboard. The app has its own number pad, so the screen doesn't shrink or jump while you type, and taps land where you aim.
 - In a workout, the bottom of the screen is a remote for the exercise you're on: the set number, its weight and reps with − and + (hold to go faster), and + Set and Done. Tap a number to type it; the pad opens right there. **Reps →** moves from weight to reps.
