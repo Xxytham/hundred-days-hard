@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.27 · A number pad and a workout remote
+- Typing numbers no longer brings up the phone's keyboard. The app has its own number pad, so the screen doesn't shrink or jump while you type, and taps land where you aim.
+- In a workout, the bottom of the screen is a remote for the exercise you're on: the set number, its weight and reps with − and + (hold to go faster), and + Set and Done. Tap a number to type it; the pad opens right there. **Reps →** moves from weight to reps.
+- Your numbers from last time are still filled in. Tapping a number shows it selected, and the first key you press replaces it. Leave it empty and the old number comes back.
+- With no exercise open, the bottom says what's next: **Start** the first exercise, then **Up next** with the next one you haven't done, beside **Finish workout**.
+- Calories, protein and body weight on Today use the same pad. **Protein →** goes from calories to protein. Back, or tapping anywhere else, puts the pad away and keeps what you typed.
+- Messages like "Saved" no longer cover buttons: while a workout or the pad is open they show at the top of the screen.
+
 ## v0.26 · Body weight counts on assisted and bodyweight moves
 - Put "assist" anywhere in an exercise's name (Assisted dips, Assisted pull-ups) and the app counts what you really lifted: your body weight that day minus the assist. So 125 lb of assist at 240 lb is more work than the same 125 lb of assist at 220 lb, and Progress shows it.
 - Push-ups, pull-ups, chin-ups, dips and anything you log at 0 now count your body weight too (plus any weight you add).

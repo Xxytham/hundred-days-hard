@@ -165,10 +165,6 @@ body.kb .fab-wrap { display: none; }
 .ex-ask p { margin: 0; display: grid; gap: 2px; }
 .ex-ask .btn-row { align-items: center; }
 .sbtn { height: 44px; border-radius: 10px; border: 0; background: var(--sunk); font-size: 22px; font-weight: 700; line-height: 1; }
-.sval {
-  width: 100%; min-width: 0; text-align: center; border: 0; background: none; padding: 4px 0;
-  font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 1;
-}
 .ex-sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .seg.sm button { padding: 4px 10px; font-size: 13px; }
 /* Workout: groups of one-line exercises; the one you're doing opens, with its sets and big steppers. Dashed = not started. */
@@ -218,17 +214,50 @@ body.kb .fab-wrap { display: none; }
 .set-row small { font-size: 12px; color: var(--muted); font-weight: 600; }
 .set-k { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: var(--on-color); font-size: 12px; font-weight: 800; }
 .set-edit svg { width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.set-cur { display: grid; gap: 8px; padding: 10px 0 2px; border-top: 1px solid var(--line); }
-.set-top { display: flex; align-items: center; gap: 10px; }
-.set-n { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
-.set-top .set-del { margin-left: auto; color: var(--muted); font-size: 13px; }
-.srow { display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; gap: 8px; align-items: center; }
-.srow .sbtn { height: 52px; font-size: 24px; color: var(--ink); touch-action: manipulation; }
-.sbox { position: relative; display: block; height: 52px; border-radius: 10px; background: var(--bg); }
-.sbox .sval { width: 100%; height: 100%; padding: 0 48px; text-align: center; font-size: 30px; border-radius: 10px; color: var(--ink); }
-.sbox .sval::placeholder { color: var(--muted); opacity: 0.6; }
-.sbox .u { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--muted); pointer-events: none; }
+.set-cur { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 8px 10px 2px; border-top: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--blue) 12%, transparent); font-weight: 700; font-size: 16px; }
+.set-cur .set-k { background: var(--blue); }
+.set-cur small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.set-cur .set-del { color: var(--muted); font-size: 13px; padding: 4px 2px; }
 .foot-row { display: grid; grid-template-columns: 1fr 1.25fr; gap: 8px; }
+/* The remote: everything you do while lifting sits by your thumb. The set you're on, its weight and reps with − and +,
+   a number pad when you tap a number (no phone keyboard, so nothing on screen jumps), and + Set / Done. */
+.dock { display: grid; gap: 8px; }
+.dock-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted); }
+.dock-head b { flex: none; font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
+.dock-head span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-head .ex-sub { margin-left: auto; flex: none; }
+.dock-vals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dv { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; height: 60px; }
+.dv .sbtn { height: auto; color: var(--ink); touch-action: manipulation; }
+.dv-num { min-width: 0; border: 0; border-radius: 10px; padding: 0; background: var(--bg); color: var(--ink); display: grid; place-content: center; justify-items: center; gap: 3px; touch-action: manipulation; }
+.dv-num b { font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 1; white-space: nowrap; }
+.dv-num small { font-size: 11px; font-weight: 600; line-height: 1; color: var(--muted); white-space: nowrap; }
+.dv-num.on { box-shadow: inset 0 0 0 2px var(--blue); }
+.keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.15fr); gap: 6px; }
+.key {
+  height: 48px; padding: 0; border: 0; border-radius: 10px; background: var(--sunk); color: var(--ink); display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1; touch-action: manipulation;
+}
+.key:active { background: color-mix(in srgb, var(--ink) 18%, var(--sunk)); }
+.key.fn { font-family: var(--font-body); font-size: 15px; }
+.key.next { grid-row: span 3; height: auto; background: var(--blue); color: var(--on-color); align-content: center; gap: 4px; }
+.key.next:active { background: color-mix(in srgb, var(--ink) 20%, var(--blue)); }
+.key svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.foot-row .btn.up { display: grid; gap: 1px; justify-items: start; text-align: left; padding: 8px 14px; min-width: 0; }
+.btn.up small { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.7; }
+.btn.up span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Today's pad: fixed at the bottom of the screen, over the tab bar */
+.numpad {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 27; display: grid; gap: 8px;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--surface); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.22); animation: up var(--t) var(--ease);
+}
+.numpad > * { width: 100%; max-width: 560px; margin: 0 auto; }
+.np-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+.np-head b { font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
+body.np-on .fab-wrap { display: none; }
+body.np-on { padding-bottom: calc(340px + env(safe-area-inset-bottom, 0px)); } /* room to scroll the last box above the pad */
+@media (prefers-reduced-motion: reduce) { .numpad { animation: none; } }
 .foot-row .btn { padding: 14px 12px; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .btn.go { background: var(--green); color: var(--on-color); }
 .btn.go svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
@@ -406,21 +435,26 @@ body.setup .nav, body.setup .top { display: none; }
 .tot-box.pro { --c: var(--green); --h: 44px; --fs: 26px; border-radius: 11px; }
 .tot-fill, .tot-num { position: absolute; inset: 0; pointer-events: none; }
 .tot-fill { background: color-mix(in srgb, var(--c) calc(var(--fade-floor) + (100% - var(--fade-floor)) * var(--b, 1)), var(--sunk)); clip-path: var(--clip); transition: background-color 250ms ease, opacity 150ms ease; }
-.tot-box:focus-within .tot-fill { opacity: 0.25; }
-.tot-num, .big-input { font-family: var(--font-display); font-weight: 800; font-size: var(--fs); line-height: 1; padding: 0 14px; }
+.tot-box.editing .tot-fill { opacity: 0.25; }
+.tot-num { font-family: var(--font-display); font-weight: 800; font-size: var(--fs); line-height: 1; padding: 0 14px; }
 .tot-num { display: flex; align-items: center; color: var(--ink); white-space: nowrap; }
 .tot-num.on { color: var(--on-color); clip-path: var(--clip); }
-/* While you type, the plain number shows and the bar waits; it moves once you're done. */
-.tot-box:focus-within .tot-num { visibility: hidden; }
-.tot-box:focus-within .big-input { color: var(--ink); }
-.tot-box:focus-within .big-input::placeholder { color: var(--muted); }
 .tot-num.empty { color: var(--muted); opacity: 0.5; }
-.big-input {
-  position: relative; display: block; height: 100%; width: 100%; min-width: 0;
-  border: 0; border-radius: inherit; background: none; color: transparent; caret-color: var(--ink);
-}
-.big-input::placeholder { color: transparent; }
-.big-input:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+/* The box is a button: tapping it opens the app's number pad. While you type, the plain number shows and the bar
+   waits; it moves once you're done. */
+button.tot-box { width: 100%; border: 0; padding: 0; text-align: left; color: var(--ink); font: inherit; touch-action: manipulation; }
+.tot-box.editing { box-shadow: inset 0 0 0 2px var(--blue); }
+.tot-box.editing .tot-num { visibility: hidden; }
+.tot-edit { display: none; position: absolute; inset: 0; align-items: center; padding: 0 14px; font-family: var(--font-display); font-weight: 800; font-size: var(--fs); line-height: 1; color: var(--ink); white-space: nowrap; pointer-events: none; }
+.tot-box.editing .tot-edit { display: flex; }
+/* What the number pad is typing into: a fresh box shows the old number selected (the next key replaces it); once you
+   type, a thin caret follows the digits. Empty shows the old number faintly, and it comes back if you leave it empty. */
+.np-v.fresh { background: color-mix(in srgb, var(--blue) 30%, transparent); border-radius: 4px; padding: 0 2px; }
+.np-v.empty { color: var(--muted); opacity: 0.55; }
+.np-v.typed::after { content: ""; display: inline-block; width: 2px; height: 0.85em; margin-left: 2px; vertical-align: -0.05em; background: var(--blue); }
+.wbtn { width: 120px; height: 44px; text-align: left; font-weight: 600; color: var(--ink); touch-action: manipulation; }
+.wbtn.editing { box-shadow: inset 0 0 0 2px var(--blue); border-color: transparent; }
+.wbtn .ph { color: var(--muted); }
 .source { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; }
 .source .linkbtn { padding-left: 0; }
 .notice { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; }
@@ -778,6 +812,11 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   display: flex; align-items: center; gap: 14px;
 }
 .toast[hidden] { display: none; }
+/* A message never blocks a tap: only its Undo catches one. While the workout sheet or the number pad is up, messages show
+   at the top, clear of the remote and the keys. */
+.toast { pointer-events: none; }
+.toast button { pointer-events: auto; }
+html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 10px); }
 .toast button { flex: none; border: 0; background: none; color: inherit; padding: 4px 2px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px; }
 </style>
 
@@ -819,6 +858,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
 
 <div class="backdrop" id="backdrop" data-action="close-sheet" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+<div class="numpad" id="numpad" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <input type="file" id="restore-file" accept=".json,application/json,text/plain" hidden>
 
@@ -2092,12 +2132,12 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const f = foodFill(sh), tg = TG(viewDate), lose = calAim(viewDate) === "lose", k = day.kcal ?? "", p = day.protein ?? "";
     const showK = sh.kcal == null ? "" : String(Math.round(sh.kcal)), showP = sh.protein == null ? "" : String(Math.round(sh.protein));
     return '<div class="totals">' +
-      '<label class="tot" for="in-kcal"><span class="tot-head"><span>Calories</span><span class="num">' + (lose ? fmt(calRange(viewDate)[0]) + "–" + fmt(calRange(viewDate)[1]) : "of " + fmt(tg.calorieGoal)) + "</span></span>" +
-        '<span class="tot-box" id="kcal-box" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + ";--b:" + f.kBright.toFixed(3) + ";--g:" + f.kGreen.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(showK) +
-        '<input class="big-input num" id="in-kcal" type="number" inputmode="numeric" min="0" max="20000" placeholder="0" value="' + k + '"></span></label>' +
-      '<label class="tot" for="in-protein"><span class="tot-head"><span>Protein</span><span class="num">of ' + fmt(tg.proteinGoal) + " g</span></span>" +
-        '<span class="tot-box pro" id="protein-box" style="--p:' + f.protein.toFixed(3) + ";--b:" + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(showP) +
-        '<input class="big-input num" id="in-protein" type="number" inputmode="numeric" min="0" max="1000" placeholder="0" value="' + p + '"></span></label>' +
+      '<div class="tot"><span class="tot-head"><span>Calories</span><span class="num">' + (lose ? fmt(calRange(viewDate)[0]) + "–" + fmt(calRange(viewDate)[1]) : "of " + fmt(tg.calorieGoal)) + "</span></span>" +
+        '<button class="tot-box' + (npOn("kcal") ? " editing" : "") + '" id="kcal-box" data-action="np-food" data-k="kcal" aria-label="Calories eaten: ' + (k === "" ? "none yet" : k) + '" data-s="' + f.kState + '" style="--p:' + f.kcal.toFixed(3) + ";--b:" + f.kBright.toFixed(3) + ";--g:" + f.kGreen.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(showK) +
+        '<span class="tot-edit num">' + npShow("kcal", k) + "</span></button></div>" +
+      '<div class="tot"><span class="tot-head"><span>Protein</span><span class="num">of ' + fmt(tg.proteinGoal) + " g</span></span>" +
+        '<button class="tot-box pro' + (npOn("protein") ? " editing" : "") + '" id="protein-box" data-action="np-food" data-k="protein" aria-label="Protein eaten: ' + (p === "" ? "none yet" : p + " g") + '" style="--p:' + f.protein.toFixed(3) + ";--b:" + f.protein.toFixed(3) + '"><i class="tot-fill"></i>' + totNums(showP) +
+        '<span class="tot-edit num">' + npShow("protein", p) + "</span></button></div>" +
       "</div>";
   }
 
@@ -2244,7 +2284,8 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
 
       '<section class="panel" aria-labelledby="h-w">' +
         '<div class="panel-head"><h2 id="h-w">Body weight</h2></div>' +
-        '<div class="weight-row"><input class="field num" id="weight" type="number" inputmode="decimal" step="0.1" min="0" placeholder="' + (prevW ? prevW.weight : "0.0") + '" value="' + (day.weight ?? "") + '" aria-label="Body weight in ' + unit + '"><span class="hint">' + unit +
+        '<div class="weight-row"><button class="field num wbtn' + (npOn("weight") ? " editing" : "") + '" id="weight" data-action="np-food" data-k="weight" aria-label="Body weight in ' + unit + '">' +
+          (npOn("weight") ? npShow("weight", day.weight ?? "") : day.weight != null ? esc(String(day.weight)) : '<span class="ph">' + (prevW ? prevW.weight : "0.0") + "</span>") + '</button><span class="hint">' + unit +
         (wDelta !== null ? " · " + (wDelta > 0 ? "+" : "") + wDelta.toFixed(1) + " since day " + dayNum(prevW.date) : prevW && !day.weight ? " · last " + prevW.weight + " on day " + dayNum(prevW.date) : "") + "</span></div>" +
       "</section>"
     );
@@ -3237,7 +3278,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   new MutationObserver(() => document.documentElement.classList.toggle("sheet-open", !sheet.hidden)).observe(sheet, { attributes: true, attributeFilter: ["hidden"] });
   sheet.addEventListener("touchmove", (ev) => { if (sheet.scrollHeight <= sheet.clientHeight + 1 && !(drag && drag.active) && !ev.target.closest("input")) ev.preventDefault(); }, { passive: false });
   backdrop.addEventListener("touchmove", (ev) => ev.preventDefault(), { passive: false });
-  function closeSheet() { wExtra = []; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
+  function closeSheet() { if (np && np.t === "set") { npCommit(); np = null; } wExtra = []; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
 
   // ---------- keyboard ----------
   // When the keyboard opens, the installed app's page gets shorter (on iPhone, the visual viewport does). While you
@@ -3667,7 +3708,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     wExtra = w.saved && GROUPS[w.type] && isLatest(w.type, viewDate)
       ? planFor(w.type).filter((x) => !w.exercises.some((e) => exKey(e.name) === exKey(x.name))).map((x) => newEx(x.name, w.type, x.group)) : [];
     wAddGroup = sheetEx(w).length ? null : "";
-    wOpen = null; // you pick the exercise you're doing; nothing starts by itself
+    wOpen = null; wLast = null; // you pick the exercise you're doing; nothing starts by itself
     sheet.classList.add("tall");
     sheet.hidden = backdrop.hidden = false;
     drawWorkout();
@@ -3682,6 +3723,11 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const d = r.top < top ? r.top - top : r.bottom > bot ? Math.min(r.bottom - bot, r.top - top) : 0;
     if (Math.abs(d) > 2) sheet.scrollTo({ top: sheet.scrollTop + d, behavior: reduceMotion ? "auto" : "smooth" });
   }
+  // With the pad open: the whole exercise card above the remote if it fits, else just the set you're on.
+  function showSetCard() {
+    const c = sheet.querySelector(".ex.open"), foot = sheet.querySelector(".sheet-foot");
+    if (c && foot && c.offsetHeight <= sheet.clientHeight - foot.offsetHeight - 24) showOpen(); else showEl(sheet.querySelector(".set-cur"));
+  }
   // Scroll the sheet just enough to show the exercise that opened.
   function showOpen() {
     const c = sheet.querySelector(".ex.open");
@@ -3691,25 +3737,149 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     const d = r.top < top ? r.top - top : r.bottom > bot ? Math.min(r.bottom - bot, r.top - top) : 0;
     if (Math.abs(d) > 2) sheet.scrollTo({ top: sheet.scrollTop + d, behavior: reduceMotion ? "auto" : "smooth" });
   }
-  // One full-width row per number, so three digits (or 102.5) always fit. The box clears when you tap it, so you just
-  // type the new number; leave it empty and the old one comes back.
-  function srow(e, k, f, v) {
-    const w = f === "w", lab = w ? "weight" : "reps", at = ' data-id="' + e.id + '" data-k="' + k + '" data-f="' + f + '"';
-    return '<div class="srow"><button class="sbtn" data-action="ex-step"' + at + ' data-d="-1" aria-label="Less ' + lab + '">−</button>' +
-      '<label class="sbox"><input class="sval num" id="ex-' + f + "-" + e.id + '"' + at + ' type="text" inputmode="' + (w ? "decimal" : "numeric") + '" autocomplete="off" value="' + v + '" enterkeyhint="' + (w ? "next" : "done") + '" aria-label="' + (w ? "Weight" : "Reps") + '">' +
-      '<span class="u">' + (w ? e.unit + (isAssisted(e.name) ? " assist" : "") : "reps") + "</span></label>" +
+  // ---------- the number pad ----------
+  // The app's own number pad, instead of the phone's keyboard: nothing on screen shrinks or jumps while you type.
+  // np = what it's typing into: { t: "set", id, f: "w"|"r" } (the open exercise's current set, in the workout's remote),
+  // or { t: "kcal"|"protein"|"weight" } on Today. buf = what you've typed; null = untouched, so the number already
+  // there (last time's, or the day's) stays, and the first key replaces it. Leave it empty and the old number comes back.
+  let np = null;
+  const npOn = (t, id, f) => !!np && np.t === t && (id == null || (np.id === id && np.f === f));
+  const NP_MAX = { w: 4, r: 3, kcal: 5, protein: 4, weight: 3 }; // digits before the point
+  const npDec = () => !!np && ((np.t === "set" && np.f === "w") || np.t === "weight");
+  // The text a box shows while the pad types into it (old = the number it had)
+  function npShow(t, old, id, f) {
+    if (!npOn(t, id, f)) return esc(String(old));
+    if (np.buf == null) return '<span class="np-v fresh">' + esc(String(old === "" ? "0" : old)) + "</span>";
+    if (np.buf === "") return '<span class="np-v empty typed">' + esc(String(old === "" ? "0" : old)) + "</span>";
+    return '<span class="np-v typed">' + esc(np.buf) + "</span>";
+  }
+  function npSetOf() { const e = np && np.t === "set" ? findEx(np.id) : null, cs = e && ensureSets(e)[curIdx(e)]; return cs ? { e, cs } : null; }
+  // Store what was typed (rounded) and save. Nothing typed, or left empty: the number stays as it was.
+  function npCommit() {
+    if (!np) return;
+    const b = np.buf, v = b == null || b === "" || b === "." ? null : parseFloat(b);
+    np.buf = null;
+    if (v == null || !(v >= 0)) return;
+    if (np.t === "set") {
+      const c = npSetOf(); if (!c) return;
+      if (np.f === "w") c.cs.w = half(v); else c.cs.r = Math.round(v);
+      syncEx(c.e); save(viewDate);
+    } else if (np.t === "weight") {
+      const d = getDay(viewDate), w = v > 0 ? Math.round(v * 10) / 10 : null;
+      if (d.weight === w) return;
+      d.weight = w; save(viewDate); toast(w ? "Weight saved" : "Weight cleared");
+    } else {
+      const d = getDay(viewDate), n = Math.round(v), key = np.t;
+      if (d[key] === n) return;
+      const hadGoal = d.protein != null && d.protein >= TG(viewDate).proteinGoal;
+      d[key] = n; d.kcalSrc = "manual";
+      if (!hadGoal) autoProteinHabit(d, viewDate);
+      save(viewDate); toast("Saved");
+    }
+  }
+  const npKeys = (next) => {
+    const k = (v, lab, cls, x) => '<button class="key' + (cls ? " " + cls : "") + '" data-action="np-key" data-k="' + v + '"' + (x || "") + ">" + (lab || v) + "</button>";
+    return '<div class="keys" role="group" aria-label="Number pad">' + k("1") + k("2") + k("3") + k("del", NP_DEL, "fn", ' aria-label="Delete"') +
+      k("4") + k("5") + k("6") + k("next", next, "fn next") + k("7") + k("8") + k("9") +
+      (npDec() ? k(".") : "<span></span>") + k("0") + k("hide", NP_HIDE, "fn", ' aria-label="Close the number pad"') + "</div>";
+  };
+  const NP_DEL = '<svg viewBox="0 0 24 24"><path d="M9 6h11v12H9l-6-6 6-6zM12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>';
+  const NP_HIDE = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
+  const NP_NEXT = '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  const npNextLabel = () => (np.t === "set" && np.f === "w" ? NP_NEXT + "Reps" : np.t === "kcal" ? NP_NEXT + "Protein" : CHECK + "OK");
+  // Today's pad (the workout's lives in its remote)
+  const numpadEl = document.getElementById("numpad");
+  function drawNumpad() {
+    const on = !!np && np.t !== "set";
+    numpadEl.hidden = !on; document.body.classList.toggle("np-on", on);
+    if (!on) { numpadEl.innerHTML = ""; return; }
+    const name = { kcal: "Calories", protein: "Protein", weight: "Body weight" }[np.t];
+    numpadEl.innerHTML = '<div class="np-head"><b>' + name + "</b><span>" + (np.t === "weight" ? S().unit : np.t === "protein" ? "grams" : "kcal") + " · " + (viewDate === todayISO() ? "today" : "day " + dayNum(viewDate)) + "</span></div>" + npKeys(npNextLabel());
+  }
+  // Keep the box you're typing into above the pad
+  function npReveal() {
+    const el = np && { kcal: "kcal-box", protein: "protein-box", weight: "weight" }[np.t] && document.getElementById({ kcal: "kcal-box", protein: "protein-box", weight: "weight" }[np.t]);
+    if (!el) return;
+    const r = el.getBoundingClientRect(), bot = innerHeight - numpadEl.offsetHeight - 16;
+    if (r.bottom > bot) window.scrollBy({ top: r.bottom - bot, behavior: reduceMotion ? "auto" : "smooth" });
+    else if (r.top < 70) window.scrollBy({ top: r.top - 70, behavior: reduceMotion ? "auto" : "smooth" });
+  }
+  function npOpen(o) {
+    npCommit();
+    np = { ...o, buf: null };
+    if (np.t === "set") { drawWorkout(); showSetCard(); }
+    else { render(); drawNumpad(); npReveal(); }
+  }
+  function npClose() {
+    if (!np) return;
+    const t = np.t; npCommit(); np = null;
+    if (t === "set") { if (!sheet.hidden) drawWorkout(); render(); } else { drawNumpad(); render(); }
+  }
+  // Repaint just the numbers being typed (no redraw, so a held − or + and quick taps aren't disturbed)
+  function npPaint() {
+    if (!np) return;
+    if (np.t === "set") { const c = npSetOf(); if (c) paintSet(c.e); return; }
+    const d = peekDay(viewDate), old = np.t === "weight" ? d.weight ?? "" : d[np.t] ?? "";
+    const el = np.t === "weight" ? document.getElementById("weight") : document.querySelector("#" + np.t + "-box .tot-edit");
+    if (el) el.innerHTML = npShow(np.t, old);
+  }
+  function npKey(k) {
+    if (!np) return;
+    if (k === "hide") { npClose(); return; }
+    if (k === "next") {
+      if (np.t === "set" && np.f === "w") { npOpen({ t: "set", id: np.id, f: "r" }); return; }
+      if (np.t === "kcal") { npOpen({ t: "protein" }); return; }
+      npClose(); return;
+    }
+    let b = np.buf == null ? "" : np.buf;
+    if (k === "del") b = b.slice(0, -1);
+    else if (k === ".") { if (!npDec() || b.includes(".")) return; b = (b || "0") + "."; }
+    else {
+      const [i, dd] = b.split(".");
+      if (dd != null ? dd.length >= 1 : i.length >= NP_MAX[np.t === "set" ? np.f : np.t] && i !== "0") return;
+      b = b === "0" ? k : b + k;
+    }
+    np.buf = b; npPaint();
+  }
+  // The open exercise's set you're on, painted in place: the remote's two numbers and its row in the card.
+  function curVals(e) {
+    const cs = ensureSets(e)[curIdx(e)], v = { w: cs.w, r: cs.r };
+    if (npOn("set", e.id, np && np.f) && np.buf != null && np.buf !== "" && np.buf !== ".") v[np.f] = np.f === "w" ? +np.buf : Math.round(+np.buf);
+    return v;
+  }
+  const curRow = (e) => { const v = curVals(e); return setTxt(v) + (v.w > 0 ? " <small>" + e.unit + "</small>" : ""); };
+  function paintSet(e) {
+    const cs = ensureSets(e)[curIdx(e)]; if (!cs) return;
+    ["w", "r"].forEach((f) => { const b = document.getElementById("dv-" + f + "-" + e.id); if (b) b.innerHTML = npShow("set", f === "w" ? fmtW(cs.w) : cs.r, e.id, f); });
+    const row = document.getElementById("cur-" + e.id); if (row) row.innerHTML = curRow(e);
+  }
+  function dockVal(e, k, f, cs) {
+    const lab = f === "w" ? "weight" : "reps", at = ' data-id="' + e.id + '" data-k="' + k + '" data-f="' + f + '"';
+    return '<div class="dv"><button class="sbtn" data-action="ex-step"' + at + ' data-d="-1" aria-label="Less ' + lab + '">−</button>' +
+      '<button class="dv-num' + (npOn("set", e.id, f) ? " on" : "") + '" data-action="np-set"' + at + ' aria-label="Type the ' + lab + '"><b class="num" id="dv-' + f + "-" + e.id + '">' + npShow("set", f === "w" ? fmtW(cs.w) : cs.r, e.id, f) + "</b>" +
+      "<small>" + (f === "w" ? e.unit + (isAssisted(e.name) ? " assist" : "") : "reps") + "</small></button>" +
       '<button class="sbtn" data-action="ex-step"' + at + ' data-d="1" aria-label="More ' + lab + '">+</button></div>';
+  }
+  // The remote for the open exercise: Set N, its weight and reps (tap one to type, − and + to step, hold to repeat),
+  // the pad while you're typing, then + Set and Done.
+  function dockHTML(e) {
+    const k = curIdx(e), cs = ensureSets(e)[k];
+    const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
+    return '<div class="dock"><div class="dock-head"><b>Set ' + (k + 1) + "</b><span>" + esc(e.name) + "</span>" + (conv ? '<span class="ex-sub num">' + conv + "</span>" : "") + "</div>" +
+      '<div class="dock-vals">' + dockVal(e, k, "w", cs) + dockVal(e, k, "r", cs) + "</div>" +
+      (npOn("set", e.id, np && np.f) ? npKeys(npNextLabel()) : "") +
+      '<div class="foot-row"><button class="btn secondary" data-action="set-add" data-id="' + e.id + '">+ Set ' + (doneSets(e).length + 1) + '</button><button class="btn go" data-action="ex-done" data-id="' + e.id + '">Done ' + CHECK + "</button></div></div>";
   }
   const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   // One step of − or + on a set's weight or reps; the number in the box updates in place.
   function stepOnce(btn) {
     const e = findEx(btn.dataset.id), f = btn.dataset.f, dir = +btn.dataset.d, cs = e && ensureSets(e)[+btn.dataset.k];
     if (!cs) return false;
+    if (np && npOn("set", e.id, np.f)) npCommit(); // a number you'd typed counts, then the step moves it
     if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
     else cs.r = Math.max(0, (+cs.r || 0) + dir);
     syncEx(e);
-    const box = document.getElementById("ex-" + f + "-" + e.id);
-    if (box) box.value = f === "w" ? fmtW(cs.w) : cs.r;
+    paintSet(e);
     return true;
   }
   // Holding − or + keeps stepping: after a moment it repeats, getting quicker the longer you hold. It saves and
@@ -3748,16 +3918,15 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       const sub = st === "done" ? sets.length + (sets.length === 1 ? " set" : " sets") + " · best " + setTxt({ w: e.weight, r: e.reps }) + (e.weight > 0 ? " " + e.unit : "") : planText(e);
       return '<button class="exr ' + st + '" data-action="ex-open" data-id="' + e.id + '">' + mark(st) + '<span class="exr-name">' + esc(e.name) + '</span><span class="exr-sub num">' + sub + "</span></button>";
     }
-    // Open: the one you're doing. Its sets are what you did; the one you're on has the big steppers.
+    // Open: the one you're doing. Its sets are what you did; the one you're on is highlighted, and the remote at the bottom changes it.
     // "Last time": the hints the workout started with, or (reopening a saved one) the session before this one
     const prevEx = e.last && e.last.length ? null : prevExercise(e.name), last = e.last && e.last.length ? e.last : prevEx ? doneSets(prevEx.e).map((x) => ({ w: half(toUnit(x.w, prevEx.e.unit || S().unit, e.unit)), r: x.r })) : [];
-    const ci = curIdx(e), cs = sets[ci] || sets[sets.length - 1], hv = w.saved ? null : heavier(e);
-    const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
+    const ci = curIdx(e), hv = w.saved ? null : heavier(e);
     const seg = isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
     const rows = sets.map((x, k) => {
       if (k !== ci) return '<button class="set-row" data-action="set-go" data-id="' + e.id + '" data-k="' + k + '"><span class="set-k">' + (k + 1) + '</span><span class="num">' + setTxt(x) + (x.w > 0 ? " <small>" + e.unit + "</small>" : "") + '</span><span class="set-edit">' + PENCIL + "</span></button>";
-      return '<div class="set-cur"><div class="set-top"><span class="set-n">Set ' + (k + 1) + "</span>" + (conv ? '<span class="ex-sub num">' + conv + "</span>" : "") +
-        '<button class="linkbtn set-del" data-action="set-del" data-id="' + e.id + '">Remove</button></div>' + srow(e, k, "w", fmtW(x.w)) + srow(e, k, "r", x.r) + "</div>";
+      return '<div class="set-cur" aria-current="true"><span class="set-k">' + (k + 1) + '</span><span class="num" id="cur-' + e.id + '">' + curRow(e) + "</span>" +
+        '<button class="linkbtn set-del" data-action="set-del" data-id="' + e.id + '">Remove</button></div>';
     }).join("");
     return '<div class="ex open" data-id="' + e.id + '"><div class="ex-head"><button class="ex-name" data-action="ex-done" data-id="' + e.id + '" aria-expanded="true">' + esc(e.name) + "</button>" +
       (seg ? '<span class="ex-tools">' + seg + "</span>" : "") + '<button class="ex-close" data-action="ex-done" data-id="' + e.id + '" aria-label="Done with ' + esc(e.name) + '">' + CHEV_UP + "</button></div>" +
@@ -3789,6 +3958,10 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
         }).join("") + (wAddGroup != null ? addForm(w, !shown.length) : "");
     const nSets = w.exercises.reduce((a, e) => a + doneSets(e).length, 0), nEx = w.exercises.filter((e) => exState(e) !== "plan").length;
     const open = wOpen && !wEdit ? w.exercises.find((e) => e.id === wOpen) : null;
+    if (np && np.t === "set" && (!open || np.id !== open.id)) np = null; // the pad belongs to the open exercise
+    // Up next: the first exercise not started yet after the one you just finished (or from the top)
+    const order = gs.flatMap((g) => shown.filter((e) => inGroup(e, g, own))), from = Math.max(0, order.findIndex((e) => e.id === wLast));
+    const up = open || wEdit || w.saved ? null : order.slice(from).concat(order.slice(0, from)).find((e) => exState(e) === "plan");
     const intro = wEdit ? "Hold an exercise and drag it to move it" + (gs[0] ? ", or into another group" : "") + ". Tap a name to rename it."
       : !shown.length ? (prev ? "" : "First " + tn + " day. Add what you do, and each exercise sorts itself into its group. Next time it's your plan, with your weights and sets.")
       : w.saved ? "Saved. Tap an exercise to change it."
@@ -3802,9 +3975,10 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       '<div class="panel-head"><h2>' + typeName(w.type) + ' day</h2><span class="meta">' + (viewDate === todayISO() ? "Today" : "Day " + dayNum(viewDate)) + "</span></div>" +
       (intro ? '<p class="hint">' + intro + "</p>" : "") + body +
       (tools ? '<div class="btn-row">' + tools + "</div>" : "") +
-      // By your thumb: while an exercise is open, add a set or say you're done with it; otherwise, finish the workout.
-      '<div class="sheet-foot">' + (open
-        ? '<div class="foot-row"><button class="btn secondary" data-action="set-add" data-id="' + open.id + '">+ Set ' + (doneSets(open).length + 1) + '</button><button class="btn go" data-action="ex-done" data-id="' + open.id + '">Done ' + CHECK + "</button></div>"
+      // By your thumb: while an exercise is open, the remote; otherwise, start the next one or finish the workout.
+      '<div class="sheet-foot">' + (open ? dockHTML(open)
+        : up && !nSets ? '<button class="btn wide go" data-action="ex-open" data-id="' + up.id + '">Start ' + esc(up.name) + "</button>"
+        : up ? '<div class="foot-row"><button class="btn secondary up" data-action="ex-open" data-id="' + up.id + '"><small>Up next</small><span>' + esc(up.name) + '</span></button><button class="btn" data-action="w-save">Finish workout</button></div>'
         : '<button class="btn wide" data-action="w-save"' + (nSets ? "" : " disabled") + ">" + (w.saved ? "Save changes" : nSets ? "Finish workout" : "Tap an exercise to start") + "</button>") + "</div>" +
       "</div>";
     sheet.scrollTop = scroll;
@@ -3819,7 +3993,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     if (sheetDeferred) setTimeout(() => { if (!sheetDeferred || typingInSheet()) return; sheetDeferred = false; if (!sheet.hidden) drawWorkout(); }, 0);
   });
   // ---------- reorder, rename, remove ----------
-  let renaming = null, renameAsk = null;
+  let renaming = null, renameAsk = null, wLast = null;
   const GRIP = '<svg viewBox="0 0 10 18"><circle cx="2" cy="2" r="1.6"/><circle cx="8" cy="2" r="1.6"/><circle cx="2" cy="9" r="1.6"/><circle cx="8" cy="9" r="1.6"/><circle cx="2" cy="16" r="1.6"/><circle cx="8" cy="16" r="1.6"/></svg>';
   const PENCIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
   function editRow(e) {
@@ -4004,15 +4178,17 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
   const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
-    "fab", "fab-close", "start-workout", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
+    "fab", "fab-close", "start-workout", "np-set", "np-food", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
+    if (np && np.t !== "set" && !ev.target.closest("[data-action], #numpad")) npClose();
     const cm = document.querySelector(".coach-card.menu-open");
     if (cm && !ev.target.closest(".coach-menu, [data-action=coach-menu]")) { cm.classList.remove("menu-open"); cm.querySelector(".coach-dots").setAttribute("aria-expanded", "false"); }
     const el = ev.target.closest("[data-action]");
     if (!el) return;
     const a = el.dataset.action;
     if (TAP_BUZZ.has(a)) buzz("tick");
+    if (np && a !== "np-key" && a !== "np-set" && a !== "np-food" && a !== "ex-step") { if (np.t === "set") npCommit(); else npClose(); } // what you typed counts before anything else happens
     if (el.classList.contains("switch")) { swJust = a; buzz("tick"); setTimeout(() => { swJust = ""; }, 400); } // its knob slides on the redraw
     const day = () => getDay(viewDate);
     switch (a) {
@@ -4132,8 +4308,18 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       case "ex-done": {
         // Done with this exercise: it folds up with its sets, and you pick the next one.
         const id = el.dataset.id;
-        wOpen = null; buzz("confirm"); drawWorkout();
+        wOpen = null; wLast = id; buzz("confirm"); drawWorkout();
         showEl(sheet.querySelector('.exr[data-id="' + id + '"]'), 60);
+        break;
+      }
+      case "np-key": buzz("tick"); npKey(el.dataset.k); break;
+      case "np-set": {
+        // Tap a number in the remote to type it; tap it again to put the pad away.
+        if (npOn("set", el.dataset.id, el.dataset.f)) npClose(); else npOpen({ t: "set", id: el.dataset.id, f: el.dataset.f });
+        break;
+      }
+      case "np-food": {
+        if (npOn(el.dataset.k)) npClose(); else npOpen({ t: el.dataset.k });
         break;
       }
       case "ex-step": {
@@ -4147,7 +4333,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
         if (!e) break;
         startEx(e);
         ensureSets(e).push({ ...nextSet(e), done: true });
-        delete curSet[e.id];
+        delete curSet[e.id]; np = null;
         buzz("confirm"); syncEx(e); save(viewDate); render(); drawWorkout();
         showEl(sheet.querySelector(".set-cur"));
         break;
@@ -4339,8 +4525,8 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
       if (sheetLabel(g, w.type)) toast(ne.name + " went under " + sheetLabel(g, w.type));
       if (!known) {
         if (gg == null) aiSortExercise(ne, w.type); // only when neither your history nor the name says where it goes
-        const i = document.getElementById("ex-w-" + ne.id);
-        if (i) { i.focus(); fitTyping(); }
+        if (document.activeElement) document.activeElement.blur(); // the name keyboard goes away; the pad takes over
+        npOpen({ t: "set", id: ne.id, f: "w" });
       }
     } else if (f.id.indexOf("step-form-") === 0) {
       const g = findGoal(f.dataset.goal), text = val("step-in-" + f.dataset.goal);
@@ -4396,22 +4582,10 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   document.addEventListener("focusin", (ev) => {
     const t = ev.target;
     if (t.classList && t.classList.contains("inline-num")) { t.dataset.was = t.value; t.value = ""; }
-    // A set's weight or reps: same idea, with the old number showing faintly until you type
-    if (t.classList && t.classList.contains("sval")) { t.dataset.was = t.value; t.placeholder = t.value; t.value = ""; }
   });
   document.addEventListener("focusout", (ev) => {
     const t = ev.target;
     if (t.classList && t.classList.contains("inline-num") && t.value === "") { t.value = t.dataset.was || ""; t.dispatchEvent(new Event("input", { bubbles: true })); }
-    if (t.classList && t.classList.contains("sval") && t.value.trim() === "") t.value = t.dataset.was || "";
-  });
-
-  // Totals are saved when you leave the box; the bars then count up to the new number.
-  function readTotal(id) { const v = document.getElementById(id).value.trim(); return v === "" ? null : Math.max(0, Math.round(+v)); }
-  document.addEventListener("input", (ev) => {
-    const t = ev.target;
-    if (t.id === "in-kcal" || t.id === "in-protein") {
-      return; // the bars move once you leave the box (see animateFood)
-    }
   });
 
   // A change fires as you leave a box, before the next box you tapped has focus. Redrawing right then would
@@ -4420,29 +4594,9 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
   const renderSoon = () => setTimeout(() => render(), 0);
   document.addEventListener("change", (ev) => {
     const t = ev.target;
-    if (t.id === "in-kcal" || t.id === "in-protein") {
-      const d = getDay(viewDate);
-      const k = readTotal("in-kcal"), p = readTotal("in-protein");
-      if (k === d.kcal && p === d.protein) return;
-      const hadGoal = d.protein != null && d.protein >= TG(viewDate).proteinGoal;
-      d.kcal = k; d.protein = p; d.kcalSrc = "manual";
-      if (!hadGoal) autoProteinHabit(d, viewDate);
-      save(viewDate); renderSoon(); toast("Saved");
-    } else if (t.classList.contains("sval")) {
-      const e = findEx(t.dataset.id), f = t.dataset.f, raw = t.value.trim().replace(",", "."), v = parseFloat(raw);
-      if (raw === "") return; // left empty: the old number comes back (focusout)
-      const cs = e && ensureSets(e)[+t.dataset.k];
-      if (!cs || !(v >= 0)) { t.value = t.dataset.was || ""; return; }
-      if (f === "w") cs.w = half(v); else cs.r = Math.round(v);
-      t.value = f === "w" ? String(cs.w) : String(cs.r);
-      syncEx(e); save(viewDate);
-    } else if (t.id.indexOf("focus-") === 0) {
+    if (t.id.indexOf("focus-") === 0) {
       const g = findGoal(t.dataset.goal);
       if (g) { g.focus = t.value.trim(); save("goals"); }
-    } else if (t.id === "weight") {
-      const w = parseFloat(t.value);
-      getDay(viewDate).weight = w > 0 ? Math.round(w * 10) / 10 : null;
-      save(viewDate); toast(w > 0 ? "Weight saved" : "Weight cleared");
     } else if (t.id === "set-day") {
       const n = Math.round(+t.value);
       if (n >= 1 && n <= TOTAL()) { S().startDate = addDays(todayISO(), -(n - 1)); save("settings"); toast("Today is now day " + n); renderSoon(); }
@@ -4462,26 +4616,21 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
     }
   });
 
-  // Enter on the number keyboard moves from calories to protein, then closes the keyboard.
   document.addEventListener("keydown", (ev) => {
+    // A computer keyboard drives the number pad too (the web version on a laptop)
+    if (np && !(ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA")) {
+      const k = /^[0-9.]$/.test(ev.key) ? ev.key : ev.key === "," ? "." : { Backspace: "del", Enter: "next", Tab: "next", Escape: "hide" }[ev.key];
+      if (k) { ev.preventDefault(); npKey(k); return; }
+    }
     if (ev.key === "Escape" && fabWrap.classList.contains("open")) fabMenu(false);
     if (ev.key === "Escape" && !sheet.hidden) closeSheet();
-    // A set's weight: Next goes on to its reps; Done there closes the keyboard.
-    if (ev.key === "Enter" && ev.target.classList && ev.target.classList.contains("sval")) {
-      ev.preventDefault();
-      const r = ev.target.dataset.f === "w" && document.getElementById("ex-r-" + ev.target.dataset.id);
-      if (r) r.focus(); else ev.target.blur();
-    }
     if (ev.key === "Enter" && ev.target.id === "ex-rename-in") { ev.preventDefault(); ev.target.blur(); }
-    if (ev.key === "Enter" && (ev.target.id === "in-kcal" || ev.target.id === "in-protein" || ev.target.id === "weight")) {
-      ev.preventDefault();
-      if (ev.target.id === "in-kcal") document.getElementById("in-protein").focus();
-      else ev.target.blur();
-    }
   });
 
   // Android back button (used by the installed app): close a sheet, then return to Today, then exit.
+  document.addEventListener("visibilitychange", () => { if (document.hidden && np) npCommit(); });
   window.__appBack = function () {
+    if (np) { npClose(); return true; } // Back puts the number pad away first (keeping what you typed)
     if (fabWrap.classList.contains("open")) { fabMenu(false); return true; }
     const cm = document.querySelector(".coach-card.menu-open");
     if (cm) { cm.classList.remove("menu-open"); return true; }
