@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.28.2 · Updates in one tap
+- Fixed the update taking several tries. When two versions came out a few minutes apart, the app asked for "the newest file" and was sometimes handed the one before, then said you were already up to date. Now it downloads that exact version's file.
+- The update banner only shows once the new version is ready to download.
+
 ## v0.28.1 · Timed without saying iso
 - Exercises that are timed by nature now keep time on their own, no "iso" needed: dead hangs and other hangs, planks and side planks, wall sits, L-sits, hollow body holds, anything with "hold" in the name, static holds, front and back levers, planche, handstands, horse stance, and farmer's or suitcase carries.
 - Look-alikes done for reps still count reps: hanging leg raises, hang cleans, plank jacks, plank up-downs, shoulder taps and rows, hollow rocks, and handstand push-ups.

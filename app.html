@@ -1914,7 +1914,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   const REPO = "Xxytham/hundred-days-hard";
   const APK_URL = "https://github.com/" + REPO + "/releases/latest/download/100-days-hard.apk";
   const SHARE_URL = "https://xxytham.github.io/hundred-days-hard/get/";
-  let update = null, updateAbout = "", updateChecked = 0, updateFailed = false, lastUpdateCheck = 0;
+  let update = null, updateAbout = "", updateUrl = "", updateChecked = 0, updateFailed = false, lastUpdateCheck = 0;
   const newer = (a, b) => {
     const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
@@ -1929,7 +1929,11 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       if (!r.ok) throw new Error("status " + r.status);
       const rel = await r.json(), v = String(rel.tag_name || "").replace(/^v/, "");
       updateChecked = Date.now(); updateFailed = false;
-      update = v && newer(v, bridge.appVersion()) ? v : null;
+      // Download that release's own file, not the "latest" link: right after a release, that link can still hand over
+      // the one before (two releases minutes apart once took three taps). No file attached yet = no banner yet.
+      const assets = rel.assets || [], apk = assets.find((a) => a.name === "100-days-hard-v" + v + ".apk") || assets.find((a) => a.name === "100-days-hard.apk");
+      updateUrl = apk && /^https:\/\//.test(apk.browser_download_url || "") ? apk.browser_download_url : "";
+      update = v && updateUrl && newer(v, bridge.appVersion()) ? v : null;
       // Releases named like "v0.9 · Workout button and one-tap goals" carry a one-line description.
       updateAbout = String(rel.name || "").replace(/^100 Days Hard\s*/i, "").replace(/^v?\d+(\.\d+)*\s*/, "").replace(/^(·|—|–|:|-)\s*/, "").trim();
     } catch (e) { updateFailed = true; }
@@ -1953,11 +1957,12 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   }
   function startUpdate() {
     if (!bridge) return;
-    if (!bridge.updateApp) { if (bridge.openUrl) bridge.openUrl(APK_URL); return; }
+    const url = updateUrl || APK_URL;
+    if (!bridge.updateApp) { if (bridge.openUrl) bridge.openUrl(url); return; }
     if (updBusy()) return; // one download at a time, however many taps
     upd = { state: "starting", pct: 0 };
     paintUpdate();
-    bridge.updateApp(APK_URL);
+    bridge.updateApp(url);
   }
   function paintUpdate() {
     const el = document.getElementById("update-banner");
