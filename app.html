@@ -222,10 +222,13 @@ body.kb .fab-wrap { display: none; }
 /* The remote: everything you do while lifting sits by your thumb. The set you're on, its weight and reps with − and +,
    a number pad when you tap a number (no phone keyboard, so nothing on screen jumps), and + Set / Done. */
 .dock { display: grid; gap: 8px; }
-.dock-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted); }
+.dock-head { display: flex; align-items: center; gap: 8px; min-height: 32px; min-width: 0; font-size: 13px; color: var(--muted); }
 .dock-head b { flex: none; font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
 .dock-head span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dock-head .ex-sub { margin-left: auto; flex: none; }
+.iso-btn { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--sunk); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; touch-action: manipulation; }
+.iso-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.iso-btn.on { background: var(--red); color: var(--on-color); min-width: 104px; justify-content: center; }
 .dock-vals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .dv { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; height: 60px; }
 .dv .sbtn { height: auto; color: var(--ink); touch-action: manipulation; }
@@ -2929,7 +2932,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const u = e.unit || S().unit, sets = doneSets(e).length ? doneSets(e) : ensureSets(e);
     let best = null;
     sets.forEach((x) => {
-      const wt = toUnit(+x.w || 0, u, S().unit), load = loadOf(e.name, wt, bw), score = e1rm(load, +x.r || 0);
+      const wt = toUnit(+x.w || 0, u, S().unit), load = loadOf(e.name, wt, bw), score = setScore(e.name, wt, +x.r || 0, bw);
       if (!best || score > best.score) best = { w: Math.round(wt * 10) / 10, rawW: +x.w || 0, r: +x.r || 0, load: Math.round(load * 10) / 10, score };
     });
     return best || { w: 0, rawW: 0, r: 0, load: 0, score: 0 };
@@ -2945,13 +2948,17 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
         if (validGroup(e.group)) { m.groups[w.type] = e.group; m.lastGroup = e.group; } // and the group it was last logged in
         const b = sessionBest(e, bw), kind = liftKind(e.name, b.w);
         m.kind = kind;
-        m.pts.push({ date: d, n: dayNum(d), t: w.type, w: b.w, r: b.r, s: doneSets(e).length || +e.sets || 0, rawW: b.rawW, rawU: e.unit || S().unit, load: b.load, bw, kind, score: b.score });
+        m.pts.push({ date: d, n: dayNum(d), t: w.type, w: b.w, r: b.r, s: doneSets(e).length || +e.sets || 0, rawW: b.rawW, rawU: e.unit || S().unit, load: b.load, bw, kind, iso: isIso(e.name), score: b.score });
       });
     });
     return Object.values(map);
   }
   // A session's best set in words: "125 lb assist × 6", "26 reps", "+25 lb × 8" (weight added to a bodyweight move), "185 lb × 8".
   function ptText(p, unit) {
+    if (p.iso) { // a hold: "45 s", "+25 lb for 45 s", "40 lb assist for 30 s", "25 lb for 1:10"
+      const t = fmtSec(p.r);
+      return p.kind === "assist" ? fmtW(p.w) + " " + unit + " assist for " + t : p.kind === "body" ? (p.w > 0 ? "+" + fmtW(p.w) + " " + unit + " for " + t : t + " hold") : fmtW(p.w) + " " + unit + " for " + t;
+    }
     if (p.kind === "assist") return fmtW(p.w) + " " + unit + " assist × " + p.r;
     if (p.kind === "body") return p.w > 0 ? "+" + fmtW(p.w) + " " + unit + " × " + p.r : p.r + " reps";
     return fmtW(p.w) + " " + unit + " × " + p.r;
@@ -2982,9 +2989,9 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
         : last.score >= best.score && g > 0.05 ? "<b>Best yet.</b> Up <b>" + f(g) + "</b> since day " + first.n + "."
         : g > 0.05 ? "Up <b>" + f(g) + "</b> since day " + first.n + ". Best: +" + f(bg) + "."
         : bg > 0.05 ? "Your best is <b>+" + f(bg) + "</b> (day " + best.n + "). Go get it."
-        : g < -0.05 ? "<b>−" + f(g) + "</b> since day " + first.n + ". " + (last.kind === "assist" ? "Being lighter means less lifted at the same assist, so a little less assist moves it up." : "Being lighter makes the same reps count for less, so one more rep moves it up.")
-        : "Level with day " + first.n + ". " + (last.kind === "assist" ? "A little less assist moves it up." : "One more rep moves it up.");
-      return '<p class="str-note"><span class="str-what">with body weight</span>' + msg + "</p>";
+        : g < -0.05 ? "<b>−" + f(g) + "</b> since day " + first.n + ". " + (last.kind === "assist" ? "Being lighter means less lifted at the same assist, so a little less assist moves it up." : last.kind === "body" ? "Being lighter makes the same " + (last.iso ? "hold" : "reps") + " count for less, so " + (last.iso ? "a few more seconds" : "one more rep") + " moves it up." : "A few more seconds moves it back up.")
+        : "Level with day " + first.n + ". " + (last.kind === "assist" ? "A little less assist moves it up." : last.iso ? "A few more seconds moves it up." : "One more rep moves it up.");
+      return '<p class="str-note"><span class="str-what">' + (last.iso ? "time held" : "with body weight") + "</span>" + msg + "</p>";
     }
     const u = bw ? " reps" : " " + unit, gain = Math.round(last.score - first.score);
     const what = bw ? "reps" : "est. 1RM";
@@ -2996,7 +3003,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     return '<p class="str-note"><span class="str-what">' + what + "</span>" + msg + "</p>";
   }
   function strengthChart(m) {
-    const unit = S().unit, bw = false, viaBody = m.pts.some((p) => p.kind !== "weight"), base = m.pts[0].score || 1;
+    const unit = S().unit, bw = false, viaBody = m.pts.some((p) => p.kind !== "weight" || p.iso), base = m.pts[0].score || 1; // holds chart in % too
     // Bodyweight and assisted moves: what they lift includes your body weight, so the chart shows the change since the first session, in %
     const pts = viaBody ? m.pts.map((p) => ({ ...p, score: (p.score / base - 1) * 100 })) : m.pts;
     const W = 340, H = 180, L = 36, R = 16, T = 30, B = 22, pw = W - L - R, ph = H - T - B;
@@ -3033,8 +3040,8 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       s += '<circle class="sdot ' + dotDir(i) + '" cx="' + cx + '" cy="' + cy.toFixed(1) + '" r="4"><title>Day ' + p.n + ": " + ptText(p, unit) + "</title></circle>";
       if (pts.length <= 7 || i === 0 || i === pts.length - 1) {
         const anchor = i === 0 && pts.length > 1 ? "start" : i === pts.length - 1 && pts.length > 1 ? "end" : "middle";
-        const top = p.kind === "assist" ? "−" + fmtW(p.w) : p.kind === "body" ? (p.w > 0 ? "+" + fmtW(p.w) : String(p.r)) : fmtW(p.w);
-        const sub = p.kind === "body" && !(p.w > 0) ? "reps" : "×" + p.r;
+        const top = p.kind === "assist" ? "−" + fmtW(p.w) : p.kind === "body" ? (p.w > 0 ? "+" + fmtW(p.w) : p.iso ? fmtSec(p.r) : String(p.r)) : fmtW(p.w);
+        const sub = p.kind === "body" && !(p.w > 0) ? (p.iso ? "hold" : "reps") : p.iso ? fmtSec(p.r) : "×" + p.r;
         s += '<text class="slabel num" x="' + cx + '" y="' + (cy - 16).toFixed(1) + '" text-anchor="' + anchor + '">' + top + "</text>";
         s += '<text class="sreps num" x="' + cx + '" y="' + (cy - 7).toFixed(1) + '" text-anchor="' + anchor + '">' + sub + "</text>";
         s += '<text class="num" x="' + cx + '" y="' + (H - 6) + '" text-anchor="' + anchor + '">day ' + p.n + "</text>";
@@ -3047,7 +3054,8 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       return '<li><span>Day ' + p.n + " · " + (Object.keys(m.types).length > 1 ? typeName(p.t) + " · " : "") + ptText(p, unit) + " · " + p.s + (p.s === 1 ? " set" : " sets") + '</span><span class="r num">' + (bw || viaBody ? "" : "est. " + Math.round(p.score) + " ") + '<span class="chg ' + chgClass(c) + '">' + (c == null ? "First" : chgText(c)) + "</span></span></li>";
     }).reverse().join("");
     const last = pts[pts.length - 1];
-    const how = viaBody ? '<p class="hint">Counts your body weight that day (' + fmtW(last.bw) + " " + unit + " on day " + last.n + ")" + (last.kind === "assist" ? " minus the assist. As you get lighter the same assist lifts less, so less assist is how this goes up" : last.w > 0 ? " plus the added weight" : ", so the same reps count for a little less as you get lighter") + ". The chart shows the change since your first session. Log a weigh-in on Today to keep it right.</p>" : "";
+    const how = last.iso ? '<p class="hint">Counts how long you held it' + (last.kind === "weight" ? " times the weight" : " with your body weight that day (" + fmtW(last.bw) + " " + unit + " on day " + last.n + ")" + (last.kind === "assist" ? " minus the assist" : last.w > 0 ? " plus the added weight" : "")) + ". The chart shows the change since your first session." + (last.kind === "weight" ? "" : " Log a weigh-in on Today to keep it right.") + "</p>"
+      : viaBody ? '<p class="hint">Counts your body weight that day (' + fmtW(last.bw) + " " + unit + " on day " + last.n + ")" + (last.kind === "assist" ? " minus the assist. As you get lighter the same assist lifts less, so less assist is how this goes up" : last.w > 0 ? " plus the added weight" : ", so the same reps count for a little less as you get lighter") + ". The chart shows the change since your first session. Log a weigh-in on Today to keep it right.</p>" : "";
     return '<div class="tick-detail" data-action="str-sel" data-k="' + esc(m.k) + '">' + strengthNote(m, bw, unit, viaBody) + s + '<ul class="sessions">' + rows + "</ul>" + how + "</div>";
   }
 
@@ -3092,7 +3100,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       const row = '<button class="tick" data-action="str-sel" data-k="' + esc(m.k) + '" aria-expanded="' + open + '">' +
         '<span class="tick-name">' + esc(m.name) + "<small>" + m.pts.length + " session" + (m.pts.length === 1 ? "" : "s") + (also.length ? " · also on " + also.join(" & ") : "") + "</small></span>" +
         sparkline(m.pts, cls) +
-        '<span class="tick-val num">' + (last.kind === "body" && !(last.w > 0) ? last.r + " reps" : (last.kind === "body" ? "+" : "") + fmtW(last.rawW) + " " + last.rawU + (last.kind === "assist" ? " assist" : "")) + "<small>" + (last.kind === "body" && !(last.w > 0) ? "" : "× " + last.r + " · ") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
+        '<span class="tick-val num">' + (last.kind === "body" && !(last.w > 0) ? (last.iso ? fmtSec(last.r) : last.r + " reps") : (last.kind === "body" ? "+" : "") + fmtW(last.rawW) + " " + last.rawU + (last.kind === "assist" ? " assist" : "")) + "<small>" + (last.kind === "body" && !(last.w > 0) ? "" : (last.iso ? fmtSec(last.r) : "× " + last.r) + " · ") + last.s + (last.s === 1 ? " set" : " sets") + "</small></span>" +
         '<span class="chg ' + cls + '">' + chgText(c) + "</span></button>";
       const item = open ? '<div class="tick-focus ' + (cls === "down" ? "down" : "up") + '">' + row + strengthChart(m) + "</div>" : row;
       if (!m.g || (i > 0 && list[i - 1].g === m.g)) return item;
@@ -3281,7 +3289,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   new MutationObserver(() => document.documentElement.classList.toggle("sheet-open", !sheet.hidden)).observe(sheet, { attributes: true, attributeFilter: ["hidden"] });
   sheet.addEventListener("touchmove", (ev) => { if (sheet.scrollHeight <= sheet.clientHeight + 1 && !(drag && drag.active) && !ev.target.closest("input")) ev.preventDefault(); }, { passive: false });
   backdrop.addEventListener("touchmove", (ev) => ev.preventDefault(), { passive: false });
-  function closeSheet() { if (np && np.t === "set") { npCommit(); np = null; } wExtra = []; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
+  function closeSheet() { isoStop(true); if (np && np.t === "set") { npCommit(); np = null; } wExtra = []; sheet.hidden = backdrop.hidden = true; sheet.innerHTML = ""; sheet.classList.remove("tall", "typing"); }
 
   // ---------- keyboard ----------
   // When the keyboard opens, the installed app's page gets shorter (on iPhone, the visual viewport does). While you
@@ -3352,6 +3360,12 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   // pull-ups, dips and the like, and anything logged at 0, lift your body weight plus any weight added. (Function
   // declarations, so they work however early they're needed.)
   function isAssisted(name) { return /assist/i.test(String(name)); }
+  // A hold: "Iso" or "Isometric" as its own word in the name (Plank iso, Isometric wall sit). Its sets keep a time in
+  // seconds where other exercises keep reps (the same r field), plus the weight as usual.
+  function isIso(name) { return /(^|\s)(iso|isometric)(\s|$)/i.test(String(name)); }
+  function fmtSec(s) { s = Math.max(0, Math.round(+s || 0)); return s < 60 ? s + " s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  // How good a set is, to compare sessions: est. 1RM for reps; for a hold, what it lifts times how long.
+  function setScore(name, w, r, bw) { const l = loadOf(name, w, bw); return isIso(name) ? (l > 0 ? (l * r) / 30 : r) : e1rm(l, r); }
   function isBodyMove(name) { return /push.?ups?|pull.?ups?|chin.?ups?|\bdips?\b|muscle.?ups?|pistol|hand.?stand|inverted rows?/i.test(String(name)); }
   function liftKind(name, w) { return isAssisted(name) ? "assist" : !(w > 0) || isBodyMove(name) ? "body" : "weight"; }
   // What a set really lifts, in the same unit as w and bw.
@@ -3369,13 +3383,15 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   function syncEx(e, bwIn) {
     const all = ensureSets(e), d = all.filter(isDone), l = d.length ? d : all;
     const bw = toUnit(bwIn != null ? bwIn : bodyFinder()(viewDate || todayISO()), S().unit, e.unit || S().unit);
-    const sc = (x) => e1rm(loadOf(e.name, +x.w || 0, bw), +x.r || 0);
+    const sc = (x) => setScore(e.name, +x.w || 0, +x.r || 0, bw);
     let best = l[0];
     l.forEach((x) => { if (sc(x) > sc(best)) best = x; });
     e.weight = best.w; e.reps = best.r; e.sets = l.length;
   }
-  const setsText = (e) => { const d = doneSets(e), l = d.length ? d : ensureSets(e); return l.map((x) => (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r).join(", ") + (l.some((x) => x.w > 0) ? " " + e.unit : ""); };
-  const setTxt = (x) => (x.w > 0 ? fmtW(x.w) + "×" + x.r : x.r + " reps");
+  const setsText = (e) => { const d = doneSets(e), l = d.length ? d : ensureSets(e); return isIso(e.name) ? l.map((x) => setTxt(x, e)).join(", ") : l.map((x) => (x.w > 0 ? fmtW(x.w) : "") + "×" + x.r).join(", ") + (l.some((x) => x.w > 0) ? " " + e.unit : ""); };
+  // A set in words: "185×8", "8 reps"; a hold (pass the exercise): "45 s", or "25 lb · 45 s" (with its unit, so callers don't add one)
+  const setTxt = (x, e) => (e && isIso(e.name) ? (x.w > 0 ? fmtW(x.w) + " " + e.unit + " · " : "") + fmtSec(x.r) : x.w > 0 ? fmtW(x.w) + "×" + x.r : x.r + " reps");
+  const unitTail = (e, has, html) => (has && !isIso(e.name) ? (html ? " <small>" + e.unit + "</small>" : " " + e.unit) : "");
   const curSet = {}; // exercise id -> index of the set being edited (not saved); unset = the latest set
   function curIdx(e) {
     const n = ensureSets(e).length;
@@ -3602,17 +3618,19 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const assist = isAssisted(e.name), better = (x, b) => (assist ? x.w < b.w : x.w > b.w) || (x.w === b.w && x.r > b.r);
     const top = (sets) => sets.reduce((b, x) => (better(x, b) ? x : b)), a = top(hist[0]), b = top(hist[1]), today = doneSets(e);
     if (a.w !== b.w || a.r !== b.r) return null;
+    const iso = isIso(e.name), rr = (r) => (iso ? " for " + fmtSec(r) : " × " + r);
     if (assist && a.w > 0) { // harder = less help
       if (today.some((x) => x.w < a.w)) return null;
       const to = Math.max(0, half(a.w - stepFor(e.unit)));
-      return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit + " assist", why: "You did " + fmtW(a.w) + " " + e.unit + " assist × " + a.r + " two times in a row." };
+      return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit + " assist", why: "You did " + fmtW(a.w) + " " + e.unit + " assist" + rr(a.r) + " two times in a row." };
     }
     if (a.w > 0) {
       if (today.some((x) => x.w > a.w)) return null;
       const to = half(a.w + stepFor(e.unit));
-      return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit, why: "You did " + fmtW(a.w) + " " + e.unit + " × " + a.r + " two times in a row." };
+      return { w: to, at: a.w, text: "Try " + fmtW(to) + " " + e.unit, why: "You did " + fmtW(a.w) + " " + e.unit + rr(a.r) + " two times in a row." };
     }
     if (today.some((x) => x.r > a.r)) return null;
+    if (iso) return { r: a.r + ISO_STEP, at: a.r, text: "Try " + fmtSec(a.r + ISO_STEP), why: "You held " + fmtSec(a.r) + " two times in a row." };
     return { r: a.r + 1, at: a.r, text: "Try " + (a.r + 1) + " reps", why: "You did " + a.r + " reps two times in a row." };
   }
 
@@ -3792,7 +3810,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   const NP_HIDE = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
   const NP_NEXT = '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   const NP_BACK = '<svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>';
-  const npNextLabel = () => (np.t === "set" ? (np.f === "w" ? NP_NEXT + "Reps" : NP_BACK + "Weight") : np.t === "kcal" ? NP_NEXT + "Protein" : CHECK + "OK");
+  const npNextLabel = () => (np.t === "set" ? (np.f === "w" ? NP_NEXT + (npSetOf() && isIso(npSetOf().e.name) ? "Time" : "Reps") : NP_BACK + "Weight") : np.t === "kcal" ? NP_NEXT + "Protein" : CHECK + "OK");
   // Today's pad (the workout's lives in its remote)
   const numpadEl = document.getElementById("numpad");
   function drawNumpad() {
@@ -3853,25 +3871,71 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     if (npOn("set", e.id, np && np.f) && np.buf != null && np.buf !== "" && np.buf !== ".") v[np.f] = np.f === "w" ? +np.buf : Math.round(+np.buf);
     return v;
   }
-  const curRow = (e) => { const v = curVals(e); return setTxt(v) + (v.w > 0 ? " <small>" + e.unit + "</small>" : ""); };
+  const curRow = (e) => { const v = curVals(e); return setTxt(v, e) + unitTail(e, v.w > 0, true); };
   function paintSet(e) {
     const cs = ensureSets(e)[curIdx(e)]; if (!cs) return;
     ["w", "r"].forEach((f) => { const b = document.getElementById("dv-" + f + "-" + e.id); if (b) b.innerHTML = npShow("set", f === "w" ? fmtW(cs.w) : cs.r, e.id, f); });
     const row = document.getElementById("cur-" + e.id); if (row) row.innerHTML = curRow(e);
   }
   function dockVal(e, k, f, cs) {
-    const lab = f === "w" ? "weight" : "reps", at = ' data-id="' + e.id + '" data-k="' + k + '" data-f="' + f + '"';
+    const iso = isIso(e.name), lab = f === "w" ? "weight" : iso ? "time" : "reps", at = ' data-id="' + e.id + '" data-k="' + k + '" data-f="' + f + '"';
     return '<div class="dv"><button class="sbtn" data-action="ex-step"' + at + ' data-d="-1" aria-label="Less ' + lab + '">−</button>' +
       '<button class="dv-num' + (npOn("set", e.id, f) ? " on" : "") + '" data-action="np-set"' + at + ' aria-label="Type the ' + lab + '"><b class="num" id="dv-' + f + "-" + e.id + '">' + npShow("set", f === "w" ? fmtW(cs.w) : cs.r, e.id, f) + "</b>" +
-      "<small>" + (f === "w" ? e.unit + (isAssisted(e.name) ? " assist" : "") : "reps") + "</small></button>" +
+      "<small>" + (f === "w" ? e.unit + (isAssisted(e.name) ? " assist" : "") : iso ? (cs.r >= 60 ? "sec · " + fmtSec(cs.r) : "seconds") : "reps") + "</small></button>" +
       '<button class="sbtn" data-action="ex-step"' + at + ' data-d="1" aria-label="More ' + lab + '">+</button></div>';
+  }
+  // ---------- hold timer ----------
+  // A hold can be timed instead of typed: tap Time it, get a 3-second count-in (a tick each second), then it counts up
+  // (a buzz when it starts, and another when you pass last time's time for this set). Tap it again to stop: the seconds
+  // go into the set you're on. Anything else you tap stops it too and keeps the time. It runs on the clock, so it stays
+  // right if the screen dims.
+  const ISO_STEP = 5;
+  let isoT = null; // { id, t0: when counting starts (ms), goal: last time's seconds for this set, n, go, hit, int }
+  const PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>', STOP = '<svg viewBox="0 0 24 24"><path d="M7 7h10v10H7z"/></svg>';
+  function isoLabel() {
+    const ms = Date.now() - isoT.t0;
+    return ms < 0 ? "Get set " + Math.ceil(-ms / 1000) : fmtSec(Math.floor(ms / 1000));
+  }
+  const isoBtn = (e) => {
+    const on = !!isoT && isoT.id === e.id;
+    return '<button class="iso-btn' + (on ? " on" : "") + '" id="iso-btn" data-action="iso-timer" data-id="' + e.id + '" aria-label="' + (on ? "Stop the timer" : "Time this hold") + '">' + (on ? STOP : PLAY) + '<span class="num">' + (on ? isoLabel() : "Time it") + "</span></button>";
+  };
+  function isoTick() {
+    if (!isoT) return;
+    const ms = Date.now() - isoT.t0;
+    if (ms < 0) { const n = Math.ceil(-ms / 1000); if (n !== isoT.n) { isoT.n = n; buzz("tick"); } }
+    else {
+      if (!isoT.go) { isoT.go = true; buzz("start"); }
+      if (isoT.goal > 0 && !isoT.hit && ms / 1000 >= isoT.goal) { isoT.hit = true; buzz("confirm"); } // as long as last time
+    }
+    const el = document.querySelector("#iso-btn span"); if (el) el.textContent = isoLabel();
+    const box = ms >= 0 && document.getElementById("dv-r-" + isoT.id); if (box) box.textContent = Math.floor(ms / 1000); // the time box counts along
+  }
+  function isoStart(e) {
+    isoStop(false);
+    const k = curIdx(e), plan = lastPlan(e);
+    isoT = { id: e.id, t0: Date.now() + 3000, goal: (plan[k] || plan[plan.length - 1] || {}).r || 0, n: 0 };
+    isoT.int = setInterval(isoTick, 200);
+    isoTick();
+  }
+  // Stop the timer; keep = put the seconds held into the set you're on.
+  function isoStop(keep) {
+    if (!isoT) return false;
+    clearInterval(isoT.int);
+    const t = isoT, sec = Math.floor((Date.now() - t.t0) / 1000); isoT = null;
+    if (!keep || sec <= 0) return false;
+    const e = findEx(t.id), cs = e && ensureSets(e)[curIdx(e)];
+    if (!cs) return false;
+    if (np && np.t === "set") np.buf = null;
+    cs.r = sec; syncEx(e); save(viewDate); buzz("end");
+    return true;
   }
   // The remote for the open exercise: Set N, its weight and reps (tap one to type, − and + to step, hold to repeat),
   // the pad while you're typing, then + Set and Done.
   function dockHTML(e) {
     const k = curIdx(e), cs = ensureSets(e)[k];
     const conv = isCable(e.name) && cs.w > 0 ? "≈ " + fmtW(half(toUnit(cs.w, e.unit, e.unit === "kg" ? "lb" : "kg"))) + " " + (e.unit === "kg" ? "lb" : "kg") : "";
-    return '<div class="dock"><div class="dock-head"><b>Set ' + (k + 1) + "</b><span>" + esc(e.name) + "</span>" + (conv ? '<span class="ex-sub num">' + conv + "</span>" : "") + "</div>" +
+    return '<div class="dock"><div class="dock-head"><b>Set ' + (k + 1) + "</b><span>" + esc(e.name) + "</span>" + (conv ? '<span class="ex-sub num">' + conv + "</span>" : "") + (isIso(e.name) ? isoBtn(e) : "") + "</div>" +
       '<div class="dock-vals">' + dockVal(e, k, "w", cs) + dockVal(e, k, "r", cs) + "</div>" +
       (npOn("set", e.id, np && np.f) ? npKeys(npNextLabel()) : "") +
       '<div class="foot-row"><button class="btn secondary" data-action="set-add" data-id="' + e.id + '">+ Set ' + (doneSets(e).length + 1) + '</button><button class="btn go" data-action="ex-done" data-id="' + e.id + '">Done ' + CHECK + "</button></div></div>";
@@ -3883,7 +3947,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     if (!cs) return false;
     if (np && npOn("set", e.id, np.f)) npCommit(); // a number you'd typed counts, then the step moves it
     if (f === "w") cs.w = Math.max(0, half(cs.w + dir * stepFor(e.unit)));
-    else cs.r = Math.max(0, (+cs.r || 0) + dir);
+    else cs.r = Math.max(0, (+cs.r || 0) + dir * (isIso(e.name) ? ISO_STEP : 1)); // a hold steps 5 seconds
     syncEx(e);
     paintSet(e);
     return true;
@@ -3910,18 +3974,18 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   sheet.addEventListener("click", (ev) => { const b = ev.target.closest('[data-action="ex-step"]'); if (b && Date.now() - holdEnded < 400 && stepKey(b) === holdKey) { ev.stopPropagation(); ev.preventDefault(); } }, true);
   const CHEV_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
   const mark = (st, label) => '<span class="mk ' + st + '">' + (st === "done" ? CHECK : label || "") + "</span>";
-  const withUnit = (sets, e) => sets.map(setTxt).join(", ") + (sets.some((x) => x.w > 0) ? " " + e.unit : "");
+  const withUnit = (sets, e) => sets.map((x) => setTxt(x, e)).join(", ") + unitTail(e, sets.some((x) => x.w > 0));
   // What an exercise you haven't started usually is: "3 × 30×12", or the set count and the top set when they differ.
   function planText(e) {
     const l = e.last && e.last.length ? e.last : null;
     if (!l || !prevExercise(e.name)) return "new";
     const same = l.every((x) => x.w === l[0].w && x.r === l[0].r);
-    return "usually " + (same ? l.length + " × " + setTxt(l[0]) : l.length + " sets, " + (isAssisted(e.name) ? "best " : "up to ") + setTxt(l.reduce((b, x) => { const bw = 1000; return e1rm(loadOf(e.name, x.w, bw), x.r) > e1rm(loadOf(e.name, b.w, bw), b.r) ? x : b; })));
+    return "usually " + (same ? l.length + " × " + setTxt(l[0], e) : l.length + " sets, " + (isAssisted(e.name) ? "best " : "up to ") + setTxt(l.reduce((b, x) => { const bw = 1000; return setScore(e.name, x.w, x.r, bw) > setScore(e.name, b.w, b.r, bw) ? x : b; }), e));
   }
   function exBlock(e, w) {
     const st = exState(e), sets = doneSets(e);
     if (wOpen !== e.id) {
-      const sub = st === "done" ? sets.length + (sets.length === 1 ? " set" : " sets") + " · best " + setTxt({ w: e.weight, r: e.reps }) + (e.weight > 0 ? " " + e.unit : "") : planText(e);
+      const sub = st === "done" ? sets.length + (sets.length === 1 ? " set" : " sets") + " · best " + setTxt({ w: e.weight, r: e.reps }, e) + unitTail(e, e.weight > 0) : planText(e);
       return '<button class="exr ' + st + '" data-action="ex-open" data-id="' + e.id + '">' + mark(st) + '<span class="exr-name">' + esc(e.name) + '</span><span class="exr-sub num">' + sub + "</span></button>";
     }
     // Open: the one you're doing. Its sets are what you did; the one you're on is highlighted, and the remote at the bottom changes it.
@@ -3930,7 +3994,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const ci = curIdx(e), hv = w.saved ? null : heavier(e);
     const seg = isCable(e.name) ? '<span class="seg sm" role="group" aria-label="Cable weight unit"><button data-action="ex-unit" data-id="' + e.id + '" data-u="lb" aria-pressed="' + (e.unit === "lb") + '">lb</button><button data-action="ex-unit" data-id="' + e.id + '" data-u="kg" aria-pressed="' + (e.unit === "kg") + '">kg</button></span>' : "";
     const rows = sets.map((x, k) => {
-      if (k !== ci) return '<button class="set-row" data-action="set-go" data-id="' + e.id + '" data-k="' + k + '"><span class="set-k">' + (k + 1) + '</span><span class="num">' + setTxt(x) + (x.w > 0 ? " <small>" + e.unit + "</small>" : "") + '</span><span class="set-edit">' + PENCIL + "</span></button>";
+      if (k !== ci) return '<button class="set-row" data-action="set-go" data-id="' + e.id + '" data-k="' + k + '"><span class="set-k">' + (k + 1) + '</span><span class="num">' + setTxt(x, e) + unitTail(e, x.w > 0, true) + '</span><span class="set-edit">' + PENCIL + "</span></button>";
       return '<div class="set-cur" aria-current="true"><span class="set-k">' + (k + 1) + '</span><span class="num" id="cur-' + e.id + '">' + curRow(e) + "</span>" +
         '<button class="linkbtn set-del" data-action="set-del" data-id="' + e.id + '">Remove</button></div>';
     }).join("");
@@ -4198,6 +4262,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     if (!el) return;
     const a = el.dataset.action;
     if (TAP_BUZZ.has(a)) buzz("tick");
+    if (isoT && a !== "iso-timer") isoStop(true); // tapping anything else stops a running hold timer and keeps its time
     if (np && a !== "np-key" && a !== "np-set" && a !== "np-food" && a !== "ex-step") { if (np.t === "set") npCommit(); else npClose(); } // what you typed counts before anything else happens
     if (el.classList.contains("switch")) { swJust = a; buzz("tick"); setTimeout(() => { swJust = ""; }, 400); } // its knob slides on the redraw
     const day = () => getDay(viewDate);
@@ -4323,6 +4388,12 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
         break;
       }
       case "np-key": buzz("tick"); npKey(el.dataset.k); break;
+      case "iso-timer": {
+        const e = findEx(el.dataset.id);
+        if (!e) break;
+        if (isoT && isoT.id === e.id) { isoStop(true); render(); } else { buzz("tick"); isoStart(e); }
+        drawWorkout(); break;
+      }
       case "np-set": {
         // Tap a number in the remote to type into it (tapping it again starts it fresh).
         npOpen({ t: "set", id: el.dataset.id, f: el.dataset.f });

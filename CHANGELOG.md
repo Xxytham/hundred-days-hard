@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.28 · Timed holds
+- Put "Iso" or "Isometric" in an exercise's name as its own word (Plank iso, Isometric wall sit) and it keeps time instead of reps, along with the weight and sets. "Isolateral row" still counts reps.
+- In the workout, the second number is now seconds. − and + move it 5 seconds, and from a minute it also shows the time, like 1:30.
+- **Time it** starts a timer: 3 seconds to get set (a tick each second), then it counts up, with a buzz when it starts and another when you pass last time's time. Tap it again to stop, and the time goes into the set. Tapping + Set or Done stops it too and keeps the time.
+- Try heavier offers 5 more seconds once you've held the same time twice in a row.
+- Progress shows holds as "45 s hold", charted as the change since your first time. It counts your body weight too, like push-ups.
+
 ## v0.27.1 · Number pad always open
 - In a workout, the number pad now stays open while an exercise is open, so nothing moves: the − and +, the keys, **+ Set** and **Done** are always in the same spot.
 - It starts on the weight, or on the reps for bodyweight moves like push-ups and dips. The big blue key switches between weight and reps, and tapping either number picks it too.
