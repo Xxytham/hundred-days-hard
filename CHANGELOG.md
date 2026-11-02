@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.28.1 · Timed without saying iso
+- Exercises that are timed by nature now keep time on their own, no "iso" needed: dead hangs and other hangs, planks and side planks, wall sits, L-sits, hollow body holds, anything with "hold" in the name, static holds, front and back levers, planche, handstands, horse stance, and farmer's or suitcase carries.
+- Look-alikes done for reps still count reps: hanging leg raises, hang cleans, plank jacks, plank up-downs, shoulder taps and rows, hollow rocks, and handstand push-ups.
+- Dead hangs you've already logged now read as seconds, so 48 shows as 48 s.
+
 ## v0.28 · Timed holds
 - Put "Iso" or "Isometric" in an exercise's name as its own word (Plank iso, Isometric wall sit) and it keeps time instead of reps, along with the weight and sets. "Isolateral row" still counts reps.
 - In the workout, the second number is now seconds. − and + move it 5 seconds, and from a minute it also shows the time, like 1:30.

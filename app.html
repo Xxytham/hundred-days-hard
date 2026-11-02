@@ -3362,7 +3362,21 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   function isAssisted(name) { return /assist/i.test(String(name)); }
   // A hold: "Iso" or "Isometric" as its own word in the name (Plank iso, Isometric wall sit). Its sets keep a time in
   // seconds where other exercises keep reps (the same r field), plus the weight as usual.
-  function isIso(name) { return /(^|\s)(iso|isometric)(\s|$)/i.test(String(name)); }
+  // Also exercises that are timed by nature, without "iso" in the name: hangs, planks, wall sits, L-sits, hollow body,
+  // anything called a hold, static holds, levers, planche, handstands, horse stance, and loaded carries. Look-alikes done
+  // for reps stay on reps: hanging leg raises, hang cleans, plank jacks / up-downs / shoulder taps / rows, hollow rocks,
+  // handstand push-ups.
+  function isIso(name) {
+    const n = String(name).toLowerCase().replace(/[’']/g, "");
+    if (/(^|\s)(iso|isometric)(\s|$)/.test(n)) return true;
+    if (/\b(dead|active|passive|bar|scap|scapular|flexed[- ]?arm|one[- ]?arm|two[- ]?arm|arm|towel)[- ]?hangs?\b/.test(n)) return true;
+    if (/\bplanks?\b/.test(n) && !/\bplanks?\s*-?\s*(jacks?|ups?|up-?downs?|taps?|shoulder|walks?|walkouts?|rows?|to|climbers?|reach(es)?|jumps?|dips?|saws?)\b/.test(n)) return true;
+    if (/\b(wall[- ]?sits?|wall[- ]?squat holds?|l[- ]?sits?|v[- ]?sits?|holds?|static|planche|horse stance|front lever|back lever|dragon flag hold)\b/.test(n)) return true;
+    if (/\bhollow\b/.test(n) && !/\brocks?\b/.test(n)) return true;
+    if (/\bhand[- ]?stands?\b/.test(n) && !/push|press|walk/.test(n)) return true;
+    if (/\b(farmers?|suitcase|waiter|overhead|front rack|yoke)[- ]?(carry|carries|walks?)\b/.test(n)) return true;
+    return false;
+  }
   function fmtSec(s) { s = Math.max(0, Math.round(+s || 0)); return s < 60 ? s + " s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
   // How good a set is, to compare sessions: est. 1RM for reps; for a hold, what it lifts times how long.
   function setScore(name, w, r, bw) { const l = loadOf(name, w, bw); return isIso(name) ? (l > 0 ? (l * r) / 30 : r) : e1rm(l, r); }
