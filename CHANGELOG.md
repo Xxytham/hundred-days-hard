@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.29 · How you compare
+- New **Compare** section in Stats: where each of your lifts puts you among people who train, at your body weight, age and sex. It shows your percentile (stronger than that % of lifters), what's average for you, and your level from Beginner to Elite.
+- **Your lifts** are listed strongest first. Tap one to see all five levels, the next one, and how far it is.
+- At the top: your overall percentile and level, and how your Push, Pull, Legs and Core compare, so you can see what's strongest and what has the most room to grow.
+- Covers the big lifts (bench, squat, deadlift, overhead press, rows), the common machines (chest press, lat pulldown, cable row, leg press, leg curl and extension, hip adduction and abduction, pushdowns), dumbbell work, push-ups, pull-ups, chin-ups, dips, planks and dead hangs. Assisted and weighted sets count.
+- It asks your age and sex the first time. They stay on your phone, and you can change them in Settings → About you.
+
 ## v0.28.2 · Updates in one tap
 - Fixed the update taking several tries. When two versions came out a few minutes apart, the app asked for "the newest file" and was sometimes handed the one before, then said you were already up to date. Now it downloads that exact version's file.
 - The update banner only shows once the new version is ready to download.

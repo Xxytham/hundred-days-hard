@@ -648,6 +648,45 @@ button.tot-box { width: 100%; border: 0; padding: 0; text-align: left; color: va
 .stat-tabs::-webkit-scrollbar { display: none; }
 .stat-tabs button { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; color: var(--muted); }
 .stat-tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* Compare: percentiles, colored by level like bumper plates: green 10, yellow 15, blue 20, red 25 */
+.cmp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cmp-badge { flex: none; padding: 6px 12px; border-radius: 999px; font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--on-color); background: var(--muted); }
+.cmp-badge.lv1 { background: var(--green); } .cmp-badge.lv2 { background: var(--yellow); } .cmp-badge.lv3 { background: var(--blue); } .cmp-badge.lv4 { background: var(--red); }
+.lvt1, .cmp-p.lvt1 { color: var(--green); } .lvt2, .cmp-p.lvt2 { color: var(--yellow); } .lvt3, .cmp-p.lvt3 { color: var(--blue); } .lvt4, .cmp-p.lvt4 { color: var(--red); }
+.cmp-bar { display: block; height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+.cmp-bar i { display: block; height: 100%; border-radius: 3px; transform-origin: left center; background: var(--muted); }
+.cmp-bar i.lv1 { background: var(--green); } .cmp-bar i.lv2 { background: var(--yellow); } .cmp-bar i.lv3 { background: var(--blue); } .cmp-bar i.lv4 { background: var(--red); }
+.cmp-cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.cmp-cat { display: grid; gap: 5px; }
+.cmp-cat-h { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+.cmp-cat-h b { color: var(--ink); }
+.cmp-list { display: grid; }
+.cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; width: 100%; padding: 12px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; color: var(--ink); }
+.cmp-list > :first-child, .cmp-list > :first-child .cmp-row { border-top: 0; }
+.cmp-row .cmp-bar { grid-column: 1 / -1; }
+.cmp-name { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.cmp-as { font-size: 12px; font-weight: 600; color: var(--muted); }
+.cmp-name small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+.cmp-p { font-family: var(--font-display); font-size: 24px; font-weight: 800; line-height: 1; color: var(--muted); }
+.cmp-open { --fc: var(--muted); margin: 4px -10px; padding: 0 10px 12px; border-radius: 14px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fc) 70%, transparent); background: color-mix(in srgb, var(--fc) 8%, transparent); animation: focus-in var(--t) var(--ease); }
+.cmp-open.lv1 { --fc: var(--green); } .cmp-open.lv2 { --fc: var(--yellow); } .cmp-open.lv3 { --fc: var(--blue); } .cmp-open.lv4 { --fc: var(--red); }
+.cmp-open .cmp-row { border-top: 0; }
+.cmp-open + .cmp-row { border-top: 0; }
+.cmp-detail { display: grid; gap: 10px; }
+.cmp-ladder { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.cmp-step { display: grid; gap: 2px; justify-items: center; padding: 7px 2px; border-radius: 8px; background: var(--sunk); color: var(--muted); text-align: center; min-width: 0; }
+.cmp-step small { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.cmp-step b { font-family: var(--font-display); font-size: 17px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+.cmp-step.got { color: var(--on-color); background: var(--muted); }
+.cmp-step.got b { color: var(--on-color); }
+.cmp-step.got.lv1 { background: var(--green); } .cmp-step.got.lv2 { background: var(--yellow); } .cmp-step.got.lv3 { background: var(--blue); } .cmp-step.got.lv4 { background: var(--red); }
+.cmp-step.here { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.me-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.me-age { display: inline-flex; align-items: center; gap: 8px; }
+.me-age .sbtn { width: 44px; touch-action: manipulation; color: var(--ink); }
+.me-age b { font-family: var(--font-display); font-size: 26px; font-weight: 800; min-width: 2ch; text-align: center; }
+.me-age span { font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .cmp-open { animation: none; } }
 .body-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .body-tile {
   display: grid; gap: 2px; align-content: start; text-align: left; padding: 10px 12px; border: 0; border-radius: 12px; background: var(--bg);
@@ -2552,6 +2591,206 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       lineChart([{ pts: all, cls: dir(now), fill: true }].concat(TYPES.map((t) => ({ pts: sr[t.id], cls: "t-" + t.id, thin: true }))), { label: "Strength over time", zero: true, minSpan: 4, fmt: (v) => signed(v, 0, "%"), h: 170 }) +
       '<div class="chart-legend"><span class="leg-all"><i></i>Overall</span>' + parts + "</div></section>";
   }
+
+  // ---------- Compare: how you stack up against other lifters (v0.29) ----------
+  // Five levels per lift, which Strength Level (strengthlevel.com, from the lifts its users log) puts at stronger than
+  // 5, 20, 50, 80 and 95% of lifters: men's (m) and women's (f) one-rep max in lb, for a reference body weight (ref:
+  // [men, women] in lb) and ages 25–40. Push-ups, pull-ups, chin-ups and dips (reps) come from other published tables
+  // (FitnessVolt, RPE Training), dead hang (seconds) from Endura's levels, and a few women's rows are scaled from the
+  // men's: those are marked rough. Your number sits on that curve as a percentile. Body weight scales loads by
+  // (bw/ref)^0.67 (strength grows slower than size), reps by (bw/ref)^-0.4 (a heavier body is harder to move) and
+  // holds by their own exponent; age by stdAge().
+  const STD_P = [5, 20, 50, 80, 95], STD_LV = ["Beginner", "Novice", "Intermediate", "Advanced", "Elite"];
+  const STD = {
+    bench: { n: "Bench press", c: "push", m: [127, 169, 220, 277, 339], f: [57, 82, 112, 148, 187], ref: [180, 150], fr: 1 },
+    incline: { n: "Incline bench press", c: "push", m: [98, 142, 196, 260, 329], f: [29, 58, 97, 147, 204], ref: [185, 150] },
+    dbbench: { n: "Dumbbell bench press", c: "push", m: [36, 58, 88, 123, 162], f: [13, 27, 45, 68, 95], ref: [185, 150], per: 1 },
+    chestpress: { n: "Machine chest press", c: "push", m: [75, 124, 189, 267, 354], f: [25, 49, 83, 125, 173], ref: [185, 150], mach: 1 },
+    fly: { n: "Machine chest fly", c: "push", m: [81, 127, 188, 260, 339], f: [29, 54, 88, 130, 177], ref: [185, 150], mach: 1 },
+    ohp: { n: "Overhead press", c: "push", m: [66, 99, 142, 192, 248], f: [28, 48, 75, 107, 143], ref: [185, 150] },
+    dbshoulder: { n: "Dumbbell shoulder press", c: "push", m: [29, 45, 67, 93, 121], f: [13, 22, 33, 47, 62], ref: [185, 150], per: 1 },
+    mshoulder: { n: "Machine shoulder press", c: "push", m: [54, 100, 162, 239, 326], f: [18, 39, 69, 109, 155], ref: [185, 150], mach: 1 },
+    dblat: { n: "Dumbbell lateral raise", c: "push", m: [10, 20, 35, 53, 75], f: [7, 12, 20, 29, 39], ref: [185, 150], per: 1 },
+    cablelat: { n: "Cable lateral raise", c: "push", m: [5, 15, 40, 79, 127], f: [5, 12, 21, 34, 48], ref: [185, 150], mach: 1 },
+    pushdown: { n: "Tricep pushdown", c: "push", m: [49, 82, 126, 179, 238], f: [23, 41, 66, 97, 131], ref: [180, 150], mach: 1, fr: 1 },
+    kickback: { n: "Cable tricep kickback", c: "push", m: [10, 23, 44, 70, 102], f: [6, 14, 26, 42, 61], ref: [185, 150], mach: 1, fr: 1 },
+    pushup: { n: "Push-ups", c: "push", k: "reps", m: [5, 18, 37, 60, 85], f: [1, 6, 19, 35, 52], ref: [180, 140], rough: 1 },
+    dip: { n: "Dips", c: "push", k: "reps", m: [2, 10, 22, 35, 50], f: [0, 3, 9, 18, 28], ref: [180, 140], rough: 1 },
+    row: { n: "Barbell row", c: "pull", m: [89, 133, 188, 253, 323], f: [34, 58, 91, 130, 175], ref: [185, 150] },
+    pulldown: { n: "Lat pulldown", c: "pull", m: [93, 130, 180, 235, 295], f: [52, 76, 105, 138, 176], ref: [185, 150], mach: 1 },
+    cablerow: { n: "Seated cable row", c: "pull", m: [91, 133, 186, 245, 313], f: [47, 72, 105, 142, 185], ref: [185, 150], mach: 1 },
+    facepull: { n: "Face pull", c: "pull", m: [27, 57, 101, 157, 223], f: [22, 43, 73, 110, 154], ref: [185, 150], mach: 1 },
+    bbcurl: { n: "Barbell curl", c: "pull", m: [38, 66, 103, 149, 201], f: [14, 31, 54, 85, 120], ref: [185, 150] },
+    dbcurl: { n: "Dumbbell curl", c: "pull", m: [15, 29, 49, 74, 103], f: [8, 16, 28, 44, 61], ref: [185, 150], per: 1 },
+    hammer: { n: "Hammer curl", c: "pull", m: [20, 33, 50, 71, 94], f: [11, 18, 27, 39, 52], ref: [185, 150], per: 1 },
+    pullup: { n: "Pull-ups", c: "pull", k: "reps", m: [1, 6, 13, 22, 30], f: [0, 1, 5, 11, 18], ref: [180, 140], rough: 1 },
+    chinup: { n: "Chin-ups", c: "pull", k: "reps", m: [1, 7, 14, 23, 32], f: [0, 2, 6, 12, 19], ref: [180, 140], rough: 1 },
+    hang: { n: "Dead hang", c: "pull", k: "hold", m: [10, 30, 60, 120, 180], f: [7, 20, 45, 90, 150], ref: [190, 150], bx: -0.4, rough: 1 },
+    squat: { n: "Squat", c: "legs", m: [169, 228, 298, 377, 462], f: [100, 135, 176, 222, 273], ref: [180, 150], fr: 1 },
+    deadlift: { n: "Deadlift", c: "legs", m: [201, 268, 348, 438, 535], f: [99, 146, 205, 274, 349], ref: [180, 150] },
+    rdl: { n: "Romanian deadlift", c: "legs", m: [121, 185, 266, 361, 466], f: [63, 99, 146, 201, 262], ref: [185, 150] },
+    hipthrust: { n: "Hip thrust", c: "legs", m: [84, 167, 284, 432, 603], f: [66, 124, 205, 306, 421], ref: [185, 150] },
+    legpress: { n: "Leg press", c: "legs", m: [211, 337, 500, 696, 913], f: [115, 207, 333, 489, 665], ref: [185, 150], mach: 1 },
+    legpressh: { n: "Horizontal leg press", c: "legs", m: [146, 243, 370, 525, 697], f: [90, 158, 248, 358, 482], ref: [185, 150], mach: 1 },
+    legext: { n: "Leg extension", c: "legs", m: [86, 142, 216, 305, 403], f: [45, 81, 132, 194, 265], ref: [185, 150], mach: 1 },
+    legcurl: { n: "Lying leg curl", c: "legs", m: [58, 94, 140, 195, 257], f: [33, 55, 83, 116, 154], ref: [185, 150], mach: 1 },
+    legcurls: { n: "Seated leg curl", c: "legs", m: [64, 111, 174, 252, 338], f: [35, 64, 105, 155, 212], ref: [185, 150], mach: 1 },
+    hipadd: { n: "Hip adduction", c: "legs", m: [92, 151, 228, 322, 426], f: [51, 92, 147, 216, 293], ref: [180, 150], mach: 1 },
+    hipabd: { n: "Hip abduction", c: "legs", m: [76, 130, 203, 292, 392], f: [59, 101, 157, 224, 300], ref: [185, 150], mach: 1 },
+    calf: { n: "Machine calf raise", c: "legs", m: [110, 198, 317, 463, 629], f: [66, 120, 200, 300, 410], ref: [180, 150], mach: 1, fr: 1 },
+    plank: { n: "Plank", c: "core", k: "hold", m: [11, 38, 75, 118, 166], f: [9, 31, 62, 98, 138], ref: [185, 150], bx: -0.2, fr: 1 },
+    cablecrunch: { n: "Cable crunch", c: "core", m: [40, 92, 169, 269, 386], f: [26, 65, 126, 208, 304], ref: [185, 150], mach: 1 },
+  };
+  const STD_CAT = [["push", "Push"], ["pull", "Pull"], ["legs", "Legs"], ["core", "Core"]];
+  // Which standard an exercise compares with, from its name (null = none fits, e.g. shoulder rotations).
+  function stdKey(name) {
+    const n = " " + String(name).toLowerCase().replace(/dumbell|dumbel|\bdb\b/g, "dumbbell").replace(/[-_/]/g, " ").replace(/\bassist(ed)?\b/g, " ").replace(/\s+/g, " ") + " ";
+    const has = (re) => re.test(n);
+    if (isIso(name)) return has(/plank/) && !has(/side|copenhagen/) ? "plank" : has(/hang/) ? "hang" : null;
+    if (has(/push ?ups?|press ?ups?/)) return has(/diamond|close|incline|decline|pike|archer|clap|hand ?stand|one arm|knee|wall/) ? null : "pushup";
+    if (has(/chin ?ups?/)) return "chinup";
+    if (has(/pull ?ups?/)) return has(/band|negative|jump|australian|inverted/) ? null : "pullup";
+    if (has(/\bdips?\b/)) return has(/bench|chair|box/) ? null : "dip";
+    if (has(/leg press/)) return has(/horizontal|seated/) ? "legpressh" : "legpress";
+    if (has(/leg ext|quad ext/)) return "legext";
+    if (has(/leg curl|hamstring curl/)) return has(/seated/) ? "legcurls" : has(/standing|single|one leg/) ? null : "legcurl";
+    if (has(/adduct/)) return "hipadd";
+    if (has(/abduct/)) return has(/cable|external|internal|shoulder|arm|side/) ? null : "hipabd";
+    if (has(/calf raise/)) return has(/seated|single|one leg/) ? null : "calf";
+    if (has(/hip thrust/)) return has(/single|one leg/) ? null : "hipthrust";
+    if (has(/romanian|\brdl\b|stiff leg/)) return has(/single|one leg/) ? null : "rdl";
+    if (has(/deadlift/)) return has(/single|trap|hex|sumo|deficit/) ? null : "deadlift";
+    if (has(/squat/)) return has(/split|goblet|hack|smith|front|jump|body ?weight|air|sissy|pistol|wall|box|belt/) ? null : "squat";
+    if (has(/chest fly|pec deck|pec fly|machine fly|chest flye|butterfly/)) return has(/cable|dumbbell/) ? null : "fly";
+    if (has(/chest press/)) return has(/dumbbell/) ? "dbbench" : has(/incline|decline/) ? null : "chestpress";
+    if (has(/\bbench\b/)) return has(/\bdips?\b|step|hop|jump|row/) ? null : has(/dumbbell/) ? (has(/incline|decline/) ? null : "dbbench") : has(/incline/) ? "incline" : has(/decline|close|smith|floor|pin/) ? null : "bench";
+    if (has(/shoulder press|overhead press|\bohp\b|military press|arnold press/)) return has(/machine/) ? "mshoulder" : has(/dumbbell|arnold/) ? "dbshoulder" : has(/smith|landmine|behind/) ? null : "ohp";
+    if (has(/pull ?down/)) return has(/straight arm|tricep|single|one arm/) ? null : "pulldown";
+    if (has(/cable row|seated row|low row/)) return has(/one arm|single/) ? null : "cablerow";
+    if (has(/barbell row|bent over row|bent row|pendlay/)) return "row";
+    if (has(/face pull/)) return "facepull";
+    if (has(/push ?down/)) return "pushdown";
+    if (has(/kick ?back/)) return has(/glute|leg|donkey|hip/) ? null : "kickback";
+    if (has(/lateral raise|side raise|lat raise|dumbbell raise/)) return has(/cable/) ? "cablelat" : has(/machine|front|rear/) ? null : "dblat";
+    if (has(/hammer curl/)) return has(/cable|rope/) ? null : "hammer";
+    if (has(/\bcurls?\b/)) return has(/leg|hamstring|wrist|zottman|reverse|concentration|preacher|spider|cable|machine|drag|incline/) ? null : has(/barbell|\bez\b|straight bar/) ? "bbcurl" : "dbcurl";
+    if (has(/cable crunch|kneeling crunch|rope crunch/)) return "cablecrunch";
+    return null;
+  }
+  // Strength through the years: the same for 25–40, a little less when younger, about 0.9% less a year after 40.
+  const stdAge = (a) => (a < 16 ? 0.8 : a < 18 ? 0.9 : a < 20 ? 0.95 : a < 25 ? 0.98 : a <= 40 ? 1 : Math.max(0.55, 1 - 0.009 * (a - 40)));
+  const meAgeNow = () => (S().birthYear ? new Date().getFullYear() - S().birthYear : null);
+  let meAge = 30, cmpSel = null;
+  // The five levels for you: in lb for loads, reps, or seconds.
+  function stdLevels(std, sex, bwLb, age) {
+    const base = std[sex], ref = std.ref[sex === "m" ? 0 : 1], r = bwLb / ref, af = stdAge(age);
+    const scale = std.k === "reps" ? Math.pow(r, -0.4) : std.k === "hold" ? Math.pow(r, std.bx || -0.2) : Math.pow(r, 0.67);
+    return base.map((v) => v * scale * af);
+  }
+  // Where x sits among the five levels, as a percentile from 1 to 99.
+  function stdPct(x, lv) {
+    if (!(x > 0)) return 1;
+    if (x < lv[0]) { const lo = lv[0] * 0.4; return Math.max(1, Math.round(5 * Math.max(0, x - lo) / Math.max(1e-9, lv[0] - lo))); }
+    for (let i = 0; i < 4; i++) if (x < lv[i + 1]) return Math.round(STD_P[i] + ((STD_P[i + 1] - STD_P[i]) * (x - lv[i])) / Math.max(1e-9, lv[i + 1] - lv[i]));
+    return Math.min(99, Math.round(95 + 4 * (1 - Math.exp(-(x - lv[4]) / Math.max(1e-9, lv[4] - lv[3])))));
+  }
+  const lvOf = (p) => (p >= 95 ? 4 : p >= 80 ? 3 : p >= 50 ? 2 : p >= 20 ? 1 : 0);
+  const nth = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+  // Your number for each standard: your best set from the last 3 sessions that had any exercise it fits (logged sets of
+  // today's unfinished workout count too). Loads compare by est. 1RM; reps by what you move against your body weight
+  // (so assisted and weighted sets count, as reps of your body weight); holds by seconds.
+  function myStandards(sex, age) {
+    const bwOn = bodyFinder(), U = S().unit, toLb = (v, u) => toUnit(v, u || U, "lb"), now = toLb(bwOn(todayISO()));
+    const by = {};
+    Object.keys(state.days).sort().forEach((d) => {
+      const w = state.days[d].workout; if (!w) return;
+      const bw = toLb(bwOn(d));
+      w.exercises.forEach((e) => {
+        const k = stdKey(e.name), std = k && STD[k]; if (!std) return;
+        doneSets(e).forEach((x) => {
+          const wt = toLb(+x.w || 0, e.unit), r = Math.max(0, +x.r || 0); let v = 0;
+          if (std.k === "hold") v = r;
+          else if (std.k === "reps") v = (loadOf(e.name, wt, bw) * (1 + Math.min(r, 40) / 30)) / bw; // relative to your body weight
+          else if (wt > 0 && r > 0) v = e1rm(wt, Math.min(r, 20));
+          if (!(v > 0)) return;
+          const l = by[k] || (by[k] = []), last = l[l.length - 1];
+          if (!last || last.d !== d) l.push({ d, v, e, x, wt, r, bw });
+          else if (v > last.v) Object.assign(last, { v, e, x, wt, r, bw });
+        });
+      });
+    });
+    return Object.keys(by).map((k) => {
+      const std = STD[k], best = by[k].slice(-3).reduce((a, b) => (b.v > a.v ? b : a)), lv = stdLevels(std, sex, now, age);
+      const lvx = std.k === "reps" ? lv.map((v) => 1 + v / 30) : lv; // reps levels on the same scale as your number
+      const p = stdPct(best.v, lvx);
+      return { k, std, best, lv, lvx, p, lvl: lvOf(p), sessions: by[k].length };
+    }).sort((a, b) => b.p - a.p || a.std.n.localeCompare(b.std.n));
+  }
+  // A level's number in words, in your unit: "220 lb", "37 reps", "1:15".
+  function stdTxt(std, v) {
+    if (std.k === "reps") return Math.max(0, Math.round(v)) + " reps";
+    if (std.k === "hold") return fmtSec(v);
+    const u = S().unit, x = toUnit(v, "lb", u);
+    return fmtW(u === "kg" ? Math.round(x * 2) / 2 : Math.round(x / 5) * 5 || Math.round(x)) + " " + u;
+  }
+  // Your number in words, and the set it came from.
+  function myTxt(c) {
+    const b = c.best, std = c.std, u = S().unit, e = b.e;
+    if (std.k === "hold") return { big: fmtSec(b.r), from: "" };
+    if (std.k === "reps") {
+      const plain = !(b.wt > 0) && !isAssisted(e.name), reps = 30 * (b.v - 1);
+      return plain ? { big: b.r + " reps", from: "" } : { big: b.v >= 1 ? "≈ " + Math.max(0, Math.round(reps)) + " reps" : "No full rep yet", from: setTxt(b.x, e) + unitTail(e, b.x.w > 0) + (isAssisted(e.name) ? " assist" : "") };
+    }
+    return { big: stdTxt(std, b.v), from: setTxt(b.x, e) + unitTail(e, b.x.w > 0) };
+  }
+  const meCtl = () => {
+    const sex = S().sex || "";
+    return '<div class="me-row">' + stSeg([["me-sex", "data-v", "m", "Male", sex === "m"], ["me-sex", "data-v", "f", "Female", sex === "f"]]) +
+      '<span class="me-age" role="group" aria-label="Age"><button class="sbtn" data-action="me-age" data-d="-1" aria-label="Younger">−</button><b class="num">' + meAge + '</b><span>years</span><button class="sbtn" data-action="me-age" data-d="1" aria-label="Older">+</button></span></div>';
+  };
+  function compareStats() {
+    if (S().birthYear) meAge = meAgeNow();
+    const sex = S().sex, age = meAgeNow(), weighed = Object.keys(state.days).some((d) => state.days[d].weight > 0);
+    const head = '<div class="panel-head"><h2 id="h-cmp">Compared with others</h2><span class="meta">lifters your size and age</span></div>';
+    if (!sex || age == null) return '<section class="panel" aria-labelledby="h-cmp">' + head +
+      '<p class="hint">See where each lift puts you among people who train, at your body weight and age. Pick your age, then male or female. It stays on this phone.</p>' + meCtl() + "</section>";
+    if (!weighed) return '<section class="panel" aria-labelledby="h-cmp">' + head + '<p class="empty">Log a weigh-in on Today first: every standard depends on your body weight.</p></section>';
+    const list = myStandards(sex, age);
+    if (!list.length) return '<section class="panel" aria-labelledby="h-cmp">' + head + '<p class="empty">None of your exercises has a standard yet. Bench, squat, deadlift, rows, pulldowns, curls, push-ups, pull-ups, dips, planks and the common machines all do.</p></section>';
+    const avg = Math.round(list.reduce((a, c) => a + c.p, 0) / list.length), lvl = lvOf(avg);
+    const cats = STD_CAT.map(([k, name]) => { const l = list.filter((c) => c.std.c === k); return l.length ? { k, name, p: Math.round(l.reduce((a, c) => a + c.p, 0) / l.length), n: l.length } : null; }).filter(Boolean);
+    const top = cats.slice().sort((a, b) => b.p - a.p), bal = cats.length > 1 ? "Strongest: <b>" + top[0].name + "</b>. Most room to grow: <b>" + top[top.length - 1].name + "</b>." : "";
+    const bar = (p, l) => '<span class="cmp-bar"><i class="lv' + l + '" style="transform:scaleX(' + (p / 100).toFixed(3) + ')"></i></span>';
+    const summary = '<div class="cmp-top"><div class="big-stat"><b class="num lvt' + lvl + '">' + nth(avg) + '</b><span>percentile overall</span></div><span class="cmp-badge lv' + lvl + '">' + STD_LV[lvl] + "</span></div>" +
+      '<p class="hint">Stronger than about <b>' + avg + "%</b> of lifters your weight and age, on average across " + list.length + (list.length === 1 ? " exercise." : " exercises.") + "</p>" +
+      (cats.length ? '<div class="cmp-cats">' + cats.map((c) => '<div class="cmp-cat"><span class="cmp-cat-h"><b>' + c.name + '</b><span class="num">' + nth(c.p) + "</span></span>" + bar(c.p, lvOf(c.p)) + "</div>").join("") + "</div>" + (bal ? '<p class="hint">' + bal + "</p>" : "") : "");
+    if (cmpSel !== null && !list.some((c) => c.k === cmpSel)) cmpSel = null;
+    const rows = list.map((c) => {
+      const me = myTxt(c), open = cmpSel === c.k, avgTxt = stdTxt(c.std, c.lv[2]);
+      const mine = c.best.e.name, bare = (t) => t.toLowerCase().replace(/[^a-z]/g, "").replace(/(es|s)$/, ""), same = bare(mine) === bare(c.std.n);
+      const youTxt = c.std.k ? "You: " + me.big : "Your est. max " + me.big;
+      const row = '<button class="cmp-row" data-action="cmp-sel" data-k="' + c.k + '" aria-expanded="' + open + '"><span class="cmp-name">' + esc(mine) + (same ? "" : ' <span class="cmp-as">as ' + esc(c.std.n.toLowerCase()) + "</span>") +
+        '<small class="num">' + esc(youTxt) + " · average " + avgTxt + '</small></span><span class="cmp-p num lvt' + c.lvl + '">' + nth(c.p) + "</span>" + bar(c.p, c.lvl) + "</button>";
+      if (!open) return row;
+      const next = c.lvl < 4 && c.p < 95 ? c.lvl + (c.p >= STD_P[c.lvl] ? 1 : 0) : null;
+      const gap = next != null ? c.lvx[next] - c.best.v : 0;
+      const gapTxt = next == null ? "<b>Elite.</b> Stronger than 95% of lifters your size and age on this one."
+        : "Next: <b>" + STD_LV[next] + "</b> at " + stdTxt(c.std, c.lv[next]) + (c.std.k === "reps" ? (c.best.v >= 1 ? ", about " + Math.max(1, Math.ceil(gap * 30)) + " more" : "") : c.std.k === "hold" ? ", " + fmtSec(Math.max(1, gap)) + " more" : ", " + stdTxt(c.std, Math.max(1, gap)) + " more on your est. 1RM") + ".";
+      const ladder = '<div class="cmp-ladder">' + ["Beginner", "Novice", "Interm.", "Advanced", "Elite"].map((name, i) => '<span class="cmp-step lv' + i + (c.best.v >= c.lvx[i] ? " got" : "") + (i === c.lvl ? " here" : "") + '"><small>' + name + "</small><b class=\"num\">" + stdTxt(c.std, c.lv[i]).replace(/ (lb|kg|reps)$/, "") + "</b></span>").join("") + "</div>";
+      const src = c.best.e.name, kindTxt = c.std.k === "reps" ? "reps at your body weight" : c.std.k === "hold" ? "how long you hold it" : "est. one-rep max" + (c.std.per ? ", per dumbbell" : "");
+      const detail = '<div class="cmp-detail">' + ladder + '<p class="str-note">' + gapTxt + "</p>" +
+        '<p class="hint">From your best recent set: <b>' + esc(src) + "</b>" + (me.from ? ", " + esc(me.from) : "") + " (day " + dayNum(c.best.d) + "). Compared by " + kindTxt + "." +
+        (c.std.mach ? " Machines differ between gyms, so treat this one as a rough guide." : "") + (c.std.rough || (sex === "f" && c.std.fr) ? " These levels are rougher than most." : "") + "</p></div>";
+      return '<div class="cmp-open lv' + c.lvl + '">' + row + detail + "</div>";
+    }).join("");
+    const bwU = bodyFinder()(todayISO());
+    const foot = '<p class="hint">Compared with people who log their lifts on Strength Level, at <b>' + fmtW(bwU) + " " + S().unit + "</b> and <b>" + age + "</b> (" + (sex === "m" ? "male" : "female") +
+      "). People who track their lifts are stronger than most, so the middle here is a regular gym-goer. Each uses your best set from your last 3 sessions of it. " +
+      '<button class="linkbtn" data-action="open-settings" data-to="st-about">Change age or sex</button></p>';
+    return '<section class="panel" aria-labelledby="h-cmp">' + head + summary + "</section>" +
+      '<section class="panel" aria-label="Your lifts, strongest first"><div class="panel-head"><h2>Your lifts</h2><span class="meta">strongest first</span></div><div class="cmp-list">' + rows + "</div>" + foot + "</section>";
+  }
+  const hasCompare = () => Object.keys(state.days).some((d) => { const w = state.days[d].workout; return w && w.exercises.some((e) => stdKey(e.name) && doneSets(e).length); });
   // ---------- Stats sections: Strength · Body · Heart · Sleep · Energy ----------
   // Each section is a grid of tiles; one tile at a time opens its chart below. "line" stats show the latest reading
   // and its change; "bar" stats are daily totals, shown as a 7-day average and a 14-day bar chart.
@@ -2595,7 +2834,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   const burnFoot = () => (burnEstimated ? " Burned is your whole day: resting burn" + (bmrKnown && !bmrGuess ? "" : " (estimated from your weight)") + " + workouts + walking." : "") +
     (burnCut ? " Watches overestimate workouts, so their calories count 20% lower for cardio and 35% lower for lifting." : "");
   let bmrGuess = false;
-  const STAT_TABS = [["strength", "Strength"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"], ["food", "Food"]];
+  const STAT_TABS = [["strength", "Strength"], ["compare", "Compare"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"], ["food", "Food"]];
   // Food: the rest of the label from Samsung Health's food entries (day.health.nutr), each in its usual unit.
   // Goals are adult recommended amounts (US National Academies; the higher one where men and women differ, except iron:
   // 8 mg for men, 18 mg for women under 51). Fiber scales with the calorie goal (14 g per 1,000 kcal). "max" ones are
@@ -2745,10 +2984,11 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     burnSetup();
     const data = {};
     STATS.forEach((m) => { const b = statData(m); if (b) (data[m.cat] = data[m.cat] || []).push(b); });
-    const tabs = STAT_TABS.filter(([k]) => k === "strength" || data[k]);
+    const tabs = STAT_TABS.filter(([k]) => k === "strength" || (k === "compare" ? hasCompare() : data[k]));
     if (!tabs.some(([k]) => k === statTab)) statTab = "strength";
     const chips = '<div class="stat-tabs" role="tablist">' + tabs.map(([k, name]) => '<button role="tab" data-action="stat-tab" data-k="' + k + '" aria-selected="' + (statTab === k) + '">' + name + "</button>").join("") + "</div>";
     if (statTab === "strength") { const html = strengthStats(); return offer + chips + html + scoachHTML("strength", null); }
+    if (statTab === "compare") return offer + chips + compareStats();
     const list = data[statTab];
     if (statSel[statTab] === undefined) statSel[statTab] = list[0].m.k;
     const si = list.findIndex((b) => b.m.k === statSel[statTab]), rowEnd = si < 0 ? -1 : Math.min(list.length - 1, si | 1); // the open chart goes under its row of two
@@ -3199,6 +3439,12 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
           { sw: { action: "coach-mode", v: m === "off" ? "on" : "off", on: m !== "off" }, muted: m === "off" }),
       ]);
     }
+    const ag = meAgeNow();
+    if (ag != null) meAge = ag;
+    const about = stGroup("About you", [
+      stRow("about", "Sex and age", s.sex && ag != null ? (s.sex === "m" ? "Male" : "Female") + ", " + ag : "Not set",
+        stDesc("Used only on Stats → Compare, to compare your lifts with people your size and age. It stays on this phone.") + meCtl(), { muted: !(s.sex && ag != null) }),
+    ]);
     const challenge = stGroup("Challenge", [
       stRow("length", "Challenge length", TOTAL() + " days",
         stDesc("How many days this round lasts. The day counter and The " + TOTAL() + " grid follow it.") + stNum("set-len", "Days", TOTAL(), 'inputmode="numeric" min="1" max="1000"')),
@@ -3221,7 +3467,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
           { dot: on ? "ok" : "" }),
       ]);
     }
-    return goals + taskRow + notif + coach + challenge + healthG + stGroup("App", [updateRow(), shareRow(), backupRow()]);
+    return goals + taskRow + notif + coach + about + challenge + healthG + stGroup("App", [updateRow(), shareRow(), backupRow()]);
   }
   function updateRow() {
     if (isWebApp) return stRow("updates", "App updates", "Updates itself", stDesc("This app updates itself whenever you open it with an internet connection."));
@@ -4271,7 +4517,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
   const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
-    "fab", "fab-close", "start-workout", "np-set", "np-food", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
+    "fab", "fab-close", "start-workout", "cmp-sel", "me-sex", "me-age", "np-set", "np-food", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
     if (np && np.t !== "set" && !ev.target.closest("[data-action], #numpad")) npClose();
@@ -4547,6 +4793,17 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       }
       case "toast-undo": { const f = toastUndo; hideToast(); if (f) f(); break; }
       case "stat-tab": statTab = el.dataset.k; render(true); break;
+      case "cmp-sel": cmpSel = cmpSel === el.dataset.k ? null : el.dataset.k; render(true); break;
+      case "me-sex": {
+        S().sex = el.dataset.v;
+        if (!S().birthYear) S().birthYear = new Date().getFullYear() - meAge;
+        save("settings"); render(true); break;
+      }
+      case "me-age": {
+        meAge = Math.max(13, Math.min(90, meAge + +el.dataset.d));
+        if (S().sex || S().birthYear) { S().birthYear = new Date().getFullYear() - meAge; save("settings"); } // before a sex is picked, the age waits for it
+        render(true); break;
+      }
       case "scoach-refresh": {
         const c = el.closest(".coach-card"); if (c) c.classList.remove("menu-open");
         burnSetup();
