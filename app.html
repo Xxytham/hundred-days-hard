@@ -644,6 +644,17 @@ button.tot-box { width: 100%; border: 0; padding: 0; text-align: left; color: va
 .coach-mini { display: block; width: 100%; border: 0; background: none; padding: 0; text-align: left; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .coach-mini.muted { color: var(--muted); }
 .coach-head .linkbtn { padding: 2px 0; font-size: 13px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat-grid button { display: grid; gap: 3px; align-content: start; min-width: 0; padding: 10px 11px 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); text-align: left; transition: background-color var(--t) ease, border-color var(--t) ease; }
+.sg-h { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.sg-h svg { flex: none; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sg-v { font-family: var(--font-display); font-size: 21px; font-weight: 800; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-v.up { color: var(--green); } .sg-v.down { color: var(--red); }
+.sg-s { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-grid button[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.stat-grid button[aria-selected="true"] .sg-h, .stat-grid button[aria-selected="true"] .sg-s { color: color-mix(in srgb, var(--bg) 72%, transparent); }
+.stat-grid button[aria-selected="true"] .sg-v { color: var(--bg); }
+@media (prefers-reduced-motion: reduce) { .stat-grid button { transition: none; } }
 .stat-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
 .stat-tabs::-webkit-scrollbar { display: none; }
 .stat-tabs button { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; color: var(--muted); }
@@ -2745,15 +2756,15 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   }
   const meCtl = () => {
     const sex = S().sex || "";
-    return '<div class="me-row">' + stSeg([["me-sex", "data-v", "m", "Male", sex === "m"], ["me-sex", "data-v", "f", "Female", sex === "f"]]) +
-      '<span class="me-age" role="group" aria-label="Age"><button class="sbtn" data-action="me-age" data-d="-1" aria-label="Younger">−</button><b class="num">' + meAge + '</b><span>years</span><button class="sbtn" data-action="me-age" data-d="1" aria-label="Older">+</button></span></div>';
+    return '<div class="me-row"><span class="me-age" role="group" aria-label="Age"><button class="sbtn" data-action="me-age" data-d="-1" aria-label="Younger">−</button><b class="num">' + meAge + '</b><span>years old</span><button class="sbtn" data-action="me-age" data-d="1" aria-label="Older">+</button></span>' +
+      stSeg([["me-sex", "data-v", "m", "Male", sex === "m"], ["me-sex", "data-v", "f", "Female", sex === "f"]]) + "</div>";
   };
   function compareStats() {
     if (S().birthYear) meAge = meAgeNow();
     const sex = S().sex, age = meAgeNow(), weighed = Object.keys(state.days).some((d) => state.days[d].weight > 0);
-    const head = '<div class="panel-head"><h2 id="h-cmp">Compared with others</h2><span class="meta">lifters your size and age</span></div>';
+    const head = '<div class="panel-head"><h2 id="h-cmp">How you compare</h2></div>';
     if (!sex || age == null) return '<section class="panel" aria-labelledby="h-cmp">' + head +
-      '<p class="hint">See where each lift puts you among people who train, at your body weight and age. Pick your age, then male or female. It stays on this phone.</p>' + meCtl() + "</section>";
+      '<p class="hint">See where each of your lifts puts you among people who train, at your body weight and age. Set your age, then tap male or female. It stays on this phone.</p>' + meCtl() + "</section>";
     if (!weighed) return '<section class="panel" aria-labelledby="h-cmp">' + head + '<p class="empty">Log a weigh-in on Today first: every standard depends on your body weight.</p></section>';
     const list = myStandards(sex, age);
     if (!list.length) return '<section class="panel" aria-labelledby="h-cmp">' + head + '<p class="empty">None of your exercises has a standard yet. Bench, squat, deadlift, rows, pulldowns, curls, push-ups, pull-ups, dips, planks and the common machines all do.</p></section>';
@@ -2761,7 +2772,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const cats = STD_CAT.map(([k, name]) => { const l = list.filter((c) => c.std.c === k); return l.length ? { k, name, p: Math.round(l.reduce((a, c) => a + c.p, 0) / l.length), n: l.length } : null; }).filter(Boolean);
     const top = cats.slice().sort((a, b) => b.p - a.p), bal = cats.length > 1 ? "Strongest: <b>" + top[0].name + "</b>. Most room to grow: <b>" + top[top.length - 1].name + "</b>." : "";
     const bar = (p, l) => '<span class="cmp-bar"><i class="lv' + l + '" style="transform:scaleX(' + (p / 100).toFixed(3) + ')"></i></span>';
-    const summary = '<div class="cmp-top"><div class="big-stat"><b class="num lvt' + lvl + '">' + nth(avg) + '</b><span>percentile overall</span></div><span class="cmp-badge lv' + lvl + '">' + STD_LV[lvl] + "</span></div>" +
+    const summary = '<div class="cmp-top"><div class="big-stat"><b class="num lvt' + lvl + '">' + nth(avg) + '</b><span>percentile</span></div><span class="cmp-badge lv' + lvl + '">' + STD_LV[lvl] + "</span></div>" +
       '<p class="hint">Stronger than about <b>' + avg + "%</b> of lifters your weight and age, on average across " + list.length + (list.length === 1 ? " exercise." : " exercises.") + "</p>" +
       (cats.length ? '<div class="cmp-cats">' + cats.map((c) => '<div class="cmp-cat"><span class="cmp-cat-h"><b>' + c.name + '</b><span class="num">' + nth(c.p) + "</span></span>" + bar(c.p, lvOf(c.p)) + "</div>").join("") + "</div>" + (bal ? '<p class="hint">' + bal + "</p>" : "") : "");
     if (cmpSel !== null && !list.some((c) => c.k === cmpSel)) cmpSel = null;
@@ -2789,6 +2800,32 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       '<button class="linkbtn" data-action="open-settings" data-to="st-about">Change age or sex</button></p>';
     return '<section class="panel" aria-labelledby="h-cmp">' + head + summary + "</section>" +
       '<section class="panel" aria-label="Your lifts, strongest first"><div class="panel-head"><h2>Your lifts</h2><span class="meta">strongest first</span></div><div class="cmp-list">' + rows + "</div>" + foot + "</section>";
+  }
+  // A section's headline for its tile at the top of Stats.
+  const SEC_ICON = {
+    strength: '<svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>',
+    body: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 10a3 3 0 0 1 6 0M12 10l1.5-2"/></svg>',
+    heart: '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+    sleep: '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+    energy: '<svg viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z"/></svg>',
+    food: '<svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 8h3"/></svg>',
+  };
+  function secHead(k, list) {
+    if (k === "strength") {
+      const age = meAgeNow(), weighed = Object.keys(state.days).some((d) => state.days[d].weight > 0);
+      const l = S().sex && age != null && weighed ? myStandards(S().sex, age) : [];
+      if (l.length) { const p = Math.round(l.reduce((a, c) => a + c.p, 0) / l.length); return { v: nth(p), s: "percentile" }; }
+      const all = strengthTrend().all;
+      return all.length > 1 ? { v: signed(all[all.length - 1].v, 1, "%"), s: "since day " + all[0].n, tone: all[all.length - 1].v >= -0.05 ? "up" : "down" } : { v: "–", s: "lifts" };
+    }
+    if (!list || !list.length) return { v: "–", s: "" };
+    if (k === "food") {
+      const g = list.filter((b) => b.ok != null), ok = g.filter((b) => b.ok).length;
+      return g.length ? { v: ok + " of " + g.length, s: "on target", tone: ok * 2 >= g.length ? "up" : "" } : { v: String(list.length), s: "nutrients" };
+    }
+    const b = list[0], m = b.m;
+    if (m.kind === "line") return { v: b.last.v.toFixed(m.dec) + m.unit().replace(/^ /, " "), s: m.k === "weight" ? "body weight" : m.k === "restHr" ? "resting" : m.name.toLowerCase(), tone: b.pts.length < 2 || b.flat ? "" : b.good ? "up" : "down" };
+    return { v: b.avg == null ? "–" : m.show(b.avg), s: k === "energy" ? "eaten, 7-day avg" : "7-day average", tone: b.ok == null ? "" : b.ok ? "up" : "down" };
   }
   const hasCompare = () => Object.keys(state.days).some((d) => { const w = state.days[d].workout; return w && w.exercises.some((e) => stdKey(e.name) && doneSets(e).length); });
   // ---------- Stats sections: Strength · Body · Heart · Sleep · Energy ----------
@@ -2834,7 +2871,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   const burnFoot = () => (burnEstimated ? " Burned is your whole day: resting burn" + (bmrKnown && !bmrGuess ? "" : " (estimated from your weight)") + " + workouts + walking." : "") +
     (burnCut ? " Watches overestimate workouts, so their calories count 20% lower for cardio and 35% lower for lifting." : "");
   let bmrGuess = false;
-  const STAT_TABS = [["strength", "Strength"], ["compare", "Compare"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"], ["food", "Food"]];
+  const STAT_TABS = [["strength", "Strength"], ["body", "Body"], ["heart", "Heart"], ["sleep", "Sleep"], ["energy", "Energy"], ["food", "Food"]];
   // Food: the rest of the label from Samsung Health's food entries (day.health.nutr), each in its usual unit.
   // Goals are adult recommended amounts (US National Academies; the higher one where men and women differ, except iron:
   // 8 mg for men, 18 mg for women under 51). Fiber scales with the calorie goal (14 g per 1,000 kcal). "max" ones are
@@ -2984,11 +3021,12 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     burnSetup();
     const data = {};
     STATS.forEach((m) => { const b = statData(m); if (b) (data[m.cat] = data[m.cat] || []).push(b); });
-    const tabs = STAT_TABS.filter(([k]) => k === "strength" || (k === "compare" ? hasCompare() : data[k]));
+    const tabs = STAT_TABS.filter(([k]) => k === "strength" || data[k]);
     if (!tabs.some(([k]) => k === statTab)) statTab = "strength";
-    const chips = '<div class="stat-tabs" role="tablist">' + tabs.map(([k, name]) => '<button role="tab" data-action="stat-tab" data-k="' + k + '" aria-selected="' + (statTab === k) + '">' + name + "</button>").join("") + "</div>";
-    if (statTab === "strength") { const html = strengthStats(); return offer + chips + html + scoachHTML("strength", null); }
-    if (statTab === "compare") return offer + chips + compareStats();
+    // The sections as a grid of tiles (three across, so nothing scrolls sideways), each with its headline number.
+    const chips = '<div class="stat-grid" role="tablist">' + tabs.map(([k, name]) => { const h = secHead(k, data[k]);
+      return '<button role="tab" data-action="stat-tab" data-k="' + k + '" aria-selected="' + (statTab === k) + '"><span class="sg-h">' + (SEC_ICON[k] || "") + name + '</span><b class="sg-v num ' + (h.tone || "") + '">' + esc(h.v) + '</b><small class="sg-s">' + esc(h.s) + "</small></button>"; }).join("") + "</div>";
+    if (statTab === "strength") return offer + chips + strengthStats() + scoachHTML("strength", null) + compareStats();
     const list = data[statTab];
     if (statSel[statTab] === undefined) statSel[statTab] = list[0].m.k;
     const si = list.findIndex((b) => b.m.k === statSel[statTab]), rowEnd = si < 0 ? -1 : Math.min(list.length - 1, si | 1); // the open chart goes under its row of two
@@ -3443,7 +3481,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     if (ag != null) meAge = ag;
     const about = stGroup("About you", [
       stRow("about", "Sex and age", s.sex && ag != null ? (s.sex === "m" ? "Male" : "Female") + ", " + ag : "Not set",
-        stDesc("Used only on Stats → Compare, to compare your lifts with people your size and age. It stays on this phone.") + meCtl(), { muted: !(s.sex && ag != null) }),
+        stDesc("Used only on Stats → Strength, to compare your lifts with people your size and age. It stays on this phone.") + meCtl(), { muted: !(s.sex && ag != null) }),
     ]);
     const challenge = stGroup("Challenge", [
       stRow("length", "Challenge length", TOTAL() + " days",

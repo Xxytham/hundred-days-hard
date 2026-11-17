@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.29.1 · Stats at a glance
+- The top of Stats is now a grid of six tiles instead of a row of buttons that ran off the screen. Each shows its section's key number: your strength percentile, body weight, resting heart rate, sleep, calories and how many nutrients are on target.
+- How you compare is now part of Strength, right under the strength chart, instead of its own section.
+- When it asks for your age and sex, the age comes first, then male or female.
+
 ## v0.29 · How you compare
 - New **Compare** section in Stats: where each of your lifts puts you among people who train, at your body weight, age and sex. It shows your percentile (stronger than that % of lifters), what's average for you, and your level from Beginner to Elite.
 - **Your lifts** are listed strongest first. Tap one to see all five levels, the next one, and how far it is.
