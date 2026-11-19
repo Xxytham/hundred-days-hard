@@ -1155,13 +1155,16 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     return out;
   };
   let cheered = null; // set at startup, from what's already met
+  // Food tracking can be switched off (settings.food === false) for someone who only wants the workouts: calories and
+  // protein then leave Today, Stats, Progress, the widget, goal alerts and the coach. Nothing logged is deleted.
+  const foodOn = () => S().food !== false;
   function cheerGoals() {
     const t = todayISO();
     if (!cheered) return;
     if (cheered.date !== t) cheered = { date: t, seen: new Set() };
     let sent = "";
     try { sent = bridge && bridge.goalsSent ? String(bridge.goalsSent()) : ""; } catch (e) { /* ignore */ }
-    const fresh = metNow(t).filter((g) => !cheered.seen.has(g));
+    const fresh = metNow(t).filter((g) => !cheered.seen.has(g) && (foodOn() || (g !== "protein" && g !== "calories")));
     fresh.forEach((g) => cheered.seen.add(g));
     const say = fresh.filter((g) => !sent.split(",").includes(g));
     if (!say.length || document.visibilityState !== "visible" || !S().setupDone) return;
@@ -1185,7 +1188,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
           date: t, startDate: S().startDate, total: TOTAL(), calorieGoal: S().calorieGoal, aim: calAim(), proteinGoal: S().proteinGoal,
           stepsTarget: S().stepsTarget, sleepTarget: S().sleepTarget, kcal: d.kcal || 0, protein: d.protein || 0, kcalSrc: d.kcalSrc || "",
           steps: (d.health && d.health.steps) || 0, sleepMin: (d.health && d.health.sleepMin) || 0, streak: st ? st.cur : 0,
-          tasksDone: doneOn(t), tasksTotal: tasksFor(t).length, nextGoal: next, notify: S().goalNotifs !== false,
+          tasksDone: doneOn(t), tasksTotal: tasksFor(t).length, nextGoal: next, notify: S().goalNotifs !== false, food: foodOn(),
         }));
       } catch (e) { /* ignore */ }
     }, 800);
@@ -1670,7 +1673,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     // percent is on target, so a 219 g week against a 220 g goal is a win, not a miss.
     const onTarget = [], toGrow = [], pct = (v, g) => Math.floor((v / g) * 100) + "%"; // 219 of 220 reads 99%, not 100%
     const kc = vals(week, (d) => d.kcal), kc0 = vals(prevWeek, (d) => d.kcal);
-    if (kc.length) {
+    if (kc.length && foodOn()) {
       const [lo, hi] = calAim() === "lose" ? calRange() : [S().calorieGoal, Infinity], tol = Math.max(50, S().calorieGoal * 0.02), avg = avgOf(kc);
       const near = (v) => v >= lo - tol && v <= hi + tol, ok = kc.filter(near).length, over = kc.filter((v) => v > hi + tol), under = kc.filter((v) => v < lo - tol);
       const where = avg > hi ? fmt(avg - hi) + " above the top (" + pct(avg, hi) + ")" : avg < lo ? fmt(lo - avg) + " below " + (calAim() === "lose" ? "the bottom" : "the goal") + " (" + pct(avg, lo) + ")" : calAim() === "lose" ? "inside the range" : "at or above the goal";
@@ -1682,7 +1685,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       else { toGrow.push("calories (average " + fmt(avg) + " against " + calGoalText() + ")"); fixes.push([Math.min(1, Math.abs(avg - (avg > hi ? hi : lo)) / 500), "calories averaging " + fmt(avg) + " against " + calGoalText() + ", " + where]); }
     }
     const pr = vals(week, (d) => d.protein), pr0 = vals(prevWeek, (d) => d.protein), pg = S().proteinGoal;
-    if (pr.length && pg) {
+    if (pr.length && pg && foodOn()) {
       const tol = Math.max(5, Math.round(pg * 0.03)), avg = avgOf(pr), gap = Math.round(pg - avg), close = avg >= pg - tol;
       const hit = pr.filter((v) => v >= pg - tol).length, miss = pr.filter((v) => v < pg - tol);
       out.push("Protein, last 7 days: average " + fmt(avg) + " g against a " + pg + " g goal (" + pct(avg, pg) + (gap > 0 ? ", " + gap + " g short" : gap < 0 ? ", " + -gap + " g over" : "") + (close ? ", which is on target" : "") + ")" + vs(avg, avgOf(pr0), (v) => fmt(v) + " g") + ". " +
@@ -1691,7 +1694,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       else { toGrow.push("protein (" + fmt(avg) + " of " + pg + " g)"); fixes.push([Math.min(1, gap / (pg * 0.25)) + 0.1, "protein averaging " + fmt(avg) + " g, " + gap + " g under the " + pg + " g goal"]); }
     }
     const todayCal = (k) => { const c = calStatus(k); return c.state === "met" ? (calAim() === "lose" ? "in range" : "goal reached") : c.state === "over" ? fmt(k - calRange()[1]) + " over the range" : fmt(c.left) + (calAim() === "lose" ? " below the range" : " to go"); };
-    if (day.kcal != null) out.push("Today so far (the day isn't over): " + fmt(day.kcal) + " calories (" + todayCal(day.kcal) + ") and " + fmt(day.protein || 0) + " g protein" + (pg && (day.protein || 0) < pg ? " (" + fmt(pg - (day.protein || 0)) + " g to go)" : "") + ".");
+    if (day.kcal != null && foodOn()) out.push("Today so far (the day isn't over): " + fmt(day.kcal) + " calories (" + todayCal(day.kcal) + ") and " + fmt(day.protein || 0) + " g protein" + (pg && (day.protein || 0) < pg ? " (" + fmt(pg - (day.protein || 0)) + " g to go)" : "") + ".");
     const sl = vals(week, (d) => hOf(d).sleepMin), sl0 = vals(prevWeek, (d) => hOf(d).sleepMin), sg = S().sleepTarget * 60;
     if (sl.length) {
       const avg = avgOf(sl), close = avg >= sg - 15, short = sl.filter((v) => v < sg - 15).length;
@@ -1745,8 +1748,9 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
         const bwLb = unit === "kg" ? w1 * KG_TO_LB : w1, pLo = Math.min(1.5, bwLb * 0.0075), pHi = Math.min(3, bwLb * 0.015), rate = -lb;
         const inU = (v) => (unit === "kg" ? v / KG_TO_LB : v), paceTxt = fmtW(Math.round(inU(pLo) * 10) / 10) + " to " + fmtW(Math.round(inU(pHi) * 10) / 10) + " " + unit + " a week";
         const ng = (d) => Math.round((S().calorieGoal + d) / 50) * 50, rangeOf = (g) => fmt(g - 100) + "–" + fmt(g + 100);
-        if (lose) out.push("Pace goal for fat loss: " + paceTxt + ". Current pace: " + (rate > 0 ? "losing " + fmtW(Math.round(inU(rate) * 10) / 10) + " " + unit + " a week" : "not losing") + ".");
-        if (lose && rate > pHi) {
+        if (lose && foodOn()) out.push("Pace goal for fat loss: " + paceTxt + ". Current pace: " + (rate > 0 ? "losing " + fmtW(Math.round(inU(rate) * 10) / 10) + " " + unit + " a week" : "not losing") + ".");
+        if (!foodOn()) { /* without food tracking, pace and plateau advice (which is about calorie goals) is left out */ }
+        else if (lose && rate > pHi) {
           out.push("Pace check: faster than the " + paceTxt + " goal. Losing this fast can cost muscle and energy. A fix: eat about 150 to 250 more a day, for example a calorie goal of " + fmt(ng(200)) + " (a range of " + rangeOf(ng(200)) + ").");
           fixes.push([0.98, "losing faster than the " + paceTxt + " goal; suggest a calorie goal of about " + fmt(ng(200))]);
         } else if (lose && rate >= pLo) {
@@ -2244,7 +2248,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
 
   // How far a self-ticking task is (0–1): steps, sleep and workouts against their targets, protein against its goal.
   function taskProgress(h, day, st) {
-    if (h.id === "protein") return st.proteinGoal > 0 && day.protein != null ? Math.min(1, day.protein / st.proteinGoal) : null;
+    if (h.id === "protein") return foodOn() && st.proteinGoal > 0 && day.protein != null ? Math.min(1, day.protein / st.proteinGoal) : null;
     const m = METRICS[h.id], v = m ? m.value(day, st) : null, t = m ? m.target(st) : 0;
     return v != null && t > 0 ? Math.min(1, Math.max(0, v / t)) : null;
   }
@@ -2328,14 +2332,14 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       (isToday ? offerHTML() || workoutOfferHTML() : "") +
       (isToday ? streakHTML() : "") +
       (isToday ? coachHTML() : "") +
-      '<p class="coach">' + coachLine(day, isToday) + "</p>" +
+      (foodOn() ? '<p class="coach">' + coachLine(day, isToday) + "</p>" : "") +
       restoreCard +
 
-      '<section class="panel" aria-labelledby="h-cal">' +
+      (foodOn() ? '<section class="panel" aria-labelledby="h-cal">' +
         '<div class="panel-head"><h2 id="h-cal">Food</h2><span class="meta">' + (isToday ? "Today's totals" : "Day totals") + "</span></div>" +
         foodBoxes(day) +
         sourceHTML(day, isToday) +
-      "</section>" +
+      "</section>" : "") +
 
       '<section class="panel" aria-labelledby="h-hab">' +
         '<div class="panel-head"><h2 id="h-hab">Daily tasks</h2><span class="meta num">' + doneOn(viewDate) + " / " + tasks.length + "</span></div>" + habits +
@@ -2534,7 +2538,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     return (
       renderStrength() +
       '<section class="panel" aria-labelledby="h-g"><div class="panel-head"><h2 id="h-g">The ' + N + '</h2><span class="meta num">' + (tn >= N ? "Finished" : (N - tn) + " days to go") + "</span></div>" +
-        '<div class="mini-stats"><span><b class="num">' + complete + "</b>perfect days</span><span><b class=\"num\">" + streak + "</b>day streak</span><span><b class=\"num\">" + (kcalDays ? fmt(kcalSum / kcalDays) : "–") + "</b>avg kcal</span></div>" +
+        '<div class="mini-stats"><span><b class="num">' + complete + "</b>perfect days</span><span><b class=\"num\">" + streak + "</b>day streak</span>" + (foodOn() ? "<span><b class=\"num\">" + (kcalDays ? fmt(kcalSum / kcalDays) : "–") + "</b>avg kcal</span>" : "") + "</div>" +
         '<div class="grid100">' + cells.join("") + "</div>" +
         '<div class="legend"><span><i style="background:var(--red)"></i>All tasks</span><span><i style="background:var(--blue)"></i>Some tasks</span><span><i style="background:var(--sunk)"></i>Nothing checked</span></div>' +
         '<p class="empty">Tap a day to view or edit it.</p>' +
@@ -2825,7 +2829,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     }
     const b = list[0], m = b.m;
     if (m.kind === "line") return { v: b.last.v.toFixed(m.dec) + m.unit().replace(/^ /, " "), s: m.k === "weight" ? "body weight" : m.k === "restHr" ? "resting" : m.name.toLowerCase(), tone: b.pts.length < 2 || b.flat ? "" : b.good ? "up" : "down" };
-    return { v: b.avg == null ? "–" : m.show(b.avg), s: k === "energy" ? "eaten, 7-day avg" : "7-day average", tone: b.ok == null ? "" : b.ok ? "up" : "down" };
+    return { v: b.avg == null ? "–" : m.show(b.avg), s: m.k === "kcal" ? "eaten, 7-day avg" : m.k === "burned" ? "burned, 7-day avg" : "7-day average", tone: b.ok == null ? "" : b.ok ? "up" : "down" };
   }
   const hasCompare = () => Object.keys(state.days).some((d) => { const w = state.days[d].workout; return w && w.exercises.some((e) => stdKey(e.name) && doneSets(e).length); });
   // ---------- Stats sections: Strength · Body · Heart · Sleep · Energy ----------
@@ -3020,7 +3024,8 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
     const offer = missing.length && S().watchOffer !== missing.join() ? '<div class="notice"><b>Add more from your watch</b><span class="hint">Let Samsung Health share ' + missing.join(", ") + " and they'll show up here.</span><div class=\"btn-row\"><button class=\"btn\" data-action=\"health-connect\">Connect</button><button class=\"btn secondary\" data-action=\"watch-later\" data-v=\"" + esc(missing.join()) + "\">Not now</button></div></div>" : "";
     burnSetup();
     const data = {};
-    STATS.forEach((m) => { const b = statData(m); if (b) (data[m.cat] = data[m.cat] || []).push(b); });
+    const noFood = !foodOn(), FOOD_STATS = ["kcal", "protein", "balance"];
+    STATS.forEach((m) => { if (noFood && (m.cat === "food" || FOOD_STATS.includes(m.k))) return; const b = statData(m); if (b) (data[m.cat] = data[m.cat] || []).push(b); });
     const tabs = STAT_TABS.filter(([k]) => k === "strength" || data[k]);
     if (!tabs.some(([k]) => k === statTab)) statTab = "strength";
     // The sections as a grid of tiles (three across, so nothing scrolls sideways), each with its headline number.
@@ -3431,12 +3436,17 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   function renderSettings() {
     const s = S(), lose = calAim() === "lose", hasHealth = bridge && health !== "unavailable", apk = mode === "apk";
     const tasks = activeTasks();
+    const fo = foodOn();
     const goals = stGroup("Goals", [
-      stRow("cal", "Calorie goal", (lose ? "Lose fat · " + calGoalText() : "Build muscle · at least " + fmt(s.calorieGoal)) + " kcal",
+      stRow("food", "Track food", fo ? "Calories and protein" : "Off, just workouts",
+        stDesc(fo ? "Calories and protein on Today, in Stats, on the widget and in the coach's notes. Turn it off to use the app just for workouts." : "Calories and protein are hidden everywhere. Turn it back on any time: anything logged before is still there.") +
+        stSeg([["food-mode", "data-v", "on", "On", fo], ["food-mode", "data-v", "off", "Off", !fo]]),
+        { sw: { action: "food-mode", v: fo ? "off" : "on", on: fo }, muted: !fo }),
+      fo && stRow("cal", "Calorie goal", (lose ? "Lose fat · " + calGoalText() : "Build muscle · at least " + fmt(s.calorieGoal)) + " kcal",
         stDesc((lose ? "Land anywhere in a 200-calorie range around this number." : "Eat at least this much each day.") + LATER) +
         stSeg([["cal-aim", "data-v", "lose", "Lose fat", lose], ["cal-aim", "data-v", "build", "Build muscle", !lose]]) +
         stNum("set-kcal", lose ? "Middle of the range" : "At least", s.calorieGoal, 'inputmode="numeric" min="0" step="50"')),
-      stRow("protein", "Protein", fmt(s.proteinGoal) + " g a day",
+      fo && stRow("protein", "Protein", fmt(s.proteinGoal) + " g a day",
         stDesc('"Hit protein goal" ticks itself once you reach this.' + LATER) + stNum("set-protein", "Grams a day", s.proteinGoal, 'inputmode="numeric" min="0" step="5"')),
       stRow("steps", "Steps", fmt(s.stepsTarget) + " a day",
         stDesc((hasHealth ? "The steps task ticks itself when Samsung Health counts this many." : "Your daily steps target.") + LATER) + stNum("set-steps", "Steps a day", s.stepsTarget, 'inputmode="numeric" min="0" step="500"')),
@@ -4555,7 +4565,7 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
   // ---------- events ----------
   // Light ticks on taps that change what you see or log a workout; ticks and saves get their own "confirm" buzz.
   const TAP_BUZZ = new Set(["tab", "goal-notifs", "stat-tab", "stat-sel", "coach-refresh", "coach-setup", "coach-menu", "coach-mode", "open-settings", "str-sel", "str-type", "open-goal", "edit-goal", "goal-group", "del-step", "del-goal", "new-goal-toggle", "add-template",
-    "fab", "fab-close", "start-workout", "cmp-sel", "me-sex", "me-age", "np-set", "np-food", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
+    "fab", "fab-close", "start-workout", "food-mode", "cmp-sel", "me-sex", "me-age", "np-set", "np-food", "open-workout", "ex-open", "ex-step", "set-go", "set-del", "try-heavier", "ex-unit", "wadd-open", "wadd-cancel", "w-edit", "w-discard",
     "ex-rename", "rename-all", "rename-one", "rename-cancel", "ex-del", "close-sheet", "prev-day", "next-day", "unit", "cal-aim", "toast-undo"]);
   document.addEventListener("click", (ev) => {
     if (np && np.t !== "set" && !ev.target.closest("[data-action], #numpad")) npClose();
@@ -4831,6 +4841,11 @@ html.sheet-open .toast, body.np-on .toast { bottom: auto; top: calc(env(safe-are
       }
       case "toast-undo": { const f = toastUndo; hideToast(); if (f) f(); break; }
       case "stat-tab": statTab = el.dataset.k; render(true); break;
+      case "food-mode": {
+        const on = el.dataset.v === "on";
+        if (on) delete S().food; else S().food = false;
+        save("settings"); pushWidget(); toast(on ? "Food tracking is on" : "Food tracking is off. Just workouts now."); render(true); break;
+      }
       case "cmp-sel": cmpSel = cmpSel === el.dataset.k ? null : el.dataset.k; render(true); break;
       case "me-sex": {
         S().sex = el.dataset.v;

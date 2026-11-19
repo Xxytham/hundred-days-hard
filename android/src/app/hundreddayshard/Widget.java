@@ -54,6 +54,9 @@ public class Widget extends AppWidgetProvider {
             int color = "over".equals(state) ? 0xFFFF5263 : "met".equals(state) ? 0xFF4CC489 : 0xFF5E9CFF;
             v.setColorStateList(R.id.w_kcal_bar, "setProgressTintList", ColorStateList.valueOf(color));
         }
+        // Food tracking switched off in the app: no calorie or protein rows
+        int food = s.optBoolean("food", true) ? View.VISIBLE : View.GONE;
+        for (int id : new int[] {R.id.w_kcal_row, R.id.w_kcal_bar, R.id.w_protein_row, R.id.w_protein_bar}) v.setViewVisibility(id, food);
         String next = s.optString("nextGoal", "");
         v.setTextViewText(R.id.w_next, next.isEmpty() ? "" : "Next: " + next);
         v.setViewVisibility(R.id.w_next, next.isEmpty() ? View.GONE : View.VISIBLE);

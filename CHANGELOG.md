@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.30 · Workouts only, if you like
+- New **Track food** switch at the top of Settings → Goals. Turn it off to use the app just for workouts.
+- With it off, calories and protein disappear: no Food box or calorie line on Today, no calorie or protein goals in Settings, no Food section or calorie tiles in Stats, no calorie or protein rows on the widget, and no calorie or protein alerts. The coach stops talking about food too.
+- Nothing is deleted. Turn it back on and everything you logged is still there.
+
 ## v0.29.1 · Stats at a glance
 - The top of Stats is now a grid of six tiles instead of a row of buttons that ran off the screen. Each shows its section's key number: your strength percentile, body weight, resting heart rate, sleep, calories and how many nutrients are on target.
 - How you compare is now part of Strength, right under the strength chart, instead of its own section.

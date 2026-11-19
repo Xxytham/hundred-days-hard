@@ -96,8 +96,9 @@ final class Today {
     static java.util.List<String> met(JSONObject s) {
         java.util.List<String> out = new java.util.ArrayList<>();
         double kcal = num(s, "kcal"), goal = s.optDouble("calorieGoal", 0);
-        if (num(s, "protein") > 0 && num(s, "protein") >= s.optDouble("proteinGoal", Double.MAX_VALUE)) out.add("protein");
-        if (kcal > 0 && goal > 0 && ("build".equals(s.optString("aim")) ? kcal >= goal : kcal >= goal - 100 && kcal <= goal + 100)) out.add("calories");
+        boolean food = s.optBoolean("food", true); // food tracking switched off in the app: no protein or calorie alerts
+        if (food && num(s, "protein") > 0 && num(s, "protein") >= s.optDouble("proteinGoal", Double.MAX_VALUE)) out.add("protein");
+        if (food && kcal > 0 && goal > 0 && ("build".equals(s.optString("aim")) ? kcal >= goal : kcal >= goal - 100 && kcal <= goal + 100)) out.add("calories");
         if (num(s, "steps") > 0 && num(s, "steps") >= s.optDouble("stepsTarget", Double.MAX_VALUE)) out.add("steps");
         if (num(s, "sleepMin") > 0 && num(s, "sleepMin") >= s.optDouble("sleepTarget", 99) * 60) out.add("sleep");
         return out;
